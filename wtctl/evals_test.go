@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"github.com/watchtowerobservability/watchtower-cli/internal/repofile"
 
 	"gopkg.in/yaml.v3"
 )
@@ -94,7 +95,7 @@ func TestRegressionFailsWithBaseline(t *testing.T) {
 }
 
 func TestActionYamlValid(t *testing.T) {
-	b, err := os.ReadFile("../../integrations/github-action/watchtower-evals/action.yml")
+	b, err := os.ReadFile(repofile.Path("integrations/github-action/watchtower-evals/action.yml"))
 	if err != nil {
 		t.Fatal(err)
 	}

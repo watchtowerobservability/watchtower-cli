@@ -5,9 +5,10 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"github.com/watchtowerobservability/watchtower-cli/internal/repofile"
 )
 
-const pwDir = "../uptime/testdata/pw/"
+var pwDir = repofile.Path("uptime/testdata/pw") + "/"
 
 func TestPlaywrightImportSubset(t *testing.T) {
 	file := pwDir + "login.spec.ts"
