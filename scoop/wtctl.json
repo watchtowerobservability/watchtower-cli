@@ -1,0 +1,17 @@
+{
+  "version": "0.1.0",
+  "description": "Watchtower command line client",
+  "homepage": "https://github.com/watchtowerobservability/watchtower-cli",
+  "license": "Apache-2.0",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/watchtowerobservability/watchtower-cli/releases/download/v0.1.0/wtctl_windows_amd64.exe#/wtctl.exe",
+      "hash": "REPLACE_WITH_SHA256_FROM_SHA256SUMS"
+    },
+    "arm64": {
+      "url": "https://github.com/watchtowerobservability/watchtower-cli/releases/download/v0.1.0/wtctl_windows_arm64.exe#/wtctl.exe",
+      "hash": "REPLACE_WITH_SHA256_FROM_SHA256SUMS"
+    }
+  },
+  "bin": "wtctl.exe"
+}

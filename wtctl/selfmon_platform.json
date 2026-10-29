@@ -1,0 +1,10 @@
+{"version": 1, "panels": [
+  {"id": "lag", "title": "Kafka consumer lag (s)", "type": "timeseries", "grid": {"x": 0, "y": 0, "w": 12, "h": 7}, "query": {"kind": "promql", "text": "max by (topic) (wt_consumer_lag_seconds)"}},
+  {"id": "batch", "title": "Worker batch latency (s)", "type": "timeseries", "grid": {"x": 12, "y": 0, "w": 12, "h": 7}, "query": {"kind": "promql", "text": "wt_worker_batch_seconds_sum"}},
+  {"id": "ins", "title": "ClickHouse insert errors", "type": "timeseries", "grid": {"x": 0, "y": 7, "w": 12, "h": 7}, "query": {"kind": "promql", "text": "increase(wt_ch_insert_errors_total[5m])"}},
+  {"id": "acc", "title": "Ingest accepted / rejected", "type": "timeseries", "grid": {"x": 12, "y": 7, "w": 12, "h": 7}, "query": {"kind": "promql", "text": "sum by (signal) (rate(wt_gateway_accepted_total[5m]))"}},
+  {"id": "api", "title": "API request latency by route", "type": "timeseries", "grid": {"x": 0, "y": 14, "w": 12, "h": 7}, "query": {"kind": "promql", "text": "wt_api_request_seconds_sum"}},
+  {"id": "eval", "title": "Alert evaluation lag (s)", "type": "stat", "grid": {"x": 12, "y": 14, "w": 6, "h": 7}, "query": {"kind": "promql", "text": "max(wt_alert_eval_lag_seconds)"}},
+  {"id": "outbox", "title": "Outbox age (s)", "type": "stat", "grid": {"x": 18, "y": 14, "w": 6, "h": 7}, "query": {"kind": "promql", "text": "max(wt_outbox_age_seconds)"}},
+  {"id": "notif", "title": "Notifier delivery failures", "type": "timeseries", "grid": {"x": 0, "y": 21, "w": 24, "h": 7}, "query": {"kind": "promql", "text": "increase(wt_notifier_delivery_failures_total[5m])"}}
+]}
