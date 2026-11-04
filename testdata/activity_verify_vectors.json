@@ -1,0 +1,514 @@
+{
+ "about": "Shared conformance vectors for every Watchtower activity-log verifier. Format and algorithms: docs/superpowers/specs/2026-10-31-activity-verification-spec.md. Merkle tree vectors: activity_merkle_vectors.json.",
+ "account": "acct_1",
+ "chain": [
+  {
+   "body": "{\"account_id\":\"acct_1\",\"action\":\"user.login\",\"actor_id\":\"user_1\",\"actor_name\":\"Ann\",\"actor_type\":\"user\",\"id\":\"0190a1b2-0000-7000-8000-000000000001\",\"ip\":null,\"metadata\":{},\"occurred_at_micros\":1700000000000000,\"project_id\":\"prj_00000000000000000000000001\",\"seq\":1,\"target_id\":null,\"target_name\":null,\"target_type\":null}",
+   "hash": "c6a68ef0ae50d4951f6883072b030adad4d390e4013efcfca27695e3924869fe",
+   "id": "0190a1b2-0000-7000-8000-000000000001",
+   "prev_hash": "",
+   "seq": 1
+  },
+  {
+   "body": "{\"account_id\":\"acct_1\",\"action\":\"user.update\",\"actor_type\":\"user\",\"commit\":{\"actor_email\":\"6e605228c37cd92aad8ad5370ddeeda08d694580ab61222ef5f7d74c696429bf\",\"actor_id\":\"4b3250c01d2afafb3ca28532c9eaff0364c9089fa7e05c9034f63f92d9768193\",\"actor_name\":\"b99e8fc7e14e948a47dbc0a383edf22885a82e07161a2f8a7c373a2e2c57ba11\"},\"id\":\"0190a1b2-0000-7000-8000-000000000002\",\"ip\":null,\"metadata\":{\"plan\":\"pro\"},\"occurred_at_micros\":1700000001000000,\"project_id\":\"prj_00000000000000000000000001\",\"seq\":2,\"target_id\":\"team_1\",\"target_name\":\"Core\",\"target_type\":\"team\",\"v\":2}",
+   "hash": "e5b331111e7ee594070b34b8151b87d051c3eb06c7fbb766b8044f02cafcfb12",
+   "id": "0190a1b2-0000-7000-8000-000000000002",
+   "prev_hash": "c6a68ef0ae50d4951f6883072b030adad4d390e4013efcfca27695e3924869fe",
+   "seq": 2
+  },
+  {
+   "body": "{\"account_id\":\"acct_1\",\"action\":\"team.delete\",\"actor_id\":\"user_1\",\"actor_name\":\"Ann\",\"actor_type\":\"user\",\"id\":\"0190a1b2-0000-7000-8000-000000000003\",\"ip\":\"203.0.113.9\",\"metadata\":{\"note\":\"café \\\"quoted\\\"\\n\"},\"occurred_at_micros\":1700000002000000,\"project_id\":\"prj_00000000000000000000000001\",\"seq\":3,\"target_id\":\"team_1\",\"target_name\":\"Core\",\"target_type\":\"team\"}",
+   "hash": "62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6",
+   "id": "0190a1b2-0000-7000-8000-000000000003",
+   "prev_hash": "e5b331111e7ee594070b34b8151b87d051c3eb06c7fbb766b8044f02cafcfb12",
+   "seq": 3
+  }
+ ],
+ "checkpoint": {
+  "at": "2023-11-14T23:13:20Z",
+  "hash": "62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6",
+  "kid": "00000000-0000-7000-8000-000000000001",
+  "kind": "periodic",
+  "message": "[\"wt.activity.checkpoint.v1\",\"prj_00000000000000000000000001\",\"acct_1\",3,\"62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6\",1700003600]",
+  "seq": 3,
+  "signature": "ou7XOSKYfHwyEs-64xHEDoO8DCa0widdVIoBODpcbfzpHSJqq0ZkMtWLII4AYrTsMcclOk-1pKbY7d2G_xbtCw"
+ },
+ "completeness": {
+  "from": 1699999200,
+  "kid": "00000000-0000-7000-8000-000000000001",
+  "message": "[\"wt.activity.completeness.v1\",\"prj_00000000000000000000000001\",\"acct_1\",1699999200,1700006400,2,2,\"5390204b63b4604bd1b865a4dd7deb304a6428546a39931ac6204c297ce1c22c\",3,3,\"287d068219c3a46c82f113dda3276cddcf15c876d62bf6bb406068c7d7645934\",true,true]",
+  "signature": "fQy5ijlVKaUPghJG4FZD_NVaUebxZDwC0cEB2pUkhr_G76BLl9QebfyxsvEkFOlc6HKxxLv1VQVcJkWZEbkVAw",
+  "to": 1700006400
+ },
+ "digests": [
+  {
+   "digest": "17dc8e2bd48149e0c7dae38de7337a5d8f3ad83897e3945ba016c04a4e9f306a",
+   "events": 3,
+   "hour": 1699999200,
+   "kid": "00000000-0000-7000-8000-000000000001",
+   "kind": "hourly",
+   "message": "[\"wt.activity.digest.v1\",\"prj_00000000000000000000000001\",\"acct_1\",1699999200,\"hourly\",3,\"287d068219c3a46c82f113dda3276cddcf15c876d62bf6bb406068c7d7645934\",3,\"\"]",
+   "prev": "",
+   "root": "287d068219c3a46c82f113dda3276cddcf15c876d62bf6bb406068c7d7645934",
+   "signature": "nnZIxQLcICtGnH4HWR1uc-6unJnYz15WDpD9NVp1ZzdP9mEIUJbDlgm-EXpz13LttMWPHgiU6D543PDO5JGVBQ",
+   "tree_size": 3
+  },
+  {
+   "digest": "5390204b63b4604bd1b865a4dd7deb304a6428546a39931ac6204c297ce1c22c",
+   "events": 0,
+   "hour": 1700002800,
+   "kid": "00000000-0000-7000-8000-000000000001",
+   "kind": "hourly",
+   "message": "[\"wt.activity.digest.v1\",\"prj_00000000000000000000000001\",\"acct_1\",1700002800,\"hourly\",3,\"287d068219c3a46c82f113dda3276cddcf15c876d62bf6bb406068c7d7645934\",0,\"17dc8e2bd48149e0c7dae38de7337a5d8f3ad83897e3945ba016c04a4e9f306a\"]",
+   "prev": "17dc8e2bd48149e0c7dae38de7337a5d8f3ad83897e3945ba016c04a4e9f306a",
+   "root": "287d068219c3a46c82f113dda3276cddcf15c876d62bf6bb406068c7d7645934",
+   "signature": "3GCUcN5TyLzoJSQ0v6D-Nnny7uSkHzEiTyEayawwQI_PAeLz1Zc6FJBV7nJ3umrJ2KkjkR7YVO_X4ghwXyPJDw",
+   "tree_size": 3
+  }
+ ],
+ "disclosure": {
+  "event_id": "0190a1b2-0000-7000-8000-000000000002",
+  "fields": [
+   {
+    "commitment": "4b3250c01d2afafb3ca28532c9eaff0364c9089fa7e05c9034f63f92d9768193",
+    "field": "actor_id",
+    "salt": "01010101010101010101010101010101",
+    "value": "user_2"
+   },
+   {
+    "commitment": "6e605228c37cd92aad8ad5370ddeeda08d694580ab61222ef5f7d74c696429bf",
+    "field": "actor_email",
+    "salt": "03030303030303030303030303030303",
+    "value": "bob@example.com"
+   }
+  ],
+  "inclusion": {
+   "index": 1,
+   "leaf": "74d9a81a5ea726381957d3c79ab4bcda67d636356b7b71e6757de296377717ce",
+   "path": [
+    "b2b39bb58d7d70ff7e2da59b6e59fc0f91c3b309ad69d27e50f1cd00d5b52b14",
+    "cf1b40e42a8497d1c9520aaeeffe5dbaba3b6936970ad0be92ef00ca9f8e869f"
+   ],
+   "root": "287d068219c3a46c82f113dda3276cddcf15c876d62bf6bb406068c7d7645934",
+   "size": 3
+  },
+  "seq": 2
+ },
+ "format": "wt.activity.verify-vectors.v1",
+ "key": {
+  "kid": "00000000-0000-7000-8000-000000000001",
+  "seed": "1111111111111111111111111111111111111111111111111111111111111111",
+  "x": "0EqyMnQrtKs6E2i9RhXk5tAiSrcaAWuvhSCjMsl3hzc"
+ },
+ "keys": {
+  "keys": [
+   {
+    "crv": "Ed25519",
+    "kid": "00000000-0000-7000-8000-000000000001",
+    "kty": "OKP",
+    "x": "0EqyMnQrtKs6E2i9RhXk5tAiSrcaAWuvhSCjMsl3hzc"
+   }
+  ]
+ },
+ "manifest": {
+  "count": 3,
+  "first_seq": 1,
+  "kid": "00000000-0000-7000-8000-000000000001",
+  "last_hash": "62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6",
+  "last_seq": 3,
+  "message": "[\"wt.activity.manifest.v1\",\"prj_00000000000000000000000001\",\"acct_1\",3,1,3,\"62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6\",\"694bc1a21cd54288c7977d16475260c373dde7aab67b774f0e0a4ddfdee1ead1\"]",
+  "sha256": "694bc1a21cd54288c7977d16475260c373dde7aab67b774f0e0a4ddfdee1ead1",
+  "signature": "AFQIkg6XAUkO2P7VeQvm8K-YVgK32FQbS8V8prDbVYli8Z9Qnczd-lnlqaBiiBn62Ut1pWLTiRfXWNuZudUKDA"
+ },
+ "note": {
+  "body": "watchtower.dev/activity/prj_00000000000000000000000001/acct_1\n3\nKH0GghnDpGyC8RPdoyds3c8VyHbWK/a7QGBox9dkWTQ=\n",
+  "cosignature_line": "— witness.example/w1 4M0oZAAAAABlU/90bJQ+eJG1smCUAboEeZl6E3nFg5S++pma1JXrbkfeu7SWrdSBsLi45KmcePYhTN1KIuwUEbC2fy4nLc06xTIMBw==",
+  "cosigned_message": "cosignature/v1\ntime 1700003700\nwatchtower.dev/activity/prj_00000000000000000000000001/acct_1\n3\nKH0GghnDpGyC8RPdoyds3c8VyHbWK/a7QGBox9dkWTQ=\n",
+  "key_hash": "57e4d430",
+  "origin": "watchtower.dev/activity/prj_00000000000000000000000001/acct_1",
+  "text": "watchtower.dev/activity/prj_00000000000000000000000001/acct_1\n3\nKH0GghnDpGyC8RPdoyds3c8VyHbWK/a7QGBox9dkWTQ=\n\n— watchtower.dev/activity/prj_00000000000000000000000001/acct_1 V+TUMIPGZV1+y5lZzFeBSseL2bZWGTuDraTHP+P4uic7sJeRcKcoP4C2vIs6fsbBy4kaeWdhT+WgcodXVcKRzcQXFgo=\n",
+  "vkey": "watchtower.dev/activity/prj_00000000000000000000000001/acct_1+57e4d430+AdBKsjJ0K7SrOhNovUYV5ObQIkq3GgFrr4UgozLJd4c3"
+ },
+ "origin_escaping": [
+  {
+   "account": "acct_1",
+   "origin": "watchtower.dev/activity/prj_00000000000000000000000001/acct_1"
+  },
+  {
+   "account": "Team A/ü",
+   "origin": "watchtower.dev/activity/prj_00000000000000000000000001/Team%20A%2F%C3%BC"
+  }
+ ],
+ "project": "prj_00000000000000000000000001",
+ "rekor_log": {
+  "origin": "log.example/rekor-v2",
+  "seed": "3333333333333333333333333333333333333333333333333333333333333333",
+  "x": "F8t5-ytBIPKx7GXkGY1uCLKOgT_rAeSkAIObheGAgM4"
+ },
+ "sth": {
+  "anchor": {
+   "index": 1,
+   "path": [
+    "e0bb82791bae3c50bd9c20fa4ccdcb8064a56e5c12bc69b07e6712ac9b4429e6",
+    "4f16119d36ccd0da91102f57692d73934fd0ad2494280df88449accedbbfb7ea"
+   ],
+   "receipts": [
+    {
+     "entries": [
+      {
+       "canonicalized_body": "eyJhcGlWZXJzaW9uIjoiMC4wLjIiLCJraW5kIjoiaGFzaGVkcmVrb3JkIiwic3BlYyI6eyJoYXNoZWRSZWtvcmRWMDAyIjp7ImRhdGEiOnsiYWxnb3JpdGhtIjoiU0hBMl81MTIiLCJkaWdlc3QiOiJpREVVTGFwb2o2dDhQSnEyV0xpalhKd05jZThBaHBCVk1pd2Y3S3BTVUZhUmpPL1dCZmFSd1ZJd3BsVFNKaURlT2NtNldaS2JiUWUxcEZvMFNzaXI5dz09In0sInNpZ25hdHVyZSI6eyJjb250ZW50IjoieVlLQ3k1NXdjdVF0blpjUzlLUzArR3o1ZlRDaWxNM25CTmR5aGFLbDBIYURTUVB6UFVCZGZkL0JTcHlpTTRTSHFIeko3OTNZVk9taVgrWkVnK3BFQ1E9PSIsInZlcmlmaWVyIjp7ImtleURldGFpbHMiOiJQS0lYX0VEMjU1MTlfUEgiLCJwdWJsaWNLZXkiOnsicmF3Qnl0ZXMiOiJNQ293QlFZREsyVndBeUVBMEVxeU1uUXJ0S3M2RTJpOVJoWGs1dEFpU3JjYUFXdXZoU0NqTXNsM2h6Yz0ifX19fX19",
+       "inclusion_proof": {
+        "checkpoint": {
+         "envelope": "log.example/rekor-v2\n4\nP1Ef1lmUSeYBHMgKEcvGbjzFN94jFbHjBzm/YU2HN9E=\n\n— log.example/rekor-v2 HxzytXrEQkhdNi1QibuM1Rc+j6j6QRaPvdYNV72q+mxuqfoSuQ3WdtCwPz6PCEhtewA0Qd2LnlOPdBOiPLXpCwx2uQw=\n"
+        },
+        "hashes": [
+         "1b21ihkXOmoBEd8/H2LbqgDkQiHg8JtHSJgSoBDNUxQ=",
+         "cY+gNp10dQmbxstDJ+OCOklyKF+SvUmXGlg8nwj/to0="
+        ],
+        "log_index": 2,
+        "root_hash": "P1Ef1lmUSeYBHMgKEcvGbjzFN94jFbHjBzm/YU2HN9E=",
+        "tree_size": 4
+       },
+       "kid": "00000000-0000-7000-8000-000000000001",
+       "log_index": 2,
+       "project_id": "prj_00000000000000000000000001",
+       "statement": "[\"wt.activity.rekor.v1\",\"d84951d048a377317b2513870dac6a452724428552adcd21932012d753cc8c86\"]"
+      }
+     ],
+     "kind": "rekor",
+     "url": "https://log.example/rekor-v2",
+     "version": 2
+    }
+   ],
+   "size": 3,
+   "top": "d84951d048a377317b2513870dac6a452724428552adcd21932012d753cc8c86"
+  },
+  "cosignatures": [
+   {
+    "line": "— witness.example/w1 4M0oZAAAAABlU/90bJQ+eJG1smCUAboEeZl6E3nFg5S++pma1JXrbkfeu7SWrdSBsLi45KmcePYhTN1KIuwUEbC2fy4nLc06xTIMBw==",
+    "time": 1700003700,
+    "witness": "witness.example/w1"
+   }
+  ],
+  "created_at": "2023-11-14T23:13:20Z",
+  "from_seq": 1,
+  "kid": "00000000-0000-7000-8000-000000000001",
+  "message": "[\"wt.activity.merkle.v1\",\"prj_00000000000000000000000001\",\"acct_1\",1,3,\"287d068219c3a46c82f113dda3276cddcf15c876d62bf6bb406068c7d7645934\"]",
+  "mmd_seconds": 3600,
+  "note": "watchtower.dev/activity/prj_00000000000000000000000001/acct_1\n3\nKH0GghnDpGyC8RPdoyds3c8VyHbWK/a7QGBox9dkWTQ=\n\n— watchtower.dev/activity/prj_00000000000000000000000001/acct_1 V+TUMIPGZV1+y5lZzFeBSseL2bZWGTuDraTHP+P4uic7sJeRcKcoP4C2vIs6fsbBy4kaeWdhT+WgcodXVcKRzcQXFgo=\n",
+  "root": "287d068219c3a46c82f113dda3276cddcf15c876d62bf6bb406068c7d7645934",
+  "signature": "Pcu4xWTGocHvDPIk7dZQfiWETAGLaVT5JP4tHWpSdR5qBQd75KZvk7p9LI4FZwvo9i_xYc91KhcSS-FJJl7-Aw",
+  "size": 3,
+  "to_seq": 3
+ },
+ "tombstone": {
+  "from_seq": 1,
+  "kid": "00000000-0000-7000-8000-000000000001",
+  "last_hash": "c6a68ef0ae50d4951f6883072b030adad4d390e4013efcfca27695e3924869fe",
+  "message": "[\"wt.activity.pruned.v1\",\"prj_00000000000000000000000001\",\"acct_1\",1,1,\"c6a68ef0ae50d4951f6883072b030adad4d390e4013efcfca27695e3924869fe\",\"retention:365d\",1730000000]",
+  "policy": "retention:365d",
+  "pruned_at": "2024-10-27T03:33:20Z",
+  "pruned_at_unix": 1730000000,
+  "signature": "5xlIRv3MBX6O0ossOPpZjqILsZT8GEfAq7lXcmjY7yYQ2GKQHaM5oDZoMcu6C1qJzQ2iIOsJMjoEQtCA6pAWDQ",
+  "to_seq": 1
+ },
+ "verdicts": [
+  {
+   "expect": "VALID_UNANCHORED",
+   "head": null,
+   "name": "whole chain, no anchor",
+   "page": {
+    "anchor_seq": null,
+    "checkpoint": {
+     "at": "2023-11-14T23:13:20Z",
+     "hash": "62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6",
+     "kid": "00000000-0000-7000-8000-000000000001",
+     "kind": "periodic",
+     "message": "[\"wt.activity.checkpoint.v1\",\"prj_00000000000000000000000001\",\"acct_1\",3,\"62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6\",1700003600]",
+     "seq": 3,
+     "signature": "ou7XOSKYfHwyEs-64xHEDoO8DCa0widdVIoBODpcbfzpHSJqq0ZkMtWLII4AYrTsMcclOk-1pKbY7d2G_xbtCw"
+    },
+    "data": [
+     {
+      "body": "{\"account_id\":\"acct_1\",\"action\":\"user.login\",\"actor_id\":\"user_1\",\"actor_name\":\"Ann\",\"actor_type\":\"user\",\"id\":\"0190a1b2-0000-7000-8000-000000000001\",\"ip\":null,\"metadata\":{},\"occurred_at_micros\":1700000000000000,\"project_id\":\"prj_00000000000000000000000001\",\"seq\":1,\"target_id\":null,\"target_name\":null,\"target_type\":null}",
+      "hash": "c6a68ef0ae50d4951f6883072b030adad4d390e4013efcfca27695e3924869fe",
+      "id": "0190a1b2-0000-7000-8000-000000000001",
+      "prev_hash": "",
+      "seq": 1
+     },
+     {
+      "body": "{\"account_id\":\"acct_1\",\"action\":\"user.update\",\"actor_type\":\"user\",\"commit\":{\"actor_email\":\"6e605228c37cd92aad8ad5370ddeeda08d694580ab61222ef5f7d74c696429bf\",\"actor_id\":\"4b3250c01d2afafb3ca28532c9eaff0364c9089fa7e05c9034f63f92d9768193\",\"actor_name\":\"b99e8fc7e14e948a47dbc0a383edf22885a82e07161a2f8a7c373a2e2c57ba11\"},\"id\":\"0190a1b2-0000-7000-8000-000000000002\",\"ip\":null,\"metadata\":{\"plan\":\"pro\"},\"occurred_at_micros\":1700000001000000,\"project_id\":\"prj_00000000000000000000000001\",\"seq\":2,\"target_id\":\"team_1\",\"target_name\":\"Core\",\"target_type\":\"team\",\"v\":2}",
+      "hash": "e5b331111e7ee594070b34b8151b87d051c3eb06c7fbb766b8044f02cafcfb12",
+      "id": "0190a1b2-0000-7000-8000-000000000002",
+      "prev_hash": "c6a68ef0ae50d4951f6883072b030adad4d390e4013efcfca27695e3924869fe",
+      "seq": 2
+     },
+     {
+      "body": "{\"account_id\":\"acct_1\",\"action\":\"team.delete\",\"actor_id\":\"user_1\",\"actor_name\":\"Ann\",\"actor_type\":\"user\",\"id\":\"0190a1b2-0000-7000-8000-000000000003\",\"ip\":\"203.0.113.9\",\"metadata\":{\"note\":\"café \\\"quoted\\\"\\n\"},\"occurred_at_micros\":1700000002000000,\"project_id\":\"prj_00000000000000000000000001\",\"seq\":3,\"target_id\":\"team_1\",\"target_name\":\"Core\",\"target_type\":\"team\"}",
+      "hash": "62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6",
+      "id": "0190a1b2-0000-7000-8000-000000000003",
+      "prev_hash": "e5b331111e7ee594070b34b8151b87d051c3eb06c7fbb766b8044f02cafcfb12",
+      "seq": 3
+     }
+    ],
+    "erased": [],
+    "head_seq": 3,
+    "next_cursor": null,
+    "project": "acme",
+    "pruned": []
+   }
+  },
+  {
+   "expect": "VALID",
+   "head": {
+    "anchor": {
+     "index": 1,
+     "path": [
+      "e0bb82791bae3c50bd9c20fa4ccdcb8064a56e5c12bc69b07e6712ac9b4429e6",
+      "4f16119d36ccd0da91102f57692d73934fd0ad2494280df88449accedbbfb7ea"
+     ],
+     "receipts": [
+      {
+       "entries": [
+        {
+         "canonicalized_body": "eyJhcGlWZXJzaW9uIjoiMC4wLjIiLCJraW5kIjoiaGFzaGVkcmVrb3JkIiwic3BlYyI6eyJoYXNoZWRSZWtvcmRWMDAyIjp7ImRhdGEiOnsiYWxnb3JpdGhtIjoiU0hBMl81MTIiLCJkaWdlc3QiOiJpREVVTGFwb2o2dDhQSnEyV0xpalhKd05jZThBaHBCVk1pd2Y3S3BTVUZhUmpPL1dCZmFSd1ZJd3BsVFNKaURlT2NtNldaS2JiUWUxcEZvMFNzaXI5dz09In0sInNpZ25hdHVyZSI6eyJjb250ZW50IjoieVlLQ3k1NXdjdVF0blpjUzlLUzArR3o1ZlRDaWxNM25CTmR5aGFLbDBIYURTUVB6UFVCZGZkL0JTcHlpTTRTSHFIeko3OTNZVk9taVgrWkVnK3BFQ1E9PSIsInZlcmlmaWVyIjp7ImtleURldGFpbHMiOiJQS0lYX0VEMjU1MTlfUEgiLCJwdWJsaWNLZXkiOnsicmF3Qnl0ZXMiOiJNQ293QlFZREsyVndBeUVBMEVxeU1uUXJ0S3M2RTJpOVJoWGs1dEFpU3JjYUFXdXZoU0NqTXNsM2h6Yz0ifX19fX19",
+         "inclusion_proof": {
+          "checkpoint": {
+           "envelope": "log.example/rekor-v2\n4\nP1Ef1lmUSeYBHMgKEcvGbjzFN94jFbHjBzm/YU2HN9E=\n\n— log.example/rekor-v2 HxzytXrEQkhdNi1QibuM1Rc+j6j6QRaPvdYNV72q+mxuqfoSuQ3WdtCwPz6PCEhtewA0Qd2LnlOPdBOiPLXpCwx2uQw=\n"
+          },
+          "hashes": [
+           "1b21ihkXOmoBEd8/H2LbqgDkQiHg8JtHSJgSoBDNUxQ=",
+           "cY+gNp10dQmbxstDJ+OCOklyKF+SvUmXGlg8nwj/to0="
+          ],
+          "log_index": 2,
+          "root_hash": "P1Ef1lmUSeYBHMgKEcvGbjzFN94jFbHjBzm/YU2HN9E=",
+          "tree_size": 4
+         },
+         "kid": "00000000-0000-7000-8000-000000000001",
+         "log_index": 2,
+         "project_id": "prj_00000000000000000000000001",
+         "statement": "[\"wt.activity.rekor.v1\",\"d84951d048a377317b2513870dac6a452724428552adcd21932012d753cc8c86\"]"
+        }
+       ],
+       "kind": "rekor",
+       "url": "https://log.example/rekor-v2",
+       "version": 2
+      }
+     ],
+     "size": 3,
+     "top": "d84951d048a377317b2513870dac6a452724428552adcd21932012d753cc8c86"
+    },
+    "cosignatures": [
+     {
+      "line": "— witness.example/w1 4M0oZAAAAABlU/90bJQ+eJG1smCUAboEeZl6E3nFg5S++pma1JXrbkfeu7SWrdSBsLi45KmcePYhTN1KIuwUEbC2fy4nLc06xTIMBw==",
+      "time": 1700003700,
+      "witness": "witness.example/w1"
+     }
+    ],
+    "created_at": "2023-11-14T23:13:20Z",
+    "from_seq": 1,
+    "kid": "00000000-0000-7000-8000-000000000001",
+    "message": "[\"wt.activity.merkle.v1\",\"prj_00000000000000000000000001\",\"acct_1\",1,3,\"287d068219c3a46c82f113dda3276cddcf15c876d62bf6bb406068c7d7645934\"]",
+    "mmd_seconds": 3600,
+    "note": "watchtower.dev/activity/prj_00000000000000000000000001/acct_1\n3\nKH0GghnDpGyC8RPdoyds3c8VyHbWK/a7QGBox9dkWTQ=\n\n— watchtower.dev/activity/prj_00000000000000000000000001/acct_1 V+TUMIPGZV1+y5lZzFeBSseL2bZWGTuDraTHP+P4uic7sJeRcKcoP4C2vIs6fsbBy4kaeWdhT+WgcodXVcKRzcQXFgo=\n",
+    "root": "287d068219c3a46c82f113dda3276cddcf15c876d62bf6bb406068c7d7645934",
+    "signature": "Pcu4xWTGocHvDPIk7dZQfiWETAGLaVT5JP4tHWpSdR5qBQd75KZvk7p9LI4FZwvo9i_xYc91KhcSS-FJJl7-Aw",
+    "size": 3,
+    "to_seq": 3
+   },
+   "name": "whole chain, head anchored in Rekor v2",
+   "page": {
+    "anchor_seq": null,
+    "checkpoint": {
+     "at": "2023-11-14T23:13:20Z",
+     "hash": "62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6",
+     "kid": "00000000-0000-7000-8000-000000000001",
+     "kind": "periodic",
+     "message": "[\"wt.activity.checkpoint.v1\",\"prj_00000000000000000000000001\",\"acct_1\",3,\"62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6\",1700003600]",
+     "seq": 3,
+     "signature": "ou7XOSKYfHwyEs-64xHEDoO8DCa0widdVIoBODpcbfzpHSJqq0ZkMtWLII4AYrTsMcclOk-1pKbY7d2G_xbtCw"
+    },
+    "data": [
+     {
+      "body": "{\"account_id\":\"acct_1\",\"action\":\"user.login\",\"actor_id\":\"user_1\",\"actor_name\":\"Ann\",\"actor_type\":\"user\",\"id\":\"0190a1b2-0000-7000-8000-000000000001\",\"ip\":null,\"metadata\":{},\"occurred_at_micros\":1700000000000000,\"project_id\":\"prj_00000000000000000000000001\",\"seq\":1,\"target_id\":null,\"target_name\":null,\"target_type\":null}",
+      "hash": "c6a68ef0ae50d4951f6883072b030adad4d390e4013efcfca27695e3924869fe",
+      "id": "0190a1b2-0000-7000-8000-000000000001",
+      "prev_hash": "",
+      "seq": 1
+     },
+     {
+      "body": "{\"account_id\":\"acct_1\",\"action\":\"user.update\",\"actor_type\":\"user\",\"commit\":{\"actor_email\":\"6e605228c37cd92aad8ad5370ddeeda08d694580ab61222ef5f7d74c696429bf\",\"actor_id\":\"4b3250c01d2afafb3ca28532c9eaff0364c9089fa7e05c9034f63f92d9768193\",\"actor_name\":\"b99e8fc7e14e948a47dbc0a383edf22885a82e07161a2f8a7c373a2e2c57ba11\"},\"id\":\"0190a1b2-0000-7000-8000-000000000002\",\"ip\":null,\"metadata\":{\"plan\":\"pro\"},\"occurred_at_micros\":1700000001000000,\"project_id\":\"prj_00000000000000000000000001\",\"seq\":2,\"target_id\":\"team_1\",\"target_name\":\"Core\",\"target_type\":\"team\",\"v\":2}",
+      "hash": "e5b331111e7ee594070b34b8151b87d051c3eb06c7fbb766b8044f02cafcfb12",
+      "id": "0190a1b2-0000-7000-8000-000000000002",
+      "prev_hash": "c6a68ef0ae50d4951f6883072b030adad4d390e4013efcfca27695e3924869fe",
+      "seq": 2
+     },
+     {
+      "body": "{\"account_id\":\"acct_1\",\"action\":\"team.delete\",\"actor_id\":\"user_1\",\"actor_name\":\"Ann\",\"actor_type\":\"user\",\"id\":\"0190a1b2-0000-7000-8000-000000000003\",\"ip\":\"203.0.113.9\",\"metadata\":{\"note\":\"café \\\"quoted\\\"\\n\"},\"occurred_at_micros\":1700000002000000,\"project_id\":\"prj_00000000000000000000000001\",\"seq\":3,\"target_id\":\"team_1\",\"target_name\":\"Core\",\"target_type\":\"team\"}",
+      "hash": "62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6",
+      "id": "0190a1b2-0000-7000-8000-000000000003",
+      "prev_hash": "e5b331111e7ee594070b34b8151b87d051c3eb06c7fbb766b8044f02cafcfb12",
+      "seq": 3
+     }
+    ],
+    "erased": [],
+    "head_seq": 3,
+    "next_cursor": null,
+    "project": "acme",
+    "pruned": []
+   }
+  },
+  {
+   "expect": "INVALID",
+   "first_bad_seq": 2,
+   "head": null,
+   "name": "row 2 modified",
+   "page": {
+    "anchor_seq": null,
+    "checkpoint": {
+     "at": "2023-11-14T23:13:20Z",
+     "hash": "62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6",
+     "kid": "00000000-0000-7000-8000-000000000001",
+     "kind": "periodic",
+     "message": "[\"wt.activity.checkpoint.v1\",\"prj_00000000000000000000000001\",\"acct_1\",3,\"62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6\",1700003600]",
+     "seq": 3,
+     "signature": "ou7XOSKYfHwyEs-64xHEDoO8DCa0widdVIoBODpcbfzpHSJqq0ZkMtWLII4AYrTsMcclOk-1pKbY7d2G_xbtCw"
+    },
+    "data": [
+     {
+      "body": "{\"account_id\":\"acct_1\",\"action\":\"user.login\",\"actor_id\":\"user_1\",\"actor_name\":\"Ann\",\"actor_type\":\"user\",\"id\":\"0190a1b2-0000-7000-8000-000000000001\",\"ip\":null,\"metadata\":{},\"occurred_at_micros\":1700000000000000,\"project_id\":\"prj_00000000000000000000000001\",\"seq\":1,\"target_id\":null,\"target_name\":null,\"target_type\":null}",
+      "hash": "c6a68ef0ae50d4951f6883072b030adad4d390e4013efcfca27695e3924869fe",
+      "id": "0190a1b2-0000-7000-8000-000000000001",
+      "prev_hash": "",
+      "seq": 1
+     },
+     {
+      "body": "{\"account_id\":\"acct_1\",\"action\":\"user.update\",\"actor_type\":\"user\",\"commit\":{\"actor_email\":\"6e605228c37cd92aad8ad5370ddeeda08d694580ab61222ef5f7d74c696429bf\",\"actor_id\":\"4b3250c01d2afafb3ca28532c9eaff0364c9089fa7e05c9034f63f92d9768193\",\"actor_name\":\"b99e8fc7e14e948a47dbc0a383edf22885a82e07161a2f8a7c373a2e2c57ba11\"},\"id\":\"0190a1b2-0000-7000-8000-000000000002\",\"ip\":null,\"metadata\":{\"plan\":\"free\"},\"occurred_at_micros\":1700000001000000,\"project_id\":\"prj_00000000000000000000000001\",\"seq\":2,\"target_id\":\"team_1\",\"target_name\":\"Core\",\"target_type\":\"team\",\"v\":2}",
+      "hash": "e5b331111e7ee594070b34b8151b87d051c3eb06c7fbb766b8044f02cafcfb12",
+      "id": "0190a1b2-0000-7000-8000-000000000002",
+      "prev_hash": "c6a68ef0ae50d4951f6883072b030adad4d390e4013efcfca27695e3924869fe",
+      "seq": 2
+     },
+     {
+      "body": "{\"account_id\":\"acct_1\",\"action\":\"team.delete\",\"actor_id\":\"user_1\",\"actor_name\":\"Ann\",\"actor_type\":\"user\",\"id\":\"0190a1b2-0000-7000-8000-000000000003\",\"ip\":\"203.0.113.9\",\"metadata\":{\"note\":\"café \\\"quoted\\\"\\n\"},\"occurred_at_micros\":1700000002000000,\"project_id\":\"prj_00000000000000000000000001\",\"seq\":3,\"target_id\":\"team_1\",\"target_name\":\"Core\",\"target_type\":\"team\"}",
+      "hash": "62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6",
+      "id": "0190a1b2-0000-7000-8000-000000000003",
+      "prev_hash": "e5b331111e7ee594070b34b8151b87d051c3eb06c7fbb766b8044f02cafcfb12",
+      "seq": 3
+     }
+    ],
+    "erased": [],
+    "head_seq": 3,
+    "next_cursor": null,
+    "project": "acme",
+    "pruned": []
+   }
+  },
+  {
+   "expect": "VALID_PRUNED",
+   "head": null,
+   "name": "seq 1 pruned with a signed tombstone",
+   "page": {
+    "anchor_seq": 1,
+    "checkpoint": {
+     "at": "2023-11-14T23:13:20Z",
+     "hash": "62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6",
+     "kid": "00000000-0000-7000-8000-000000000001",
+     "kind": "periodic",
+     "message": "[\"wt.activity.checkpoint.v1\",\"prj_00000000000000000000000001\",\"acct_1\",3,\"62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6\",1700003600]",
+     "seq": 3,
+     "signature": "ou7XOSKYfHwyEs-64xHEDoO8DCa0widdVIoBODpcbfzpHSJqq0ZkMtWLII4AYrTsMcclOk-1pKbY7d2G_xbtCw"
+    },
+    "data": [
+     {
+      "body": "{\"account_id\":\"acct_1\",\"action\":\"user.update\",\"actor_type\":\"user\",\"commit\":{\"actor_email\":\"6e605228c37cd92aad8ad5370ddeeda08d694580ab61222ef5f7d74c696429bf\",\"actor_id\":\"4b3250c01d2afafb3ca28532c9eaff0364c9089fa7e05c9034f63f92d9768193\",\"actor_name\":\"b99e8fc7e14e948a47dbc0a383edf22885a82e07161a2f8a7c373a2e2c57ba11\"},\"id\":\"0190a1b2-0000-7000-8000-000000000002\",\"ip\":null,\"metadata\":{\"plan\":\"pro\"},\"occurred_at_micros\":1700000001000000,\"project_id\":\"prj_00000000000000000000000001\",\"seq\":2,\"target_id\":\"team_1\",\"target_name\":\"Core\",\"target_type\":\"team\",\"v\":2}",
+      "hash": "e5b331111e7ee594070b34b8151b87d051c3eb06c7fbb766b8044f02cafcfb12",
+      "id": "0190a1b2-0000-7000-8000-000000000002",
+      "prev_hash": "c6a68ef0ae50d4951f6883072b030adad4d390e4013efcfca27695e3924869fe",
+      "seq": 2
+     },
+     {
+      "body": "{\"account_id\":\"acct_1\",\"action\":\"team.delete\",\"actor_id\":\"user_1\",\"actor_name\":\"Ann\",\"actor_type\":\"user\",\"id\":\"0190a1b2-0000-7000-8000-000000000003\",\"ip\":\"203.0.113.9\",\"metadata\":{\"note\":\"café \\\"quoted\\\"\\n\"},\"occurred_at_micros\":1700000002000000,\"project_id\":\"prj_00000000000000000000000001\",\"seq\":3,\"target_id\":\"team_1\",\"target_name\":\"Core\",\"target_type\":\"team\"}",
+      "hash": "62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6",
+      "id": "0190a1b2-0000-7000-8000-000000000003",
+      "prev_hash": "e5b331111e7ee594070b34b8151b87d051c3eb06c7fbb766b8044f02cafcfb12",
+      "seq": 3
+     }
+    ],
+    "erased": [],
+    "head_seq": 3,
+    "next_cursor": null,
+    "project": "acme",
+    "pruned": [
+     {
+      "from_seq": 1,
+      "kid": "00000000-0000-7000-8000-000000000001",
+      "last_hash": "c6a68ef0ae50d4951f6883072b030adad4d390e4013efcfca27695e3924869fe",
+      "message": "[\"wt.activity.pruned.v1\",\"prj_00000000000000000000000001\",\"acct_1\",1,1,\"c6a68ef0ae50d4951f6883072b030adad4d390e4013efcfca27695e3924869fe\",\"retention:365d\",1730000000]",
+      "policy": "retention:365d",
+      "pruned_at": "2024-10-27T03:33:20Z",
+      "pruned_at_unix": 1730000000,
+      "signature": "5xlIRv3MBX6O0ossOPpZjqILsZT8GEfAq7lXcmjY7yYQ2GKQHaM5oDZoMcu6C1qJzQ2iIOsJMjoEQtCA6pAWDQ",
+      "to_seq": 1
+     }
+    ]
+   }
+  },
+  {
+   "expect": "INVALID",
+   "head": null,
+   "name": "tombstone signature broken",
+   "page": {
+    "anchor_seq": 1,
+    "checkpoint": {
+     "at": "2023-11-14T23:13:20Z",
+     "hash": "62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6",
+     "kid": "00000000-0000-7000-8000-000000000001",
+     "kind": "periodic",
+     "message": "[\"wt.activity.checkpoint.v1\",\"prj_00000000000000000000000001\",\"acct_1\",3,\"62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6\",1700003600]",
+     "seq": 3,
+     "signature": "ou7XOSKYfHwyEs-64xHEDoO8DCa0widdVIoBODpcbfzpHSJqq0ZkMtWLII4AYrTsMcclOk-1pKbY7d2G_xbtCw"
+    },
+    "data": [
+     {
+      "body": "{\"account_id\":\"acct_1\",\"action\":\"user.update\",\"actor_type\":\"user\",\"commit\":{\"actor_email\":\"6e605228c37cd92aad8ad5370ddeeda08d694580ab61222ef5f7d74c696429bf\",\"actor_id\":\"4b3250c01d2afafb3ca28532c9eaff0364c9089fa7e05c9034f63f92d9768193\",\"actor_name\":\"b99e8fc7e14e948a47dbc0a383edf22885a82e07161a2f8a7c373a2e2c57ba11\"},\"id\":\"0190a1b2-0000-7000-8000-000000000002\",\"ip\":null,\"metadata\":{\"plan\":\"pro\"},\"occurred_at_micros\":1700000001000000,\"project_id\":\"prj_00000000000000000000000001\",\"seq\":2,\"target_id\":\"team_1\",\"target_name\":\"Core\",\"target_type\":\"team\",\"v\":2}",
+      "hash": "e5b331111e7ee594070b34b8151b87d051c3eb06c7fbb766b8044f02cafcfb12",
+      "id": "0190a1b2-0000-7000-8000-000000000002",
+      "prev_hash": "c6a68ef0ae50d4951f6883072b030adad4d390e4013efcfca27695e3924869fe",
+      "seq": 2
+     },
+     {
+      "body": "{\"account_id\":\"acct_1\",\"action\":\"team.delete\",\"actor_id\":\"user_1\",\"actor_name\":\"Ann\",\"actor_type\":\"user\",\"id\":\"0190a1b2-0000-7000-8000-000000000003\",\"ip\":\"203.0.113.9\",\"metadata\":{\"note\":\"café \\\"quoted\\\"\\n\"},\"occurred_at_micros\":1700000002000000,\"project_id\":\"prj_00000000000000000000000001\",\"seq\":3,\"target_id\":\"team_1\",\"target_name\":\"Core\",\"target_type\":\"team\"}",
+      "hash": "62adeb4db83f6ac936af31b894545592a935643372e9a5aadd139c16334e7cc6",
+      "id": "0190a1b2-0000-7000-8000-000000000003",
+      "prev_hash": "e5b331111e7ee594070b34b8151b87d051c3eb06c7fbb766b8044f02cafcfb12",
+      "seq": 3
+     }
+    ],
+    "erased": [],
+    "head_seq": 3,
+    "next_cursor": null,
+    "project": "acme",
+    "pruned": [
+     {
+      "from_seq": 1,
+      "kid": "00000000-0000-7000-8000-000000000001",
+      "last_hash": "c6a68ef0ae50d4951f6883072b030adad4d390e4013efcfca27695e3924869fe",
+      "message": "[\"wt.activity.pruned.v1\",\"prj_00000000000000000000000001\",\"acct_1\",1,1,\"c6a68ef0ae50d4951f6883072b030adad4d390e4013efcfca27695e3924869fe\",\"retention:365d\",1730000000]",
+      "policy": "retention:365d",
+      "pruned_at": "2024-10-27T03:33:20Z",
+      "pruned_at_unix": 1730000000,
+      "signature": "5hlIRv3MBX6O0ossOPpZjqILsZT8GEfAq7lXcmjY7yYQ2GKQHaM5oDZoMcu6C1qJzQ2iIOsJMjoEQtCA6pAWDQ",
+      "to_seq": 1
+     }
+    ]
+   }
+  }
+ ],
+ "witness_key": {
+  "name": "witness.example/w1",
+  "seed": "2222222222222222222222222222222222222222222222222222222222222222",
+  "vkey": "witness.example/w1+e0cd2864+BKCapfR6Z1mAL/lV+NwtKhSlyZ0jvpf4ZBJ/+Tg0VaTw",
+  "x": "oJql9HpnWYAv-VX43C0qFKXJnSO-l_hkEn_5ODRVpPA"
+ }
+}
