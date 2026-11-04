@@ -23,8 +23,23 @@ func checksMain(ctx context.Context, args []string, out io.Writer) error {
 	if len(args) > 0 && args[0] == "watch" {
 		return checksWatch(ctx, args[1:], out)
 	}
+	if len(args) > 0 && args[0] == "record" {
+		return checksRecord(ctx, args[1:], out)
+	}
+	if len(args) > 0 && args[0] == "record-mobile" {
+		return checksRecordMobile(ctx, args[1:], os.Stdin, out)
+	}
+	if len(args) > 0 && args[0] == "import-openapi" {
+		return checksImportOpenAPI(ctx, args[1:], out)
+	}
+	if len(args) > 0 && args[0] == "import-postman" {
+		return checksImportPostman(args[1:], out, os.Stderr)
+	}
+	if len(args) > 0 && args[0] == "import-curl" {
+		return checksImportCurl(args[1:], os.Stdin, out, os.Stderr)
+	}
 	if len(args) != 2 || args[0] != "import-playwright" {
-		return errors.New("usage: wtctl checks run|watch|import-playwright ...")
+		return errors.New("usage: wtctl checks run|record|record-mobile|watch|import-openapi|import-playwright|import-postman|import-curl ...")
 	}
 	src, err := os.ReadFile(args[1])
 	if err != nil {

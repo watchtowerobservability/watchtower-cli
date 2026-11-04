@@ -11,17 +11,25 @@ import (
 )
 
 const importUsage = "usage: wtctl import datadog|grafana|newrelic|splunk|promrules|chronosphere|sentry|honeycomb|dynatrace|kibana\n" +
+	"       wtctl import helicone --file <export.jsonl> [--endpoint <gateway>] [--key <ingestion key>] [--dry-run]\n" +
+	"       wtctl import pagerduty|opsgenie|victorops|splunk-on-call|grafana-oncall|datadog --live ...  (live pull; see below)\n" +
 	"           [--alerts <file>] [--dashboards <file>] [--alertmanager <file>] [--monitors <file>] [--pipelines <file>] [--alert-rules <file>]\n" +
 	"           [--apply] [--report <prefix>]  (export files are uploaded and mapped on the server; dry run unless --apply; see docs/product/migration)\n" +
 	"       (also --api <url> --key <wt key> --project <id>, defaulting to $WT_API, $WT_API_KEY, $WT_PROJECT)"
 
-// importSources are the export-file importers the server runs; splunk-on-call is VictorOps and the
-// API-pull importers (pagerduty, opsgenie, victorops, grafana-oncall) are not offered by the public CLI.
+// importSources are the export-file importers the server runs; the API-pull importers
+// (import_live.go) are server-side jobs too, with the vendor key sealed on the server.
 var importSources = []string{"datadog", "grafana", "newrelic", "splunk", "promrules", "chronosphere", "sentry", "honeycomb", "dynatrace", "kibana"}
 
 // importMain is `wtctl import <source> --alerts ... --dashboards ...`: it uploads the export
 // files, waits for the server-side job and prints its plan and skip report.
 func importMain(ctx context.Context, args []string, out io.Writer) error {
+	if isLiveImport(args) {
+		return importLive(ctx, args, out)
+	}
+	if len(args) > 0 && args[0] == "helicone" {
+		return importHelicone(ctx, args[1:], out)
+	}
 	if len(args) < 1 || !slices.Contains(importSources, args[0]) {
 		return errors.New(importUsage)
 	}

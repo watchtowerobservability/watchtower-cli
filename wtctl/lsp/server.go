@@ -216,7 +216,12 @@ func uriPath(uri string) string {
 	if err != nil || u.Scheme != "file" {
 		return uri
 	}
-	return filepath.FromSlash(u.Path)
+	p := u.Path
+	// file:///C:/x (or c%3A) decodes to /C:/x; drop the slash so Windows sees a drive path.
+	if len(p) > 2 && p[0] == '/' && p[2] == ':' {
+		p = p[1:]
+	}
+	return filepath.FromSlash(p)
 }
 
 // docInfo is a mapped document: its text, service and repo-relative path.

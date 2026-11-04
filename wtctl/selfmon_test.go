@@ -21,6 +21,9 @@ func TestSelfMonitorInitCreatesDashboardAndRules(t *testing.T) {
 		if s, ok := m["title"].(string); ok {
 			titles = append(titles, s)
 		}
+		if k, ok := m["kind"]; ok && k != "metric" { // the API's RuleKind for PromQL rules (wt-rules)
+			t.Errorf("rule kind %v", k)
+		}
 		w.WriteHeader(http.StatusCreated)
 		_, _ = w.Write([]byte(`{"id":"d1"}`))
 	}))

@@ -33,7 +33,7 @@ func debugKind(head []byte) string {
 
 // debugFilesUpload uploads each file (or every file under each directory) by its detected kind.
 // Files of an unknown kind are skipped with a note, except ProGuard mappings, which are text and
-// are recognised by the name mapping*.txt.
+// are recognised by the name mapping*.txt, and Unity IL2CPP line maps (LineNumberMappings.json).
 func debugFilesUpload(ctx context.Context, o artifactOpts, paths []string, out io.Writer) error {
 	uploaded := 0
 	for _, root := range paths {
@@ -60,6 +60,9 @@ func debugFilesUpload(ctx context.Context, o artifactOpts, paths []string, out i
 			}
 			if kind == "" && bytes.HasPrefix(data, []byte("MODULE ")) {
 				kind = "breakpad" // Breakpad .sym text
+			}
+			if kind == "" && filepath.Base(n) == "LineNumberMappings.json" {
+				kind = "il2cpp" // Unity IL2CPP C++ to C# line map
 			}
 			if kind == "" {
 				fmt.Fprintf(out, "skipped %s (not an ELF, Mach-O, PDB or ProGuard file)\n", n)

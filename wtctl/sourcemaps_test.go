@@ -114,6 +114,7 @@ func TestDebugFilesDetectKindAndSkipOthers(t *testing.T) {
 	write(t, filepath.Join(dir, "mac", "app"), []byte{0xcf, 0xfa, 0xed, 0xfe, 0, 0, 0, 0})
 	write(t, filepath.Join(dir, "mapping.txt"), []byte("a.B -> c:\n"))
 	write(t, filepath.Join(dir, "notes.txt"), []byte("hello"))
+	write(t, filepath.Join(dir, "Symbols", "LineNumberMappings.json"), []byte(`{"a.cpp": {"a.cs": {"1": 1}}}`))
 	write(t, filepath.Join(dir, "fat"), []byte{0xca, 0xfe, 0xba, 0xbe, 0, 0, 0, 2})
 	srv, got := artifactServer(t, http.StatusCreated)
 	o := artifactOpts{api: srv.URL, key: "k", project: "prj_1"}
@@ -125,7 +126,7 @@ func TestDebugFilesDetectKindAndSkipOthers(t *testing.T) {
 	for _, u := range got() {
 		kinds[u.name] = u.kind
 	}
-	want := map[string]string{"lib.so": "elf", "App.pdb": "pdb", "mac/app": "macho", "mapping.txt": "proguard"}
+	want := map[string]string{"lib.so": "elf", "App.pdb": "pdb", "mac/app": "macho", "mapping.txt": "proguard", "Symbols/LineNumberMappings.json": "il2cpp"}
 	if len(kinds) != len(want) {
 		t.Fatalf("kinds = %v", kinds)
 	}

@@ -22,12 +22,36 @@ jobs:
         env:
           CGO_ENABLED: '0'
         run: |
+          VERSION=${GITHUB_REF_NAME#v}
           mkdir dist
           for t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
             os=${t%/*}; arch=${t#*/}; ext=""; [ "$os" = windows ] && ext=".exe"
-            GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w" -o "dist/wtctl_${os}_${arch}${ext}" ./wtctl
+            # `wtctl version` prints VERSION; `wtctl self-update` fetches wtctl_<os>_<arch>[.exe] + SHA256SUMS
+            GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.Version=$VERSION" -o "dist/wtctl_${os}_${arch}${ext}" ./wtctl
           done
           (cd dist && sha256sum * > SHA256SUMS)
+          [ "$(./dist/wtctl_linux_amd64 version | cut -d' ' -f2)" = "$VERSION" ]
+      - name: Scoop manifest
+        # attached to the release with the real hashes: `scoop install <release>/wtctl.json`
+        run: |
+          v=${GITHUB_REF_NAME#v}
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          sum() { grep " wtctl_$1\$" dist/SHA256SUMS | cut -d' ' -f1; }
+          jq -n --arg v "$v" --arg base "$base" --arg a64 "$(sum windows_amd64.exe)" --arg arm "$(sum windows_arm64.exe)" \
+            --arg home "https://github.com/${GITHUB_REPOSITORY}" '{
+              version: $v, description: "Watchtower command line client", homepage: $home, license: "Apache-2.0",
+              architecture: {
+                "64bit": {url: ($base + "/wtctl_windows_amd64.exe#/wtctl.exe"), hash: $a64},
+                "arm64": {url: ($base + "/wtctl_windows_arm64.exe#/wtctl.exe"), hash: $arm}
+              },
+              bin: "wtctl.exe",
+              checkver: {github: $home},
+              autoupdate: {architecture: {
+                "64bit": {url: ($home + "/releases/download/v$version/wtctl_windows_amd64.exe#/wtctl.exe")},
+                "arm64": {url: ($home + "/releases/download/v$version/wtctl_windows_arm64.exe#/wtctl.exe")}
+              }}
+            }' > dist/wtctl.json
+          [ -n "$(jq -r '.architecture."64bit".hash' dist/wtctl.json)" ]
       - uses: actions/attest-build-provenance@v2
         with:
           subject-path: 'dist/*'

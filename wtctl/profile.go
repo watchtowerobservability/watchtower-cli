@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"github.com/watchtowerobservability/watchtower-cli/internal/netguard"
 )
 
 const profileUsage = `usage: wtctl profile upload <file> --service <s> --version <v> [--format pprof|folded] [--env <e>] --endpoint <url> --key <wti_...>
@@ -81,7 +80,7 @@ func profileUploadCmd(ctx context.Context, file string, args []string, out io.Wr
 	if bytes.HasPrefix(data, []byte{0x1f, 0x8b}) {
 		req.Header.Set("Content-Encoding", "gzip")
 	}
-	resp, err := netguard.Guarded("wtctl", 0).Do(req)
+	resp, err := guardedClient(0).Do(req)
 	if err != nil {
 		return err
 	}
@@ -116,7 +115,7 @@ func profileTopCmd(ctx context.Context, service string, args []string, out io.Wr
 		return err
 	}
 	req.Header.Set("Authorization", "Bearer "+o.key)
-	resp, err := netguard.Guarded("wtctl", 0).Do(req)
+	resp, err := guardedClient(0).Do(req)
 	if err != nil {
 		return err
 	}

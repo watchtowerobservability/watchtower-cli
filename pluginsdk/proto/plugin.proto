@@ -1,0 +1,20 @@
+// Wire contract of Watchtower plugins (ADR-0036). Every RPC sends and returns a
+// google.protobuf.BytesValue whose value is UTF-8 JSON of the Go types in package pluginsdk:
+//   Describe: {} -> Manifest
+//   Query:    QueryRequest -> Frames
+//   Run:      RunRequest -> Outputs
+//   Process:  Payload -> Payload   (kind notification or workflow only)
+syntax = "proto3";
+
+package watchtower.plugin.v1;
+
+import "google/protobuf/wrappers.proto";
+
+option go_package = "watchtower/pluginsdk/proto";
+
+service Plugin {
+  rpc Describe(google.protobuf.BytesValue) returns (google.protobuf.BytesValue);
+  rpc Query(google.protobuf.BytesValue) returns (google.protobuf.BytesValue);
+  rpc Run(google.protobuf.BytesValue) returns (google.protobuf.BytesValue);
+  rpc Process(google.protobuf.BytesValue) returns (google.protobuf.BytesValue);
+}

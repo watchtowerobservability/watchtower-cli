@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"github.com/watchtowerobservability/watchtower-cli/internal/netguard"
 )
 
 const instrumentUsage = `usage: wtctl instrument plan  [--dir .] [--lang go|node|python|java|ruby|php|rust|dotnet]
@@ -112,7 +111,7 @@ func instrumentMain(ctx context.Context, args []string, out io.Writer) error {
 		if repo == "" || api == "" || key == "" || project == "" {
 			return errors.New(instrumentUsage)
 		}
-		if err := prAllowed(ctx, netguard.Guarded("wtctl", 0), api, key, project); err != nil {
+		if err := prAllowed(ctx, guardedClient(0), api, key, project); err != nil {
 			return err
 		}
 	}
@@ -135,7 +134,7 @@ func instrumentMain(ctx context.Context, args []string, out io.Writer) error {
 	if len(written) == 0 {
 		return errors.New("instrument: nothing to commit")
 	}
-	pr := prOpener{HTTP: netguard.Guarded("wtctl", 0), GitHub: "https://api.github.com", Token: os.Getenv("GITHUB_TOKEN"), Repo: repo, Dir: dir, Git: runGit}
+	pr := prOpener{HTTP: guardedClient(0), GitHub: "https://api.github.com", Token: os.Getenv("GITHUB_TOKEN"), Repo: repo, Dir: dir, Git: runGit}
 	u, err := pr.Open(ctx, written, in, time.Now())
 	if err != nil {
 		return err

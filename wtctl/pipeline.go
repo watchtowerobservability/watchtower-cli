@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"github.com/watchtowerobservability/watchtower-cli/internal/netguard"
 
 	"gopkg.in/yaml.v3"
 
@@ -22,14 +21,14 @@ import (
 )
 
 const pipelineUsage = "usage: wtctl pipeline validate <config.json|yaml> --project <id> [--api <url>] [--key <key>]\n" +
-	"       wtctl pipeline test <config.json|yaml> --samples <records.json> [--signal logs|spans|metrics] --project <id>\n" +
+	"       wtctl pipeline test <config.json|yaml> --samples <records.json> [--expect <expect.json|yaml>] [--signal logs|spans|metrics] --project <id>\n" +
 	"       wtctl pipeline diff --id <pipeline> --from <n> --to <n> --project <id>\n" +
 	"       wtctl pipeline impact --id <pipeline> --version <n> --project <id>\n" +
 	"       wtctl pipeline tap --id <pipeline> --project <id>"
 
 type pipelineOpts struct {
-	api, key, project, id, samples, signal string
-	from, to, version                      int
+	api, key, project, id, samples, signal, expect string
+	from, to, version                              int
 }
 
 // pipelineMain is `wtctl pipeline validate|test|diff|impact|tap`: the pipeline editor's checks
@@ -47,6 +46,7 @@ func pipelineMain(ctx context.Context, args []string, out io.Writer) error {
 	fs.StringVar(&o.id, "id", "", "pipeline id")
 	fs.StringVar(&o.samples, "samples", "", "JSON file with an array of sample records")
 	fs.StringVar(&o.signal, "signal", "logs", "logs, spans or metrics")
+	fs.StringVar(&o.expect, "expect", "", "JSON or YAML assertions on the test result (kept count, per-record drops and changes)")
 	fs.IntVar(&o.from, "from", 0, "version to compare from")
 	fs.IntVar(&o.to, "to", 0, "version to compare to")
 	fs.IntVar(&o.version, "version", 0, "version number")
@@ -59,15 +59,15 @@ func pipelineMain(ctx context.Context, args []string, out io.Writer) error {
 	if err := fs.Parse(rest); err != nil {
 		return fmt.Errorf("%w\n%s", err, pipelineUsage)
 	}
-	c, err := ascode.New(o.api, o.key, o.project, netguard.Guarded("wtctl", 0))
+	c, err := ascode.New(o.api, o.key, o.project, guardedClient(0))
 	if err != nil {
 		return err
 	}
 	switch args[0] {
 	case "validate":
-		return pipelineSimulate(ctx, c, file, "", o.signal, out, true)
+		return pipelineSimulate(ctx, c, file, "", o.signal, "", out, true)
 	case "test":
-		return pipelineSimulate(ctx, c, file, o.samples, o.signal, out, false)
+		return pipelineSimulate(ctx, c, file, o.samples, o.signal, o.expect, out, false)
 	case "diff":
 		return pipelineDiff(ctx, c, o, out)
 	case "impact":
@@ -96,13 +96,16 @@ func loadAny(path string) (any, error) {
 	return v, nil
 }
 
-func pipelineSimulate(ctx context.Context, c *ascode.Client, file, samples, signal string, out io.Writer, validateOnly bool) error {
+func pipelineSimulate(ctx context.Context, c *ascode.Client, file, samples, signal, expect string, out io.Writer, validateOnly bool) error {
 	if file == "" {
 		return errors.New("a config file is required\n" + pipelineUsage)
 	}
 	cfg, err := loadAny(file)
 	if err != nil {
 		return err
+	}
+	if err := ascode.CheckAlertStages(cfg); err != nil {
+		return fmt.Errorf("%s: %w", file, err)
 	}
 	records := []any{}
 	if !validateOnly {
@@ -120,16 +123,7 @@ func pipelineSimulate(ctx context.Context, c *ascode.Client, file, samples, sign
 		records = list
 	}
 	var res struct {
-		Diffs []struct {
-			Index     int     `json:"index"`
-			DroppedBy *string `json:"dropped_by"`
-			Aborted   bool    `json:"aborted"`
-			Changes   []struct {
-				Field  string  `json:"field"`
-				Before *string `json:"before"`
-				After  *string `json:"after"`
-			} `json:"changes"`
-		} `json:"diffs"`
+		Diffs []simDiff `json:"diffs"`
 	}
 	body := map[string]any{"signal": signal, "config": cfg, "records": records}
 	if err := c.Do(ctx, http.MethodPost, "pipelines/simulate", nil, body, &res); err != nil {
@@ -155,7 +149,10 @@ func pipelineSimulate(ctx context.Context, c *ascode.Client, file, samples, sign
 		}
 	}
 	fmt.Fprintf(out, "%d records, %d dropped\n", len(res.Diffs), dropped)
-	return nil
+	if expect == "" {
+		return nil
+	}
+	return checkExpect(expect, res.Diffs, out)
 }
 
 func show(s *string) string {

@@ -1,0 +1,13 @@
+# Signed bundle (X08): put your server's host in egress_hosts, then from go/:
+#   mkdir -p /tmp/opentsdb && cp pluginsdk/sources/opentsdb/plugin.yaml /tmp/opentsdb/
+#   GOOS=linux go build -o /tmp/opentsdb/plugin ./pluginsdk/sources/opentsdb
+#   wtctl plugin pack --dir /tmp/opentsdb --key publisher.seed --out opentsdb.tar.gz
+#   wtctl plugin push --file opentsdb.tar.gz --api <url> --key <key> --org <org_...>
+# A credential goes in secret_refs and secret_headers; the plugin never sees its value.
+name: opentsdb
+version: 1.0.0
+kinds: [source]
+permissions:
+  egress_hosts: []
+  secret_refs: []
+  secret_headers: []

@@ -13,7 +13,6 @@ import (
 	"os"
 	"strings"
 	"time"
-	"github.com/watchtowerobservability/watchtower-cli/internal/netguard"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
@@ -40,7 +39,7 @@ func newS3Dest(raw string) (Dest, error) {
 		creds: aws.Credentials{
 			AccessKeyID: os.Getenv("WT_BACKUP_S3_ACCESS_KEY"), SecretAccessKey: os.Getenv("WT_BACKUP_S3_SECRET_KEY"),
 		},
-		hc: netguard.Guarded("wtctl", 10*time.Minute),
+		hc: guardedClient(10 * time.Minute),
 	}
 	if d.creds.AccessKeyID == "" || d.creds.SecretAccessKey == "" {
 		return nil, fmt.Errorf("WT_BACKUP_S3_ACCESS_KEY and WT_BACKUP_S3_SECRET_KEY are required for s3 destinations")

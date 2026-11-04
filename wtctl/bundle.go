@@ -31,9 +31,10 @@ const bundleUsage = `usage: wtctl bundle create --version v --out bundle.tar --k
        wtctl bundle verify bundle.tar --pubkey <base64url ed25519 key>
        wtctl bundle load bundle.tar --pubkey <base64url ed25519 key> --registry host:port`
 
-// guardedClient is the wtctl HTTP client: no proxy, WT_AIRGAP policy applied.
+// guardedClient is the wtctl HTTP client: HTTP(S)_PROXY honoured (D-85), WT_AIRGAP policy applied
+// to the host it dials (the proxy when one is set).
 func guardedClient(timeout time.Duration) *http.Client {
-	c := netguard.NewClient(netguard.FromEnv("wtctl"))
+	c := netguard.NewClientWith(netguard.FromEnv("wtctl"), netguard.Options{}, func(t *http.Transport) { t.Proxy = http.ProxyFromEnvironment })
 	c.Timeout = timeout
 	return c
 }

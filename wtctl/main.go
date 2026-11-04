@@ -15,6 +15,12 @@ import (
 )
 
 func main() {
+	args, err := applyContext(os.Args[1:]) // --context / $WT_CONTEXT / current context (contexts.go)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	os.Args = append(os.Args[:1], args...)
 	if len(os.Args) >= 3 && os.Args[1] == "release" && os.Args[2] == "gate" {
 		// --wait can outlast the 60 s of the other release commands; the flag bounds it.
 		code, err := gateMain(context.Background(), os.Args[3:], os.Stdout)
@@ -43,6 +49,7 @@ func main() {
 		"sourcemaps":   sourcemapsMain,
 		"debug-files":  debugFilesMain,
 		"profile":      profileMain,
+		"size":         sizeMain,
 		"checks":       checksMain,
 		"test":         testMain,
 		"ci":           ciMain,
@@ -68,6 +75,7 @@ func main() {
 		"license":      licenseMain,
 		"admin":        adminMain,
 		"org":          orgMain,
+		"loadtest":     loadtestMain,
 		"evals":        evalsMain,
 		"prompts":      promptsMain,
 		"manifest":     manifestMain,
@@ -75,11 +83,29 @@ func main() {
 		"internal":     internalMain,
 		"bundle":       bundleMain,
 		"agent":        agentMain,
+		"k8s":          k8sMain,
+		"activity":     activityMain,
+		"metrics":      metricsMain,
+		"plugin":       pluginMain,
+		"ch":           chMain,
+		"mib":          mibMain,
+		"login":        loginMain,
+		"context":      contextMain,
+		"query":        queryMain,
+		"logs":         logsMain,
+		"spans":        spansMain,
+		"self-update":  selfUpdateMain,
+		"tests":        testsMain,
+		"version":      versionMain,
+		"--version":    versionMain,
 	} {
 		if len(os.Args) >= 2 && os.Args[1] == name {
 			limit := 30 * time.Minute
-			if name == "gen" || name == "mcp" {
+			if name == "gen" || name == "mcp" || name == "logs" {
 				limit = 24 * time.Hour // --duration governs
+			}
+			if name == "tests" {
+				limit = 6 * time.Hour // `tests coverage go` runs every package's tests
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), limit)
 			defer cancel()
@@ -101,7 +127,12 @@ func main() {
 		fmt.Fprintln(os.Stderr, "       "+profileUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       wtctl checks run--api <url> --key <key> --project <id> [--tag ci] [--wait] [--timeout 5m] [--junit out.xml]")
 		fmt.Fprintln(os.Stderr, "       "+ciUsage[len("usage: "):])
+		fmt.Fprintln(os.Stderr, "       "+ciJunitUsage[len("usage: "):])
+		fmt.Fprintln(os.Stderr, "       "+ciPlanUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       wtctl checks import-playwright <file.spec.ts>")
+		fmt.Fprintln(os.Stderr, "       wtctl checks record-mobile --device <preset>|list [--app <build>] [--appium <url>]")
+		fmt.Fprintln(os.Stderr, "       wtctl checks import-postman <collection.json>")
+		fmt.Fprintln(os.Stderr, "       wtctl checks import-curl '<curl command>' | <file> | -")
 		fmt.Fprintln(os.Stderr, "       "+checksWatchUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       wtctl rules import <rules.yaml> --api <url> --key <key> --project <id>")
 		fmt.Fprintln(os.Stderr, "       wtctl routing import-alertmanager <alertmanager.yaml> --api <url> --key <key> --project <id> [--apply]")
@@ -119,7 +150,15 @@ func main() {
 		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(dashboardsUsage[len("usage: "):], "\n       ", "\n       "))
 		fmt.Fprintln(os.Stderr, "       "+kafkaUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       "+backupUsage[len("usage: "):])
+		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(pluginUsage[len("usage: "):], "\n       ", "\n       "))
 		fmt.Fprintln(os.Stderr, "       "+restoreUsage[len("usage: "):])
+		fmt.Fprintln(os.Stderr, "       "+chTuneUsage[len("usage: "):])
+		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(queryUsage[len("usage: "):], "\n       ", "\n       "))
+		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(contextUsage[len("usage: "):], "\n       ", "\n       "))
+		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(spansUsage[len("usage: "):], "\n       ", "\n       "))
+		fmt.Fprintln(os.Stderr, "       "+selfUpdateUsage[len("usage: "):])
+		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(testsUsage[len("usage: "):], "\n       ", "\n       "))
+		fmt.Fprintln(os.Stderr, "       "+versionUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       wtctl gatus config --api <url> --key <key> --project <slug> --project-id <prj_...> [--env <e>]")
 		os.Exit(2)
 	}

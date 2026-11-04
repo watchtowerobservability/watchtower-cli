@@ -112,7 +112,7 @@ func call(ctx context.Context, method, url, key string, body, out any) error {
 }
 
 type releaseOpts struct {
-	api, key, project, version, ref, url, commits, deploy, dir string
+	api, key, project, version, ref, url, commits, deploy, dir, service string
 }
 
 // releaseCreate posts the release (idempotent by version) and, with deploy set, a deployment
@@ -150,6 +150,9 @@ func releaseCreate(ctx context.Context, o releaseOpts, out io.Writer) error {
 	for _, e := range envs.Data {
 		if e.Name == o.deploy || e.ID == o.deploy {
 			dep := map[string]any{"version": o.version, "env_id": e.ID, "source": "wtctl"}
+			if o.service != "" {
+				dep["service"] = o.service
+			}
 			if err := call(ctx, http.MethodPost, base+"/deployments", o.key, dep, nil); err != nil {
 				return err
 			}
@@ -173,6 +176,7 @@ func releaseMain(ctx context.Context, args []string, out io.Writer) error {
 	fs.StringVar(&o.url, "url", "", "release URL")
 	fs.StringVar(&o.commits, "commits", "", "auto (since the previous tag) or a git revision range")
 	fs.StringVar(&o.deploy, "deploy", "", "environment (name or id) to record a deployment in")
+	fs.StringVar(&o.service, "service", "", "service the deployment shipped (per-service DORA and rollback detection)")
 	fs.StringVar(&o.dir, "dir", ".", "git repository")
 	// The version comes first; flags follow it.
 	if len(args) < 2 || strings.HasPrefix(args[1], "-") {

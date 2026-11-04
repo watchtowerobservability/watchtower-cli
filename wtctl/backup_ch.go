@@ -11,10 +11,9 @@ import (
 	"path"
 	"strings"
 	"time"
-	"github.com/watchtowerobservability/watchtower-cli/internal/netguard"
 )
 
-var chHTTP = netguard.Guarded("wtctl", 6*time.Hour) // BACKUP runs synchronously
+var chHTTP = guardedClient(6 * time.Hour) // BACKUP runs synchronously
 
 func chDatabase() string { return envOr("WT_CH_DATABASE", "default") }
 

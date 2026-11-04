@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"github.com/watchtowerobservability/watchtower-cli/internal/netguard"
 )
 
 const datasetsUsage = "usage: wtctl datasets import <file> --dataset <name> --api <url> --key <key> --project <id> [--format jsonl|csv|langfuse|phoenix] [--mapping '{\"input\":\"col\"}'] [--create]\n" +
@@ -151,7 +150,7 @@ func rawCall(ctx context.Context, method, u, key string, body io.Reader) ([]byte
 	if body != nil {
 		req.Header.Set("Content-Type", "application/octet-stream")
 	}
-	resp, err := netguard.Guarded("wtctl", 0).Do(req)
+	resp, err := guardedClient(0).Do(req)
 	if err != nil {
 		return nil, err
 	}

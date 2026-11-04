@@ -30,6 +30,8 @@ type Client struct {
 	API     *wtapi.Client
 	Project string
 	Org     string // set for org-scoped kinds (NewOrg)
+	// ManagedBy goes with every request as X-WT-Managed-By: the API locks what it manages (A31).
+	ManagedBy string
 }
 
 // Scope is the project id, or the org id for a client made by NewOrg.
@@ -56,7 +58,7 @@ func New(api, key, project string, hc *http.Client) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{API: c, Project: project}, nil
+	return &Client{API: c, Project: project, ManagedBy: "wtctl"}, nil
 }
 
 // NewOrg builds a client for the org-scoped kinds (IP allowlists, SSO, secret stores).
@@ -97,6 +99,9 @@ func (c *Client) Do(ctx context.Context, method, rel string, hdr map[string]stri
 		u = strings.TrimRight(c.API.Server, "/") + rel
 	}
 	req, err := http.NewRequestWithContext(ctx, method, u, rdr)
+	if err == nil && c.ManagedBy != "" {
+		req.Header.Set("X-WT-Managed-By", c.ManagedBy)
+	}
 	if err != nil {
 		return err
 	}
@@ -170,8 +175,11 @@ func (c *Client) List(ctx context.Context, k *Kind) (map[string]Item, error) {
 			if b["revoked_at"] != nil {
 				continue // a revoked health token is gone for our purposes
 			}
+			if name == "" {
+				continue // no as-code identity (an inhibition rule made in the UI)
+			}
 			ref, _ := b["id"].(string)
-			if k.ByName {
+			if k.ByName || ref == "" { // a time interval's name is its id
 				ref = name
 			}
 			if k.Versioned && ref != "" {

@@ -3,6 +3,8 @@ package ascode_test
 import (
 	"context"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -165,5 +167,33 @@ func TestDriftDetectedAfterUiEdit(t *testing.T) {
 	d := ascode.Drifts(plan)
 	if len(d) != 1 || d[0].Kind != "Monitor" || d[0].Op != ascode.DriftUpdate {
 		t.Fatalf("drift = %v", d)
+	}
+}
+
+func TestEveryRequestSaysWhoManages(t *testing.T) {
+	var got string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Get("X-WT-Managed-By")
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+	c, err := ascode.New(srv.URL, "k", "p", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.ManagedBy = "terraform"
+	if err := c.Do(t.Context(), http.MethodPut, "receivers/r", nil, map[string]any{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got != "terraform" {
+		t.Fatalf("header %q", got)
+	}
+}
+
+func TestAlertingKindsAreManaged(t *testing.T) {
+	for _, n := range []string{"TimeInterval", "InhibitRule"} {
+		if ascode.ByKind(n) == nil {
+			t.Fatalf("no kind %s", n)
+		}
 	}
 }

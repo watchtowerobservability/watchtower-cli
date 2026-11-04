@@ -60,9 +60,12 @@ type kindOps interface {
 var Kinds = []*Kind{
 	{Name: "Template", Path: "templates", Update: "PATCH"},
 	{Name: "Receiver", Path: "receivers", SecretFields: []string{"secrets"}},
+	{Name: "TimeInterval", Path: "time-intervals", UpdateOmit: []string{"name"}},
 	{Name: "Routing", Path: "routing", Singleton: true, NoPrune: true},
+	{Name: "InhibitRule", Path: "inhibit-rules"},
 	{Name: "AlertRule", Path: "alert-rules"},
 	{Name: "RuleGroup", Path: "rule-groups", ByName: true, NoList: true, NoPrune: true},
+	{Name: "LokiRuleGroup", Path: "loki/api/v1/rules", ops: lokiRuleOps{}}, // name: <namespace>/<group>
 	{Name: "MaintenanceWindow", Path: "maintenance-windows"},
 	{Name: "Silence", Path: "silences", Key: "comment"}, // a silence has no name: its comment is the identity
 	{Name: "Slo", Path: "slos"},

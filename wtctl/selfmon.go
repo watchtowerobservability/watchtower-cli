@@ -23,7 +23,7 @@ const selfmonUsage = "usage: wtctl self-monitor init --project <platform-project
 // selfmonRule is one alert rule body (RuleSpec) for the platform project.
 func selfmonRule(name, promql, op string, threshold float64, forS int, sev string) map[string]any {
 	return map[string]any{
-		"name": name, "kind": "promql", "query": map[string]any{"promql": promql},
+		"name": name, "kind": "metric", "query": map[string]any{"promql": promql},
 		"condition": map[string]any{"threshold": map[string]any{"op": op, "value": threshold}},
 		"for_s":     forS, "severity": sev, "every_s": 60, "window_s": 300,
 	}

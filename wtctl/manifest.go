@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"github.com/watchtowerobservability/watchtower-cli/internal/netguard"
 
 	"github.com/watchtowerobservability/watchtower-cli/internal/ascode"
 )
@@ -42,10 +41,11 @@ func manifestMain(ctx context.Context, args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	c, err := ascode.New(api, key, project, netguard.Guarded("wtctl", 0))
+	c, err := ascode.New(api, key, project, guardedClient(0))
 	if err != nil {
 		return err
 	}
+	c.ManagedBy = ascode.ManagedBy(repo, file)
 	plan, err := c.PlanManifest(ctx, m)
 	if err != nil {
 		return err

@@ -34,6 +34,7 @@ type importJobView struct {
 		Output   string          `json:"output"`
 		Report   json.RawMessage `json:"report"`
 		Markdown string          `json:"markdown"`
+		Monitor  json.RawMessage `json:"monitor"` // checks jobs: the monitor the server built
 	} `json:"result"`
 }
 

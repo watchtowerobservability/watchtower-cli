@@ -1,0 +1,13 @@
+# Signed bundle (X08): put your server's host in egress_hosts, then from go/:
+#   mkdir -p /tmp/graphite && cp pluginsdk/sources/graphite/plugin.yaml /tmp/graphite/
+#   GOOS=linux go build -o /tmp/graphite/plugin ./pluginsdk/sources/graphite
+#   wtctl plugin pack --dir /tmp/graphite --key publisher.seed --out graphite.tar.gz
+#   wtctl plugin push --file graphite.tar.gz --api <url> --key <key> --org <org_...>
+# A credential goes in secret_refs and secret_headers; the plugin never sees its value.
+name: graphite
+version: 1.0.0
+kinds: [source]
+permissions:
+  egress_hosts: []
+  secret_refs: []
+  secret_headers: []

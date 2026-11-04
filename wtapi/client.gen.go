@@ -25,6 +25,23 @@ const (
 	AlertKindPerformanceRegression AlertKind = "performance_regression"
 )
 
+// Defines values for AnomalyMlSeasonality.
+const (
+	AnomalyMlSeasonalityAuto   AnomalyMlSeasonality = "auto"
+	AnomalyMlSeasonalityDaily  AnomalyMlSeasonality = "daily"
+	AnomalyMlSeasonalityHourly AnomalyMlSeasonality = "hourly"
+	AnomalyMlSeasonalityNone   AnomalyMlSeasonality = "none"
+	AnomalyMlSeasonalityWeekly AnomalyMlSeasonality = "weekly"
+)
+
+// Defines values for AnomalySeasonality.
+const (
+	AnomalySeasonalityDaily  AnomalySeasonality = "daily"
+	AnomalySeasonalityHourly AnomalySeasonality = "hourly"
+	AnomalySeasonalityNone   AnomalySeasonality = "none"
+	AnomalySeasonalityWeekly AnomalySeasonality = "weekly"
+)
+
 // Defines values for AttrOp.
 const (
 	AttrOpContains AttrOp = "contains"
@@ -43,6 +60,22 @@ const (
 const (
 	ChangeModeAbs ChangeMode = "abs"
 	ChangeModePct ChangeMode = "pct"
+)
+
+// Defines values for CiRuleMeasure.
+const (
+	CiRuleMeasureDurationMax CiRuleMeasure = "duration_max"
+	CiRuleMeasureDurationP95 CiRuleMeasure = "duration_p95"
+	CiRuleMeasureFailureRate CiRuleMeasure = "failure_rate"
+	CiRuleMeasureFailures    CiRuleMeasure = "failures"
+)
+
+// Defines values for CostRuleMode.
+const (
+	CostRuleModeBudget    CostRuleMode = "budget"
+	CostRuleModeChange    CostRuleMode = "change"
+	CostRuleModeForecast  CostRuleMode = "forecast"
+	CostRuleModeThreshold CostRuleMode = "threshold"
 )
 
 // Defines values for CustomAgg.
@@ -98,16 +131,21 @@ const (
 	FlowMeasurePackets       FlowMeasure = "packets"
 )
 
+// Defines values for ForecastAlgorithm.
+const (
+	ForecastAlgorithmLinear   ForecastAlgorithm = "linear"
+	ForecastAlgorithmSeasonal ForecastAlgorithm = "seasonal"
+)
+
+// Defines values for ForecastSeasonality.
+const (
+	ForecastSeasonalityDaily  ForecastSeasonality = "daily"
+	ForecastSeasonalityWeekly ForecastSeasonality = "weekly"
+)
+
 // Defines values for GroupBy1.
 const (
 	GroupBy1All GroupBy1 = "all"
-)
-
-// Defines values for Health.
-const (
-	HealthCritical Health = "critical"
-	HealthDegraded Health = "degraded"
-	HealthOk       Health = "ok"
 )
 
 // Defines values for IssueMetric.
@@ -146,8 +184,19 @@ const (
 
 // Defines values for Method.
 const (
-	MethodHoltWinters Method = "holt_winters"
-	MethodLinear      Method = "linear"
+	MethodHoltWinters       Method = "holt_winters"
+	MethodHoltWintersWeekly Method = "holt_winters_weekly"
+	MethodLinear            Method = "linear"
+)
+
+// Defines values for MlMetric.
+const (
+	MlMetricAccuracy MlMetric = "accuracy"
+	MlMetricKs       MlMetric = "ks"
+	MlMetricMacroF1  MlMetric = "macro_f1"
+	MlMetricMae      MlMetric = "mae"
+	MlMetricPsi      MlMetric = "psi"
+	MlMetricRmse     MlMetric = "rmse"
 )
 
 // Defines values for NoData.
@@ -156,6 +205,14 @@ const (
 	NoDataKeepLast NoData = "keep_last"
 	NoDataNoData   NoData = "no_data"
 	NoDataOk       NoData = "ok"
+)
+
+// Defines values for OnError.
+const (
+	OnErrorAlerting OnError = "alerting"
+	OnErrorError    OnError = "error"
+	OnErrorKeepLast OnError = "keep_last"
+	OnErrorOk       OnError = "ok"
 )
 
 // Defines values for Op.
@@ -204,10 +261,13 @@ const (
 	RuleKindAuditEvent           RuleKind = "audit_event"
 	RuleKindChange               RuleKind = "change"
 	RuleKindCheck                RuleKind = "check"
+	RuleKindCiPipeline           RuleKind = "ci_pipeline"
 	RuleKindComposite            RuleKind = "composite"
+	RuleKindCost                 RuleKind = "cost"
 	RuleKindCostAnomaly          RuleKind = "cost_anomaly"
 	RuleKindErrorRate            RuleKind = "error_rate"
 	RuleKindFlow                 RuleKind = "flow"
+	RuleKindForecast             RuleKind = "forecast"
 	RuleKindFreshness            RuleKind = "freshness"
 	RuleKindIssueFrequency       RuleKind = "issue_frequency"
 	RuleKindIssueNew             RuleKind = "issue_new"
@@ -223,7 +283,10 @@ const (
 	RuleKindLog                  RuleKind = "log"
 	RuleKindLogMeasure           RuleKind = "log_measure"
 	RuleKindLogPatternNew        RuleKind = "log_pattern_new"
+	RuleKindLogqlMetric          RuleKind = "logql_metric"
 	RuleKindMetric               RuleKind = "metric"
+	RuleKindMlModel              RuleKind = "ml_model"
+	RuleKindNullRate             RuleKind = "null_rate"
 	RuleKindPeerOutlier          RuleKind = "peer_outlier"
 	RuleKindProfileFunction      RuleKind = "profile_function"
 	RuleKindQuotaUsage           RuleKind = "quota_usage"
@@ -236,6 +299,7 @@ const (
 	RuleKindTraceFailure         RuleKind = "trace_failure"
 	RuleKindTraceLatency         RuleKind = "trace_latency"
 	RuleKindTraceqlMetric        RuleKind = "traceql_metric"
+	RuleKindTransaction          RuleKind = "transaction"
 	RuleKindTrigger              RuleKind = "trigger"
 	RuleKindVolume               RuleKind = "volume"
 )
@@ -252,12 +316,11 @@ const (
 	RumMetricSessionErrorRate  RumMetric = "session_error_rate"
 )
 
-// Defines values for Seasonality.
+// Defines values for ScorecardHealth.
 const (
-	SeasonalityDaily  Seasonality = "daily"
-	SeasonalityHourly Seasonality = "hourly"
-	SeasonalityNone   Seasonality = "none"
-	SeasonalityWeekly Seasonality = "weekly"
+	ScorecardHealthCritical ScorecardHealth = "critical"
+	ScorecardHealthDegraded ScorecardHealth = "degraded"
+	ScorecardHealthOk       ScorecardHealth = "ok"
 )
 
 // Defines values for Severity.
@@ -268,6 +331,37 @@ const (
 	SeverityWarning  Severity = "warning"
 )
 
+// Defines values for SloBurnMode0Type.
+const (
+	SloBurnMode0TypeMultiwindow SloBurnMode0Type = "multiwindow"
+)
+
+// Defines values for SloBurnMode1Type.
+const (
+	SloBurnMode1TypeExhaustion SloBurnMode1Type = "exhaustion"
+)
+
+// Defines values for SloBurnMode2Type.
+const (
+	SloBurnMode2TypeBudgetRate SloBurnMode2Type = "budget_rate"
+)
+
+// Defines values for SloBurnMode3Type.
+const (
+	SloBurnMode3TypeConsumed SloBurnMode3Type = "consumed"
+)
+
+// Defines values for SloBurnMode4Type.
+const (
+	SloBurnMode4TypeBurnRate SloBurnMode4Type = "burn_rate"
+)
+
+// Defines values for SloTier.
+const (
+	SloTierPage   SloTier = "page"
+	SloTierTicket SloTier = "ticket"
+)
+
 // Defines values for StaleAs.
 const (
 	StaleAsDegraded StaleAs = "degraded"
@@ -275,10 +369,10 @@ const (
 	StaleAsUnknown  StaleAs = "unknown"
 )
 
-// Defines values for Tier.
+// Defines values for TxSignal.
 const (
-	TierPage   Tier = "page"
-	TierTicket Tier = "ticket"
+	TxSignalBaseline TxSignal = "baseline"
+	TxSignalStalls   TxSignal = "stalls"
 )
 
 // Defines values for WindowKind.
@@ -329,9 +423,17 @@ type AlertKind string
 
 // Annotations defines model for Annotations.
 type Annotations struct {
-	Description *string `json:"description,omitempty"`
-	RunbookUrl  *string `json:"runbook_url,omitempty"`
-	Summary     *string `json:"summary,omitempty"`
+	// DashboardUrl Link to a dashboard for this alert; `{{ }}` templates allowed. Reaches notifications.
+	DashboardUrl *string `json:"dashboard_url,omitempty"`
+	Description  *string `json:"description,omitempty"`
+
+	// ImageUrl Your own image for this alert; when set, no chart is captured for it.
+	ImageUrl *string `json:"image_url,omitempty"`
+
+	// PanelUrl Link to a panel for this alert; `{{ }}` templates allowed. Reaches notifications.
+	PanelUrl   *string `json:"panel_url,omitempty"`
+	RunbookUrl *string `json:"runbook_url,omitempty"`
+	Summary    *string `json:"summary,omitempty"`
 }
 
 // AnomalyCfg The `anomaly` condition. `sensitivity` 0 to 100 (higher flags smaller deviations).
@@ -343,13 +445,19 @@ type AnomalyCfg struct {
 	MinCount *float64 `json:"min_count,omitempty"`
 
 	// MinDeltaPct A point must also differ from the baseline by this many percent.
-	MinDeltaPct *float64     `json:"min_delta_pct,omitempty"`
-	Seasonality *Seasonality `json:"seasonality,omitempty"`
-	Sensitivity *int32       `json:"sensitivity,omitempty"`
+	MinDeltaPct *float64            `json:"min_delta_pct,omitempty"`
+	Seasonality *AnomalySeasonality `json:"seasonality,omitempty"`
+	Sensitivity *int32              `json:"sensitivity,omitempty"`
 
 	// TrainingDays Days of history for the baseline, 7 to 28.
 	TrainingDays *int32 `json:"training_days,omitempty"`
 }
+
+// AnomalyMlSeasonality defines model for AnomalyMlSeasonality.
+type AnomalyMlSeasonality string
+
+// AnomalySeasonality defines model for AnomalySeasonality.
+type AnomalySeasonality string
 
 // AttrFilter defines model for AttrFilter.
 type AttrFilter struct {
@@ -453,6 +561,9 @@ type Child struct {
 	Weight float64 `json:"weight"`
 }
 
+// CiRuleMeasure What a `ci_pipeline` rule measures over finished runs (ALT-002, CI monitors).
+type CiRuleMeasure string
+
 // Condition defines model for Condition.
 type Condition struct {
 	union json.RawMessage
@@ -490,16 +601,30 @@ type Condition2 struct {
 	Forecast ForecastCfg `json:"forecast"`
 }
 
-// Conditions Conditions of a gate; an absent one is not checked.
+// Conditions defines model for Conditions.
 type Conditions struct {
-	// MaxErrorRate 0..1, errors over requests.
-	MaxErrorRate *float64 `json:"max_error_rate"`
-	MaxNewIssues *int32   `json:"max_new_issues"`
-	MaxP95Ms     *float64 `json:"max_p95_ms"`
-
-	// MinCrashFreeSessions 0..1.
-	MinCrashFreeSessions *float64 `json:"min_crash_free_sessions"`
+	// Mode `any` (default) or `all`.
+	Mode  *string            `json:"mode,omitempty"`
+	Rules *[]RuleSpecRequest `json:"rules,omitempty"`
 }
+
+// ContentGrouping defines model for ContentGrouping.
+type ContentGrouping struct {
+	// Normalize Replace digit runs with `#` in the rendered id, so `disk 91% on db-3` and
+	// `disk 93% on db-3` group together.
+	Normalize *bool `json:"normalize,omitempty"`
+
+	// Template `{{ … }}` placeholders: `summary`, `description`, `labels.<name>`, `annotations.<name>`
+	// or a `JSONPath` such as `$.annotations.details.host` over `{labels, annotations}`.
+	// Example: `{{ labels.service }}: {{ summary }}`.
+	Template string `json:"template"`
+
+	// WindowS Rolling window in seconds, 300 to 604800 (default 3600).
+	WindowS *int32 `json:"window_s"`
+}
+
+// CostRuleMode What a `cost` rule measures (ALT-001, the cloud cost monitor kinds).
+type CostRuleMode string
 
 // CustomAgg defines model for CustomAgg.
 type CustomAgg string
@@ -523,7 +648,7 @@ type DashboardDto struct {
 	Kind      string `json:"kind"`
 	ProjectId string `json:"project_id"`
 
-	// Spec Spec v1; absent in listings.
+	// Spec Spec v1, with the keys in the order the client sent them; absent in listings.
 	Spec      *map[string]interface{} `json:"spec"`
 	Title     string                  `json:"title"`
 	UpdatedAt string                  `json:"updated_at"`
@@ -608,6 +733,18 @@ type FieldDef struct {
 	Type       FieldKind `json:"type"`
 }
 
+// FieldError One invalid input field, as listed in a problem's `errors`.
+type FieldError struct {
+	// In `body` or `query`.
+	In string `json:"in"`
+
+	// Name The serde path of the field (`spec.env`, `routes[0].id`); `$` for the whole input.
+	Name string `json:"name"`
+
+	// Reason `required`, or the parser's message (for example `expected id prefix env_`).
+	Reason string `json:"reason"`
+}
+
 // FieldKind defines model for FieldKind.
 type FieldKind string
 
@@ -653,6 +790,9 @@ type FlowQuery struct {
 	Measure  FlowMeasure `json:"measure"`
 }
 
+// ForecastAlgorithm How a `forecast` rule projects its series.
+type ForecastAlgorithm string
+
 // ForecastCfg The `forecast` condition: breaches when any forecast point within `horizon_s` satisfies
 // `op value`.
 type ForecastCfg struct {
@@ -661,6 +801,9 @@ type ForecastCfg struct {
 	Op       Op      `json:"op"`
 	Value    float64 `json:"value"`
 }
+
+// ForecastSeasonality The season of a `seasonal` forecast.
+type ForecastSeasonality string
 
 // GroupBy defines model for GroupBy.
 type GroupBy struct {
@@ -693,9 +836,6 @@ type GroupDto struct {
 	Unchanged bool `json:"unchanged"`
 	Updated   int  `json:"updated"`
 }
-
-// Health Worst last: the derived order is the severity order.
-type Health string
 
 // HealthPolicy defines model for HealthPolicy.
 type HealthPolicy struct {
@@ -758,12 +898,29 @@ type HealthTokenPage struct {
 
 // IssueFilter Which issues an issue rule counts; empty lists match everything.
 type IssueFilter struct {
+	// AgeMinS Only issues first seen at least this many seconds ago (Sentry's "issue is older than").
+	AgeMinS *int64 `json:"age_min_s"`
+
+	// Assignee `unassigned`, `assigned`, a user id (`usr_…`) or a team id (`team_…`).
+	Assignee *string `json:"assignee"`
+
 	// Kinds `exception`, `performance`, `log_pattern`, `cron_miss` or `llm_failure`.
-	Kinds  *[]string `json:"kinds,omitempty"`
-	Levels *[]string `json:"levels,omitempty"`
+	Kinds *[]string `json:"kinds,omitempty"`
+
+	// LatestRelease Only issues first seen in the project's newest release; per-issue kinds also count only
+	// that release's events (Sentry's "latest release").
+	LatestRelease *bool     `json:"latest_release,omitempty"`
+	Levels        *[]string `json:"levels,omitempty"`
+
+	// MinTimesSeen Only issues seen at least this many times in total.
+	MinTimesSeen *int64 `json:"min_times_seen"`
 
 	// Priorities `high`, `medium` or `low`.
 	Priorities *[]string `json:"priorities,omitempty"`
+
+	// Tags The issue's events in the window must carry every one of these tags (Sentry's "event's
+	// tags match"); at most 10.
+	Tags *[]IssueTagMatch `json:"tags,omitempty"`
 }
 
 // IssueMetric defines model for IssueMetric.
@@ -777,6 +934,21 @@ type IssuePct struct {
 
 	// MinPrev Issues with fewer than this in the previous window are skipped (default 1).
 	MinPrev *int32 `json:"min_prev,omitempty"`
+}
+
+// IssueTagMatch `key` = `value` on an event's tags.
+type IssueTagMatch struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+// LastDeliveryDto defines model for LastDeliveryDto.
+type LastDeliveryDto struct {
+	At         string  `json:"at"`
+	ErrorClass *string `json:"error_class"`
+
+	// Status `sent`, `retry`, `failed`, `dead` or `folded`.
+	Status string `json:"status"`
 }
 
 // Layer defines model for Layer.
@@ -831,6 +1003,11 @@ type LevelSpec struct {
 	// Strategy `default`, `all`, `random`, `round_robin_alert` or `round_robin_cycle`.
 	Strategy *string       `json:"strategy,omitempty"`
 	Targets  *[]TargetSpec `json:"targets,omitempty"`
+
+	// Via Page this level's users on every verified contact method of these kinds at once (`sms`,
+	// `voice`, `push`, `email`, `slack`, `teams`, `telegram`, `mattermost`, `webhook`) instead
+	// of their personal rules; a user with none of them keeps their rules.
+	Via *[]string `json:"via,omitempty"`
 }
 
 // Link defines model for Link.
@@ -894,6 +1071,11 @@ type LogMeasure struct {
 	Filter LogFilter `json:"filter"`
 }
 
+// LogQlMetric defines model for LogQlMetric.
+type LogQlMetric struct {
+	Query string `json:"query"`
+}
+
 // MaintenanceAs defines model for MaintenanceAs.
 type MaintenanceAs string
 
@@ -909,6 +1091,30 @@ type Matcher struct {
 
 // Method defines model for Method.
 type Method string
+
+// MinAlerts defines model for MinAlerts.
+type MinAlerts struct {
+	// Count 2 to 1000.
+	Count int32 `json:"count"`
+
+	// WindowMin 1 to 1440.
+	WindowMin int32 `json:"window_min"`
+}
+
+// MlMetric defines model for MlMetric.
+type MlMetric string
+
+// MlModelQuery defines model for MlModelQuery.
+type MlModelQuery struct {
+	// BaselineS Drift baseline: the seconds before the window, 3600 to 31 days (default 7 days).
+	BaselineS *int32 `json:"baseline_s,omitempty"`
+
+	// Feature Drift of this feature only (`@prediction` for the prediction).
+	Feature *string  `json:"feature"`
+	Metric  MlMetric `json:"metric"`
+	Model   string   `json:"model"`
+	Version *string  `json:"version"`
+}
 
 // MonitorDto defines model for MonitorDto.
 type MonitorDto struct {
@@ -1080,7 +1286,8 @@ type NewDashboardRequest struct {
 	// Kind `dashboard` (default) or `notebook`.
 	Kind *string `json:"kind"`
 
-	// Spec Dashboard spec v1.
+	// Spec Dashboard spec v1. Stored verbatim too, so GET returns the same key order. Its JSON Schema
+	// is at `GET /v1/projects/{prj}/dashboards/spec-schema`.
 	Spec  map[string]interface{} `json:"spec"`
 	Title string                 `json:"title"`
 }
@@ -1116,6 +1323,9 @@ type NewTemplateRequest struct {
 // NoData What an evaluation without data means.
 type NoData string
 
+// OnError What an evaluation error means for a group.
+type OnError string
+
 // Op defines model for Op.
 type Op string
 
@@ -1137,19 +1347,19 @@ type PatchTemplateRequest struct {
 // PathSpec defines model for PathSpec.
 type PathSpec struct {
 	// AddSuspectAuthor Also page the author of the suspect change when they are a project member.
-	AddSuspectAuthor *bool `json:"add_suspect_author,omitempty"`
-
-	// Conditions Conditions of a gate; an absent one is not checked.
-	Conditions *Conditions `json:"conditions,omitempty"`
-	Defer      *DeferSpec  `json:"defer,omitempty"`
-	Levels     []LevelSpec `json:"levels"`
-	Name       string      `json:"name"`
+	AddSuspectAuthor *bool       `json:"add_suspect_author,omitempty"`
+	Conditions       *Conditions `json:"conditions,omitempty"`
+	Defer            *DeferSpec  `json:"defer,omitempty"`
+	Levels           []LevelSpec `json:"levels"`
+	MinAlerts        *MinAlerts  `json:"min_alerts,omitempty"`
+	Name             string      `json:"name"`
 
 	// Retrigger What a new notification does to an acknowledged page: `"inherit"` and `"never"` leave it
 	// acknowledged (no policy-wide default exists yet); `{"after_min": n}` pages again once n
 	// minutes have passed since the ack.
-	Retrigger       *Retrigger       `json:"retrigger,omitempty"`
-	TimeRestriction *TimeRestriction `json:"time_restriction,omitempty"`
+	Retrigger            *Retrigger         `json:"retrigger,omitempty"`
+	TimeRestriction      *TimeRestriction   `json:"time_restriction,omitempty"`
+	WaitForInvestigation *WaitInvestigation `json:"wait_for_investigation,omitempty"`
 }
 
 // PolicyDto defines model for PolicyDto.
@@ -1187,6 +1397,11 @@ type PolicySpec struct {
 	// undeletable `default` path with no conditions.
 	Paths []PathSpec `json:"paths"`
 
+	// RenotifyUntilAckMin High and critical pages only: once the repeats and the fallback are used up, the last
+	// level fires again every this many minutes until the page is acknowledged or resolved (at
+	// most 48 times). 0 (the default) exhausts the page instead; at most 1440.
+	RenotifyUntilAckMin *int32 `json:"renotify_until_ack_min,omitempty"`
+
 	// Repeat Times the levels run again after the last one (0 to 9).
 	Repeat *int32 `json:"repeat,omitempty"`
 }
@@ -1197,9 +1412,12 @@ type Problem struct {
 	// `payload_too_large`, `precondition_failed`, `precondition_required`, `unavailable`, `unsupported_promql`, `query_timeout`, `query_cancelled`, `query_overloaded`, `internal`.
 	Code   string  `json:"code"`
 	Detail *string `json:"detail"`
-	Status int32   `json:"status"`
-	Title  string  `json:"title"`
-	Type   string  `json:"type"`
+
+	// Errors Present for input validation errors: the field(s) that failed.
+	Errors *[]FieldError `json:"errors"`
+	Status int32         `json:"status"`
+	Title  string        `json:"title"`
+	Type   string        `json:"type"`
 }
 
 // ProjectDto defines model for ProjectDto.
@@ -1244,12 +1462,17 @@ type ReceiverDto struct {
 	Enabled   bool                   `json:"enabled"`
 
 	// GeneratedSecret The signing secret the API generated for a webhook that had none. Shown once, here only.
-	GeneratedSecret *string `json:"generated_secret"`
-	HasSecrets      bool    `json:"has_secrets"`
-	Id              string  `json:"id"`
-	Kind            string  `json:"kind"`
-	Name            string  `json:"name"`
-	Team            *string `json:"team"`
+	GeneratedSecret *string          `json:"generated_secret"`
+	HasSecrets      bool             `json:"has_secrets"`
+	Id              string           `json:"id"`
+	Kind            string           `json:"kind"`
+	LastDelivery    *LastDeliveryDto `json:"last_delivery,omitempty"`
+	Name            string           `json:"name"`
+
+	// NotDelivering Why this receiver delivers to no one, null when it does: `disabled`, or `unverified` (an
+	// `escalation_policy` receiver whose people have no login email or verified method).
+	NotDelivering *string `json:"not_delivering"`
+	Team          *string `json:"team"`
 }
 
 // ReceiverPage defines model for ReceiverPage.
@@ -1276,8 +1499,19 @@ type ReceiverRequest struct {
 	// Secrets Write-only settings (tokens, URLs with keys). On update, omit to keep the stored ones.
 	Secrets *map[string]interface{} `json:"secrets"`
 
-	// Team Make this the default receiver of the team with this slug.
+	// Team Make this the default receiver of this team (a catalog team slug, or an org team id or
+	// name). The team's previous default receiver stops being its default.
 	Team *string `json:"team"`
+}
+
+// RecoveryExpr A second `PromQL` expression that decides when a firing group may resolve (Zabbix-style
+// recovery expression, e.g. "error rate low AND queue drained"). A firing group resolves only
+// while the primary condition is clear AND this expression, evaluated over the same window, has
+// `value op` true for the group with the same labels; a missing or failed result keeps it firing.
+type RecoveryExpr struct {
+	Expr  string  `json:"expr"`
+	Op    Op      `json:"op"`
+	Value float64 `json:"value"`
 }
 
 // Restriction Local-time window on the given weekdays; `to <= from` wraps past midnight.
@@ -1356,8 +1590,9 @@ type Route struct {
 	DeclareIncident *map[string]interface{} `json:"declare_incident"`
 
 	// Extract Dynamic routing: labels derived from other labels by regex (see [`Extract`]).
-	Extract *[]Extract `json:"extract,omitempty"`
-	GroupBy *GroupBy   `json:"group_by,omitempty"`
+	Extract      *[]Extract       `json:"extract,omitempty"`
+	GroupBy      *GroupBy         `json:"group_by,omitempty"`
+	GroupContent *ContentGrouping `json:"group_content,omitempty"`
 
 	// GroupIntervalS Seconds between notifications about changes to a group (default 300).
 	GroupIntervalS *int32 `json:"group_interval_s"`
@@ -1367,7 +1602,10 @@ type Route struct {
 
 	// Handle Dynamic handle such as `@slack-{{service}}`, rendered from the group labels and sent
 	// with the notification for the notifier to resolve; its labels must be in `group_by`.
-	Handle   *string    `json:"handle"`
+	Handle *string `json:"handle"`
+
+	// Id `rte_` + 26 lowercase Crockford base32 characters. Route ids are chosen by the client
+	// (mint a UUIDv7-style id when adding a route) and must be unique within the tree.
 	Id       string     `json:"id"`
 	Matchers *[]Matcher `json:"matchers,omitempty"`
 
@@ -1375,7 +1613,9 @@ type Route struct {
 	MuteIntervals *[]string `json:"mute_intervals,omitempty"`
 
 	// PauseS Auto-pause seconds (P3-N2).
-	PauseS   *int32  `json:"pause_s"`
+	PauseS *int32 `json:"pause_s"`
+
+	// Receiver A receiver id (`rcv_…`), not its name.
 	Receiver *string `json:"receiver"`
 
 	// RepeatIntervalS Seconds before an unchanged firing group is notified again (default 14400).
@@ -1390,24 +1630,273 @@ type Route struct {
 type RoutingDto struct {
 	CreatedAt *string `json:"created_at"`
 	CreatedBy *string `json:"created_by"`
-	Tree      Route   `json:"tree"`
+
+	// NotDelivering Receivers of the current tree that deliver to no one (W63), on `GET /routing` only.
+	// Omitted when empty.
+	NotDelivering *[]RoutingNotDelivering `json:"not_delivering,omitempty"`
+	Tree          Route                   `json:"tree"`
 
 	// Version 0 while the project uses the default tree (one route per team default receiver).
 	Version int32 `json:"version"`
 }
 
+// RoutingNotDelivering defines model for RoutingNotDelivering.
+type RoutingNotDelivering struct {
+	// Reason `disabled`, or `unverified` (it pages only people with no login email or verified method).
+	Reason     string `json:"reason"`
+	ReceiverId string `json:"receiver_id"`
+}
+
+// RuleCi A `ci_pipeline` rule over `ci_runs_v1`, one group per repo and pipeline.
+type RuleCi struct {
+	Branch *string `json:"branch"`
+
+	// Job Watch this job's runs instead of whole pipeline runs.
+	Job *string `json:"job"`
+
+	// Measure What a `ci_pipeline` rule measures over finished runs (ALT-002, CI monitors).
+	Measure  CiRuleMeasure `json:"measure"`
+	Pipeline *string       `json:"pipeline"`
+	Repo     *string       `json:"repo"`
+}
+
+// RuleCost A `cost` rule over `cost_lines_v1`, one group per service (or one `total` group).
+type RuleCost struct {
+	// BudgetUsd `budget`: the month's budget in USD.
+	BudgetUsd *float64 `json:"budget_usd"`
+
+	// CompareDays `change`: 1 to 28 days back (default 7).
+	CompareDays *int32 `json:"compare_days"`
+
+	// Mode What a `cost` rule measures (ALT-001, the cloud cost monitor kinds).
+	Mode CostRuleMode `json:"mode"`
+
+	// Service Only this service.
+	Service *string `json:"service"`
+
+	// Total Sum every service into one group (label `service` = `total`).
+	Total *bool `json:"total,omitempty"`
+}
+
 // RuleDto defines model for RuleDto.
 type RuleDto struct {
-	Id          string      `json:"id"`
-	Kind        string      `json:"kind"`
-	MetricMatch string      `json:"metric_match"`
-	ProjectId   string      `json:"project_id"`
-	Spec        interface{} `json:"spec"`
-	Version     int32       `json:"version"`
+	Annotations *Annotations `json:"annotations,omitempty"`
+	Condition   Condition    `json:"condition"`
+	CreatedAt   string       `json:"created_at"`
+
+	// DelayS Seconds the window lags the tick, for late data; 0 to 86400 (default 60).
+	DelayS  *int32 `json:"delay_s,omitempty"`
+	Enabled *bool  `json:"enabled,omitempty"`
+
+	// Env An environment id (`env_…`), not its name; omitted = every environment.
+	Env *string `json:"env"`
+
+	// EveryS Seconds between evaluations, 10 to 86400 (default 60).
+	EveryS *int32 `json:"every_s,omitempty"`
+
+	// Expression Math over the queries, the value the condition tests: `$A / $B * 100`,
+	// `$A > 5 && $B < 3` (comparisons give 1 or 0), `abs($A - $B)`, `$A / sum($A)`
+	// (`sum avg min max count` of one query reduce over all its groups). Groups are joined
+	// by labels; a query with a single group without labels applies to every group.
+	Expression *string `json:"expression"`
+
+	// Fill What a group does with a gap in its series.
+	Fill *Fill `json:"fill,omitempty"`
+
+	// ForS Seconds a breach must last before firing (default 0: fire at once).
+	ForS *int32 `json:"for_s,omitempty"`
+
+	// GroupBy At most 10 keys (log rules only; `PromQL` groups by its result series).
+	GroupBy *[]string `json:"group_by,omitempty"`
+
+	// GroupsTruncated The last evaluation had more than 1000 groups and was truncated.
+	GroupsTruncated bool `json:"groups_truncated"`
+
+	// Holidays UTC days (`YYYY-MM-DD`, at most 400) left out of an anomaly rule's baseline, such as
+	// public holidays, so a quiet holiday does not skew the seasonal norm (ALT-009).
+	Holidays *[]string `json:"holidays,omitempty"`
+	Id       string    `json:"id"`
+
+	// Investigate Start an AI investigation when an alert fires; `None` follows the project's
+	// `auto_investigate_on_alert` setting.
+	Investigate *bool `json:"investigate"`
+
+	// Jitter Spread evaluations: this rule runs at a stable offset within `every_s`, derived from
+	// its id, instead of on the interval boundary.
+	Jitter *bool              `json:"jitter,omitempty"`
+	Kind   RuleKind           `json:"kind"`
+	Labels *map[string]string `json:"labels,omitempty"`
+
+	// Limit Most alert groups one evaluation may produce (Prometheus group `limit`); above it the
+	// evaluation fails as an error. 0: only the global cap.
+	Limit *int32 `json:"limit,omitempty"`
+
+	// MissingSeriesEvals Consecutive evaluations a labelled series may be missing before its group is retired
+	// and its alert resolves (default 10, 1 to 1000).
+	MissingSeriesEvals *int32 `json:"missing_series_evals"`
+
+	// MutedUntil Unix seconds; until then transitions are recorded but not notified.
+	MutedUntil *int64 `json:"muted_until"`
+	Name       string `json:"name"`
+	NextEvalAt string `json:"next_eval_at"`
+
+	// NoData What an evaluation without data means.
+	NoData *NoData `json:"no_data,omitempty"`
+
+	// NoDataAfterS Seconds a group may be missing before `no_data` applies (default 0: at once).
+	NoDataAfterS *int32 `json:"no_data_after_s,omitempty"`
+
+	// Notify Routing picked on the rule ("simplified routing"): its alerts skip the label-based policy
+	// tree and go straight to a receiver, or start at a named route of the tree.
+	Notify *RuleNotify `json:"notify,omitempty"`
+
+	// OnError What an evaluation error means for a group.
+	OnError   *OnError `json:"on_error,omitempty"`
+	ProjectId string   `json:"project_id"`
+
+	// Queries `query` is `A`. Only queries that read one window may be added.
+	Queries *map[string]RuleQuery `json:"queries,omitempty"`
+	Query   RuleQuery             `json:"query"`
+
+	// RecoverAfter Consecutive non-breaching evaluations before a firing group resolves (default 1).
+	RecoverAfter *int32 `json:"recover_after,omitempty"`
+
+	// RecoverForS Seconds the recovery condition must hold before a firing group resolves (default 0).
+	RecoverForS *int32 `json:"recover_for_s,omitempty"`
+
+	// RecoveryExpr A second `PromQL` expression that decides when a firing group may resolve (Zabbix-style
+	// recovery expression, e.g. "error rate low AND queue drained"). A firing group resolves only
+	// while the primary condition is clear AND this expression, evaluated over the same window, has
+	// `value op` true for the group with the same labels; a missing or failed result keeps it firing.
+	RecoveryExpr *RecoveryExpr `json:"recovery_expr,omitempty"`
+
+	// Schedule Calendar schedule (daily, weekly or monthly at a time) instead of every `every_s`.
+	Schedule *Schedule `json:"schedule,omitempty"`
+	Severity *Severity `json:"severity,omitempty"`
+
+	// SkipPendingOnError Fire `error`, `no_data` and the `alerting` policies at once instead of waiting `for_s`.
+	SkipPendingOnError *bool `json:"skip_pending_on_error,omitempty"`
+
+	// SourceAuthor Set by the server on save; access to every source is re-checked as this user at evaluation.
+	SourceAuthor *string `json:"source_author"`
+
+	// SourceProjects Extra queries by ref id (`B` to `E`), each read over the same window; the main
+	// Federated alert rule (A25): also read these same-org projects. `promql` rules only.
+	SourceProjects *[]string `json:"source_projects,omitempty"`
+
+	// SpecVersion Document version; stored rules without it are version 1 and are upgraded on save.
+	SpecVersion *int32 `json:"spec_version,omitempty"`
+	UpdatedAt   string `json:"updated_at"`
+
+	// Warnings Non-blocking problems found on create or update, e.g. a critical rule whose alerts reach
+	// no deliverable receiver (W31). Omitted when empty.
+	Warnings *[]string `json:"warnings,omitempty"`
+
+	// WindowS Seconds of data each evaluation covers (default 300).
+	WindowS *int32 `json:"window_s,omitempty"`
+}
+
+// RuleExt The flattened options. Every field defaults to the behaviour before it existed.
+type RuleExt struct {
+	// Expression Math over the queries, the value the condition tests: `$A / $B * 100`,
+	// `$A > 5 && $B < 3` (comparisons give 1 or 0), `abs($A - $B)`, `$A / sum($A)`
+	// (`sum avg min max count` of one query reduce over all its groups). Groups are joined
+	// by labels; a query with a single group without labels applies to every group.
+	Expression *string `json:"expression"`
+
+	// Holidays UTC days (`YYYY-MM-DD`, at most 400) left out of an anomaly rule's baseline, such as
+	// public holidays, so a quiet holiday does not skew the seasonal norm (ALT-009).
+	Holidays *[]string `json:"holidays,omitempty"`
+
+	// Jitter Spread evaluations: this rule runs at a stable offset within `every_s`, derived from
+	// its id, instead of on the interval boundary.
+	Jitter *bool `json:"jitter,omitempty"`
+
+	// Limit Most alert groups one evaluation may produce (Prometheus group `limit`); above it the
+	// evaluation fails as an error. 0: only the global cap.
+	Limit *int32 `json:"limit,omitempty"`
+
+	// MissingSeriesEvals Consecutive evaluations a labelled series may be missing before its group is retired
+	// and its alert resolves (default 10, 1 to 1000).
+	MissingSeriesEvals *int32 `json:"missing_series_evals"`
+
+	// Notify Routing picked on the rule ("simplified routing"): its alerts skip the label-based policy
+	// tree and go straight to a receiver, or start at a named route of the tree.
+	Notify *RuleNotify `json:"notify,omitempty"`
+
+	// OnError What an evaluation error means for a group.
+	OnError *OnError `json:"on_error,omitempty"`
+
+	// Queries `query` is `A`. Only queries that read one window may be added.
+	Queries *map[string]RuleQuery `json:"queries,omitempty"`
+
+	// SkipPendingOnError Fire `error`, `no_data` and the `alerting` policies at once instead of waiting `for_s`.
+	SkipPendingOnError *bool `json:"skip_pending_on_error,omitempty"`
+
+	// SourceAuthor Set by the server on save; access to every source is re-checked as this user at evaluation.
+	SourceAuthor *string `json:"source_author"`
+
+	// SourceProjects Extra queries by ref id (`B` to `E`), each read over the same window; the main
+	// Federated alert rule (A25): also read these same-org projects. `promql` rules only.
+	SourceProjects *[]string `json:"source_projects,omitempty"`
+}
+
+// RuleForecast The `forecast` rule kind (W57): one group per series of `expr`, valued at the forecast's
+// extreme within `horizon_s` (the highest point for `gt`/`ge` thresholds, else the lowest), so
+// a threshold condition fires when the series is predicted to cross it within the horizon.
+type RuleForecast struct {
+	// Algorithm How a `forecast` rule projects its series.
+	Algorithm *ForecastAlgorithm `json:"algorithm,omitempty"`
+
+	// Expr `PromQL` returning series.
+	Expr string `json:"expr"`
+
+	// HistoryS History read, 3600 s to 31 days (default: 1 day linear, 4 days daily, 28 days weekly).
+	HistoryS *int32 `json:"history_s"`
+
+	// HorizonS How far ahead, 60 s to 7 days.
+	HorizonS int32 `json:"horizon_s"`
+
+	// Seasonality The season of a `seasonal` forecast.
+	Seasonality *ForecastSeasonality `json:"seasonality,omitempty"`
 }
 
 // RuleKind defines model for RuleKind.
 type RuleKind string
+
+// RuleNotify Routing picked on the rule ("simplified routing"): its alerts skip the label-based policy
+// tree and go straight to a receiver, or start at a named route of the tree.
+type RuleNotify struct {
+	// ActiveIntervals Time interval names outside which notifications are muted.
+	ActiveIntervals *[]string `json:"active_intervals,omitempty"`
+
+	// GroupBy Labels that make a notification group (default `alertname`); `["..."]` groups by all.
+	GroupBy        *[]string `json:"group_by"`
+	GroupIntervalS *int32    `json:"group_interval_s"`
+	GroupWaitS     *int32    `json:"group_wait_s"`
+
+	// MuteIntervals Time interval names during which notifications are muted.
+	MuteIntervals *[]string `json:"mute_intervals,omitempty"`
+
+	// Receiver Receiver id. Exactly one of `receiver` and `route`.
+	Receiver        *string `json:"receiver"`
+	RepeatIntervalS *int32  `json:"repeat_interval_s"`
+
+	// Route Route id of the project's tree to route from (its matchers are skipped, its children
+	// apply).
+	Route *string `json:"route"`
+}
+
+// RuleNullRate A `null_rate` rule (ALT-001, column-level data quality): percent of a signal's rows in the
+// window whose attribute `field` is missing or empty, one group per service.
+type RuleNullRate struct {
+	// Field Attribute key, 1 to 128 characters of `[A-Za-z0-9_.-]`.
+	Field   string  `json:"field"`
+	Service *string `json:"service"`
+
+	// Signal `logs` or `traces`.
+	Signal string `json:"signal"`
+}
 
 // RulePage defines model for RulePage.
 type RulePage struct {
@@ -1446,6 +1935,10 @@ type RuleQuery2 struct {
 		// Filter Log filter of a `log_count` rule; its time range is the rule window.
 		Filter   LogFilter `json:"filter"`
 		MinCount *int32    `json:"min_count,omitempty"`
+
+		// SinceLastRelease New means first seen since the project's latest deployment in the baseline, instead
+		// of in the window. With no deployment there, nothing counts as new.
+		SinceLastRelease *bool `json:"since_last_release,omitempty"`
 	} `json:"log_pattern_new"`
 }
 
@@ -1462,8 +1955,9 @@ type RuleQuery3 struct {
 
 // RuleQuery4 1 while the SLO's multiwindow burn-rate tier fires, else 0 (also without traffic).
 type RuleQuery4 struct {
-	// SloBurn The query of a managed `slo_burn` rule: 1 while the tier's multiwindow condition holds, else 0.
-	// The SLO itself (objective, SLIs, corrections) is loaded when the rule is evaluated.
+	// SloBurn The query of a `slo_burn` rule: 1 while its mode holds, else 0. Managed rules use the tier's
+	// multiwindow pairs; a user rule picks an exhaustion-time or budget-rate mode (the tier then only
+	// names its urgency). The SLO itself (objective, SLIs, corrections) is loaded when evaluated.
 	SloBurn SloBurn `json:"slo_burn"`
 }
 
@@ -1606,67 +2100,72 @@ type RuleQuery19 struct {
 	RumMetric RumMetricQuery `json:"rum_metric"`
 }
 
-// RuleQuery20 Micro-USD of model spend in the window (`llm_calls_v1`).
+// RuleQuery20 defines model for .
 type RuleQuery20 struct {
+	MlModel MlModelQuery `json:"ml_model"`
+}
+
+// RuleQuery21 Micro-USD of model spend in the window (`llm_calls_v1`).
+type RuleQuery21 struct {
 	// LlmCost Query object shared by the `GenAI` kinds; each kind reads only the fields it documents.
 	LlmCost LlmQuery `json:"llm_cost"`
 }
 
-// RuleQuery21 A duration (or time to first token) quantile in milliseconds.
-type RuleQuery21 struct {
+// RuleQuery22 A duration (or time to first token) quantile in milliseconds.
+type RuleQuery22 struct {
 	// LlmLatency Query object shared by the `GenAI` kinds; each kind reads only the fields it documents.
 	LlmLatency LlmQuery `json:"llm_latency"`
 }
 
-// RuleQuery22 Percent of model calls that errored.
-type RuleQuery22 struct {
+// RuleQuery23 Percent of model calls that errored.
+type RuleQuery23 struct {
 	// LlmErrorRate Query object shared by the `GenAI` kinds; each kind reads only the fields it documents.
 	LlmErrorRate LlmQuery `json:"llm_error_rate"`
 }
 
-// RuleQuery23 Input plus output tokens per second.
-type RuleQuery23 struct {
+// RuleQuery24 Input plus output tokens per second.
+type RuleQuery24 struct {
 	// LlmTokenRate Query object shared by the `GenAI` kinds; each kind reads only the fields it documents.
 	LlmTokenRate LlmQuery `json:"llm_token_rate"`
 }
 
-// RuleQuery24 Average of a named score (`llm_scores_v1`), needing `min_samples`.
-type RuleQuery24 struct {
+// RuleQuery25 Average of a named score (`llm_scores_v1`), needing `min_samples`.
+type RuleQuery25 struct {
 	// LlmScore Query object shared by the `GenAI` kinds; each kind reads only the fields it documents.
 	LlmScore LlmQuery `json:"llm_score"`
 }
 
-// RuleQuery25 Guard evaluations that flagged or blocked in the window.
-type RuleQuery25 struct {
+// RuleQuery26 Guard evaluations that flagged or blocked in the window.
+type RuleQuery26 struct {
 	// LlmGuardFlags Query object shared by the `GenAI` kinds; each kind reads only the fields it documents.
 	LlmGuardFlags LlmQuery `json:"llm_guard_flags"`
 }
 
-// RuleQuery26 Percent of today's `bytes_per_day` quota the signal has used.
-type RuleQuery26 struct {
+// RuleQuery27 Percent of today's `bytes_per_day` quota the signal has used.
+type RuleQuery27 struct {
 	// QuotaUsage Percent of today's `bytes_per_day` quota the signal has used.
 	QuotaUsage struct {
 		Signal string `json:"signal"`
 	} `json:"quota_usage"`
 }
 
-// RuleQuery27 Percent of the org's monthly AI spend cap used so far this month (spent, not reserved).
-type RuleQuery27 struct {
+// RuleQuery28 Percent of the org's monthly AI spend cap used so far this month (spent, not reserved).
+type RuleQuery28 struct {
 	// AiSpend Percent of the org's monthly AI spend cap used so far this month (spent, not reserved).
 	AiSpend map[string]interface{} `json:"ai_spend"`
 }
 
-// RuleQuery28 One group per run that broke its agent policy (`agent_policies`): a tool outside
+// RuleQuery29 One group per run that broke its agent policy (`agent_policies`): a tool outside
 // `allowed_tools`, too many tool calls, too much cost or too deep. Use `gt 0.5`.
-type RuleQuery28 struct {
+type RuleQuery29 struct {
 	// AgentPolicyViolation One group per run that broke its agent policy (`agent_policies`): a tool outside
 	// `allowed_tools`, too many tool calls, too much cost or too deep. Use `gt 0.5`.
 	AgentPolicyViolation map[string]interface{} `json:"agent_policy_violation"`
 }
 
-// RuleQuery29 1 per service while its newest complete day of cost is anomalous against the 35 days before
+// RuleQuery30 1 per service while its newest complete day of cost is anomalous against the 35 days before
 // it (`cost_lines_v1`), else 0. Use `gt 0.5`.
-type RuleQuery29 struct {
+type RuleQuery30 struct {
 	// CostAnomaly 1 per service while its newest complete day of cost is anomalous against the 35 days before
 	// it (`cost_lines_v1`), else 0. Use `gt 0.5`.
 	CostAnomaly struct {
@@ -1675,23 +2174,42 @@ type RuleQuery29 struct {
 	} `json:"cost_anomaly"`
 }
 
-// RuleQuery30 1 per series while the newest point of `expr` (7 days of history at 5 minute steps) is
+// RuleQuery31 defines model for .
+type RuleQuery31 struct {
+	// Cost A `cost` rule over `cost_lines_v1`, one group per service (or one `total` group).
+	Cost RuleCost `json:"cost"`
+}
+
+// RuleQuery32 defines model for .
+type RuleQuery32 struct {
+	// CiPipeline A `ci_pipeline` rule over `ci_runs_v1`, one group per repo and pipeline.
+	CiPipeline RuleCi `json:"ci_pipeline"`
+}
+
+// RuleQuery33 defines model for .
+type RuleQuery33 struct {
+	// NullRate A `null_rate` rule (ALT-001, column-level data quality): percent of a signal's rows in the
+	// window whose attribute `field` is missing or empty, one group per service.
+	NullRate RuleNullRate `json:"null_rate"`
+}
+
+// RuleQuery34 1 per series while the newest point of `expr` (7 days of history at 5 minute steps) is
 // anomalous under the seasonal ML model, else 0. Use a threshold of `gt 0.5`.
-type RuleQuery30 struct {
+type RuleQuery34 struct {
 	// AnomalyMl 1 per series while the newest point of `expr` (7 days of history at 5 minute steps) is
 	// anomalous under the seasonal ML model, else 0. Use a threshold of `gt 0.5`.
 	AnomalyMl struct {
-		Expr        string       `json:"expr"`
-		Seasonality *Seasonality `json:"seasonality,omitempty"`
+		Expr        string                `json:"expr"`
+		Seasonality *AnomalyMlSeasonality `json:"seasonality,omitempty"`
 
 		// Sensitivity 0 to 100; 0 never fires.
 		Sensitivity *int32 `json:"sensitivity,omitempty"`
 	} `json:"anomaly_ml"`
 }
 
-// RuleQuery31 1 per series while the newest point of `expr` departs from its baseline, else 0. `hour_of_week`
+// RuleQuery35 1 per series while the newest point of `expr` departs from its baseline, else 0. `hour_of_week`
 // compares with the same hour in the previous `weeks`; `adaptive` follows the traffic.
-type RuleQuery31 struct {
+type RuleQuery35 struct {
 	// SeasonalBaseline 1 per series while the newest point of `expr` departs from its baseline, else 0. `hour_of_week`
 	// compares with the same hour in the previous `weeks`; `adaptive` follows the traffic.
 	SeasonalBaseline struct {
@@ -1706,8 +2224,8 @@ type RuleQuery31 struct {
 	} `json:"seasonal_baseline"`
 }
 
-// RuleQuery32 1 for each series of `expr` that differs from the other series (its peers) now, else 0.
-type RuleQuery32 struct {
+// RuleQuery36 1 for each series of `expr` that differs from the other series (its peers) now, else 0.
+type RuleQuery36 struct {
 	// PeerOutlier 1 for each series of `expr` that differs from the other series (its peers) now, else 0.
 	PeerOutlier struct {
 		Expr string `json:"expr"`
@@ -1717,64 +2235,92 @@ type RuleQuery32 struct {
 	} `json:"peer_outlier"`
 }
 
-// RuleQuery33 1 while the trigger expression holds, else 0 (see `eval::trigger` for the grammar).
-type RuleQuery33 struct {
+// RuleQuery37 1 while the trigger expression holds, else 0 (see `eval::trigger` for the grammar).
+type RuleQuery37 struct {
 	// Trigger 1 while the trigger expression holds, else 0 (see `eval::trigger` for the grammar).
 	Trigger struct {
 		Expr string `json:"expr"`
 	} `json:"trigger"`
 }
 
-// RuleQuery34 An aggregate of a log attribute, or the percent of one log filter among another.
-type RuleQuery34 struct {
+// RuleQuery38 An aggregate of a log attribute, or the percent of one log filter among another.
+type RuleQuery38 struct {
 	// LogMeasure A number from the logs matching `filter`: an aggregate of the numeric attribute `attr`, or the
 	// percentage of one filter's rows among another's.
 	LogMeasure LogMeasure `json:"log_measure"`
 }
 
-// RuleQuery35 RED over raw entry spans with span-attribute filters and span-attribute `group_by`.
-type RuleQuery35 struct {
+// RuleQuery39 RED over raw entry spans with span-attribute filters and span-attribute `group_by`.
+type RuleQuery39 struct {
 	// TraceFacet RED over raw entry spans with span-attribute filters; `group_by` keys are `service`,
 	// `endpoint` (the span name) or a span attribute.
 	TraceFacet TraceFacet `json:"trace_facet"`
 }
 
-// RuleQuery36 Audit events in the window, per action.
-type RuleQuery36 struct {
+// RuleQuery40 Audit events in the window, per action.
+type RuleQuery40 struct {
 	// AuditEvent Audit events of the org (the hash chain) seen in the window, one group per action.
 	AuditEvent AuditQuery `json:"audit_event"`
 }
 
-// RuleQuery37 Percent change of users or events per issue against the previous window.
-type RuleQuery37 struct {
+// RuleQuery41 Percent change of users or events per issue against the previous window.
+type RuleQuery41 struct {
 	// IssuePercentChange Percent change of a per-issue count against the window before it.
 	IssuePercentChange IssuePct `json:"issue_percent_change"`
 }
 
-// RuleQuery38 Network flow totals per source, destination or port.
-type RuleQuery38 struct {
+// RuleQuery42 Network flow totals per source, destination or port.
+type RuleQuery42 struct {
 	// Flow Network flow totals (`flows_1m`) per source, destination or `proto/port`.
 	Flow FlowQuery `json:"flow"`
 }
 
-// RuleQuery39 Traces matching a `TraceQL` query.
-type RuleQuery39 struct {
+// RuleQuery43 Traces matching a `TraceQL` query.
+type RuleQuery43 struct {
 	// TraceqlMetric Traces matching a `TraceQL` query in the window.
 	TraceqlMetric TraceQlMetric `json:"traceql_metric"`
 }
 
-// RuleSpec Everything about a rule that a user sets (the stored and wire document).
+// RuleQuery44 A `LogQL` metric query, evaluated at the end of the window.
+type RuleQuery44 struct {
+	LogqlMetric LogQlMetric `json:"logql_metric"`
+}
+
+// RuleQuery45 A business transaction's baseline breach or stalls.
+type RuleQuery45 struct {
+	// Transaction A business transaction (APM-002): the entry spans of one endpoint (`wt.endpoint`) of a
+	// service, against its seasonal baseline or counted when they stall.
+	Transaction TransactionQuery `json:"transaction"`
+}
+
+// RuleQuery46 Per series of `expr`, the forecast's extreme within `horizon_s` (W57).
+type RuleQuery46 struct {
+	// Forecast The `forecast` rule kind (W57): one group per series of `expr`, valued at the forecast's
+	// extreme within `horizon_s` (the highest point for `gt`/`ge` thresholds, else the lowest), so
+	// a threshold condition fires when the series is predicted to cross it within the horizon.
+	Forecast RuleForecast `json:"forecast"`
+}
+
+// RuleSpec defines model for RuleSpec.
 type RuleSpec struct {
 	Annotations *Annotations `json:"annotations,omitempty"`
 	Condition   Condition    `json:"condition"`
 
 	// DelayS Seconds the window lags the tick, for late data; 0 to 86400 (default 60).
-	DelayS  *int32  `json:"delay_s,omitempty"`
-	Enabled *bool   `json:"enabled,omitempty"`
-	Env     *string `json:"env"`
+	DelayS  *int32 `json:"delay_s,omitempty"`
+	Enabled *bool  `json:"enabled,omitempty"`
+
+	// Env An environment id (`env_…`), not its name; omitted = every environment.
+	Env *string `json:"env"`
 
 	// EveryS Seconds between evaluations, 10 to 86400 (default 60).
 	EveryS *int32 `json:"every_s,omitempty"`
+
+	// Expression Math over the queries, the value the condition tests: `$A / $B * 100`,
+	// `$A > 5 && $B < 3` (comparisons give 1 or 0), `abs($A - $B)`, `$A / sum($A)`
+	// (`sum avg min max count` of one query reduce over all its groups). Groups are joined
+	// by labels; a query with a single group without labels applies to every group.
+	Expression *string `json:"expression"`
 
 	// Fill What a group does with a gap in its series.
 	Fill *Fill `json:"fill,omitempty"`
@@ -1785,11 +2331,27 @@ type RuleSpec struct {
 	// GroupBy At most 10 keys (log rules only; `PromQL` groups by its result series).
 	GroupBy *[]string `json:"group_by,omitempty"`
 
+	// Holidays UTC days (`YYYY-MM-DD`, at most 400) left out of an anomaly rule's baseline, such as
+	// public holidays, so a quiet holiday does not skew the seasonal norm (ALT-009).
+	Holidays *[]string `json:"holidays,omitempty"`
+
 	// Investigate Start an AI investigation when an alert fires; `None` follows the project's
 	// `auto_investigate_on_alert` setting.
-	Investigate *bool              `json:"investigate"`
-	Kind        RuleKind           `json:"kind"`
-	Labels      *map[string]string `json:"labels,omitempty"`
+	Investigate *bool `json:"investigate"`
+
+	// Jitter Spread evaluations: this rule runs at a stable offset within `every_s`, derived from
+	// its id, instead of on the interval boundary.
+	Jitter *bool              `json:"jitter,omitempty"`
+	Kind   RuleKind           `json:"kind"`
+	Labels *map[string]string `json:"labels,omitempty"`
+
+	// Limit Most alert groups one evaluation may produce (Prometheus group `limit`); above it the
+	// evaluation fails as an error. 0: only the global cap.
+	Limit *int32 `json:"limit,omitempty"`
+
+	// MissingSeriesEvals Consecutive evaluations a labelled series may be missing before its group is retired
+	// and its alert resolves (default 10, 1 to 1000).
+	MissingSeriesEvals *int32 `json:"missing_series_evals"`
 
 	// MutedUntil Unix seconds; until then transitions are recorded but not notified.
 	MutedUntil *int64 `json:"muted_until"`
@@ -1799,8 +2361,18 @@ type RuleSpec struct {
 	NoData *NoData `json:"no_data,omitempty"`
 
 	// NoDataAfterS Seconds a group may be missing before `no_data` applies (default 0: at once).
-	NoDataAfterS *int32    `json:"no_data_after_s,omitempty"`
-	Query        RuleQuery `json:"query"`
+	NoDataAfterS *int32 `json:"no_data_after_s,omitempty"`
+
+	// Notify Routing picked on the rule ("simplified routing"): its alerts skip the label-based policy
+	// tree and go straight to a receiver, or start at a named route of the tree.
+	Notify *RuleNotify `json:"notify,omitempty"`
+
+	// OnError What an evaluation error means for a group.
+	OnError *OnError `json:"on_error,omitempty"`
+
+	// Queries `query` is `A`. Only queries that read one window may be added.
+	Queries *map[string]RuleQuery `json:"queries,omitempty"`
+	Query   RuleQuery             `json:"query"`
 
 	// RecoverAfter Consecutive non-breaching evaluations before a firing group resolves (default 1).
 	RecoverAfter *int32 `json:"recover_after,omitempty"`
@@ -1808,15 +2380,41 @@ type RuleSpec struct {
 	// RecoverForS Seconds the recovery condition must hold before a firing group resolves (default 0).
 	RecoverForS *int32 `json:"recover_for_s,omitempty"`
 
+	// RecoveryExpr A second `PromQL` expression that decides when a firing group may resolve (Zabbix-style
+	// recovery expression, e.g. "error rate low AND queue drained"). A firing group resolves only
+	// while the primary condition is clear AND this expression, evaluated over the same window, has
+	// `value op` true for the group with the same labels; a missing or failed result keeps it firing.
+	RecoveryExpr *RecoveryExpr `json:"recovery_expr,omitempty"`
+
 	// Schedule Calendar schedule (daily, weekly or monthly at a time) instead of every `every_s`.
 	Schedule *Schedule `json:"schedule,omitempty"`
 	Severity *Severity `json:"severity,omitempty"`
+
+	// SkipPendingOnError Fire `error`, `no_data` and the `alerting` policies at once instead of waiting `for_s`.
+	SkipPendingOnError *bool `json:"skip_pending_on_error,omitempty"`
+
+	// SourceAuthor Set by the server on save; access to every source is re-checked as this user at evaluation.
+	SourceAuthor *string `json:"source_author"`
+
+	// SourceProjects Extra queries by ref id (`B` to `E`), each read over the same window; the main
+	// Federated alert rule (A25): also read these same-org projects. `promql` rules only.
+	SourceProjects *[]string `json:"source_projects,omitempty"`
 
 	// SpecVersion Document version; stored rules without it are version 1 and are upgraded on save.
 	SpecVersion *int32 `json:"spec_version,omitempty"`
 
 	// WindowS Seconds of data each evaluation covers (default 300).
 	WindowS *int32 `json:"window_s,omitempty"`
+}
+
+// RuleSpecRequest defines model for RuleSpecRequest.
+type RuleSpecRequest struct {
+	// Field `severity`, `service`, `label:<key>` or `jsonpath:$.<path>`.
+	Field string `json:"field"`
+
+	// Op `eq`, `ne`, `re`, `nre`, `in`, `nin`, `gte` or `lte`.
+	Op    string      `json:"op"`
+	Value interface{} `json:"value"`
 }
 
 // RumMetric defines model for RumMetric.
@@ -1844,20 +2442,33 @@ type Schedule struct {
 
 // ScheduleDto defines model for ScheduleDto.
 type ScheduleDto struct {
-	Columns        *[]string   `json:"columns"`
-	CreatedAt      string      `json:"created_at"`
-	CredentialsRef *string     `json:"credentials_ref"`
-	Cron           string      `json:"cron"`
-	Dest           interface{} `json:"dest"`
-	DestKind       string      `json:"dest_kind"`
-	Enabled        bool        `json:"enabled"`
-	Format         string      `json:"format"`
-	HasCredentials bool        `json:"has_credentials"`
-	Id             string      `json:"id"`
-	LastWindowEnd  *string     `json:"last_window_end"`
-	RunRequested   bool        `json:"run_requested"`
-	Signal         string      `json:"signal"`
-	UpdatedAt      string      `json:"updated_at"`
+	// Coverage24x7 Fill gaps with `fallback`.
+	Coverage24x7 *bool   `json:"coverage_24x7,omitempty"`
+	CreatedAt    string  `json:"created_at"`
+	Fallback     *string `json:"fallback"`
+
+	// Holidays Local dates skipped by layers with `skip_holidays`.
+	Holidays *[]string `json:"holidays,omitempty"`
+	Id       string    `json:"id"`
+
+	// Layers Index 0 is the bottom layer; higher layers win.
+	Layers    []Layer `json:"layers"`
+	Name      string  `json:"name"`
+	Owner     string  `json:"owner"`
+	ProjectId string  `json:"project_id"`
+
+	// RebuildError Why the latest rebuild failed (the horizon is stale until one succeeds); null when ok.
+	RebuildError *string `json:"rebuild_error"`
+
+	// RebuiltAt Last successful rebuild of the stored horizon.
+	RebuiltAt *string `json:"rebuilt_at"`
+
+	// Tz IANA time zone, e.g. `America/New_York`.
+	Tz        string `json:"tz"`
+	UpdatedAt string `json:"updated_at"`
+
+	// Version Bumped on every update.
+	Version int32 `json:"version"`
 }
 
 // SchedulePage defines model for SchedulePage.
@@ -1884,8 +2495,34 @@ type ScheduleSpec struct {
 	Tz string `json:"tz"`
 }
 
-// Seasonality defines model for Seasonality.
-type Seasonality string
+// ScopeNode defines model for ScopeNode.
+type ScopeNode struct {
+	Children *[]ScopeNode `json:"children,omitempty"`
+
+	// Id Lowercase letters, digits and `-`, unique in the tree.
+	Id string `json:"id"`
+
+	// Services The services of this scope; a parent also covers those of its children.
+	Services *[]string `json:"services,omitempty"`
+
+	// Title 1 to 100 characters.
+	Title string `json:"title"`
+}
+
+// ScorecardHealth Worst last: the derived order is the severity order.
+type ScorecardHealth string
+
+// ScorecardTreeNode defines model for ScorecardTreeNode.
+type ScorecardTreeNode struct {
+	Children []ScorecardTreeNode `json:"children"`
+
+	// Health Worst last: the derived order is the severity order.
+	Health ScorecardHealth `json:"health"`
+
+	// RolledUp Worst last: the derived order is the severity order.
+	RolledUp ScorecardHealth `json:"rolled_up"`
+	Service  string          `json:"service"`
+}
 
 // Severity defines model for Severity.
 type Severity string
@@ -2001,12 +2638,73 @@ type Sli5 struct {
 	} `json:"window_based"`
 }
 
-// SloBurn The query of a managed `slo_burn` rule: 1 while the tier's multiwindow condition holds, else 0.
-// The SLO itself (objective, SLIs, corrections) is loaded when the rule is evaluated.
+// SloBurn The query of a `slo_burn` rule: 1 while its mode holds, else 0. Managed rules use the tier's
+// multiwindow pairs; a user rule picks an exhaustion-time or budget-rate mode (the tier then only
+// names its urgency). The SLO itself (objective, SLIs, corrections) is loaded when evaluated.
 type SloBurn struct {
-	Slo  string `json:"slo"`
-	Tier Tier   `json:"tier"`
+	// MinEvents Fewest events a measured (long) window needs before the rule may fire (default
+	// `DEFAULT_MIN_EVENTS`; 0 turns the guard off). Below it the SLO has `insufficient_data`.
+	MinEvents *int32 `json:"min_events"`
+
+	// Mode How a `slo_burn` rule decides that it fires.
+	Mode *SloBurnMode `json:"mode,omitempty"`
+	Slo  string       `json:"slo"`
+	Tier SloTier      `json:"tier"`
 }
+
+// SloBurnMode How a `slo_burn` rule decides that it fires.
+type SloBurnMode struct {
+	union json.RawMessage
+}
+
+// SloBurnMode0 The tier's multiwindow burn-rate pairs (the managed page and ticket rules).
+type SloBurnMode0 struct {
+	Type SloBurnMode0Type `json:"type"`
+}
+
+// SloBurnMode0Type defines model for SloBurnMode.0.Type.
+type SloBurnMode0Type string
+
+// SloBurnMode1 The budget left in the current period runs out within `within_h` hours at the burn rate
+// of the recent lookback (a quarter of the horizon, 5 minutes to 1 day).
+type SloBurnMode1 struct {
+	Type    SloBurnMode1Type `json:"type"`
+	WithinH int32            `json:"within_h"`
+}
+
+// SloBurnMode1Type defines model for SloBurnMode.1.Type.
+type SloBurnMode1Type string
+
+// SloBurnMode2 At least `drop_pct` percent of the period's whole budget was spent in the last `window_s`.
+type SloBurnMode2 struct {
+	DropPct float64          `json:"drop_pct"`
+	Type    SloBurnMode2Type `json:"type"`
+	WindowS int32            `json:"window_s"`
+}
+
+// SloBurnMode2Type defines model for SloBurnMode.2.Type.
+type SloBurnMode2Type string
+
+// SloBurnMode3 At least `pct` percent of the current period's budget is used up (ALT-005).
+type SloBurnMode3 struct {
+	Pct  float64          `json:"pct"`
+	Type SloBurnMode3Type `json:"type"`
+}
+
+// SloBurnMode3Type defines model for SloBurnMode.3.Type.
+type SloBurnMode3Type string
+
+// SloBurnMode4 A user burn-rate pair: both the `long_s` and the `short_s` window burn faster than `factor`
+// (ALT-005; the managed tiers use fixed pairs).
+type SloBurnMode4 struct {
+	Factor float64          `json:"factor"`
+	LongS  int32            `json:"long_s"`
+	ShortS int32            `json:"short_s"`
+	Type   SloBurnMode4Type `json:"type"`
+}
+
+// SloBurnMode4Type defines model for SloBurnMode.4.Type.
+type SloBurnMode4Type string
 
 // SloDto defines model for SloDto.
 type SloDto struct {
@@ -2014,10 +2712,20 @@ type SloDto struct {
 	Children  *[]Child `json:"children"`
 	CreatedAt string   `json:"created_at"`
 
+	// DeployWindowS Length of a deploy window after the deployment finished (or started, while running),
+	// 60 to 86400 seconds; default 900.
+	DeployWindowS *int32 `json:"deploy_window_s,omitempty"`
+
 	// DerivedMetrics Metrics created for this SLO from a log pattern or trace attribute.
 	DerivedMetrics []string `json:"derived_metrics"`
 	EnvId          *string  `json:"env_id"`
-	Id             string   `json:"id"`
+
+	// ExcludeDeployWindows Exclude failures during deploy windows: each deployment of the SLO's environment and
+	// service (a deployment without a service matches all) is left out of good and total, like
+	// a correction, in burn rules, the budget and reports. Default true, so a failed check during
+	// a rollout does not burn budget; send false to count deploy-time failures.
+	ExcludeDeployWindows *bool  `json:"exclude_deploy_windows,omitempty"`
+	Id                   string `json:"id"`
 
 	// Kind `request`, `window` or `composite`.
 	Kind string `json:"kind"`
@@ -2057,8 +2765,18 @@ type SloPage struct {
 type SloSpec struct {
 	// Children Composite only: 1 to 10 non-composite SLOs of this project, each in its own environment.
 	Children *[]Child `json:"children"`
-	EnvId    *string  `json:"env_id"`
-	Name     string   `json:"name"`
+
+	// DeployWindowS Length of a deploy window after the deployment finished (or started, while running),
+	// 60 to 86400 seconds; default 900.
+	DeployWindowS *int32  `json:"deploy_window_s,omitempty"`
+	EnvId         *string `json:"env_id"`
+
+	// ExcludeDeployWindows Exclude failures during deploy windows: each deployment of the SLO's environment and
+	// service (a deployment without a service matches all) is left out of good and total, like
+	// a correction, in burn rules, the budget and reports. Default true, so a failed check during
+	// a rollout does not burn budget; send false to count deploy-time failures.
+	ExcludeDeployWindows *bool  `json:"exclude_deploy_windows,omitempty"`
+	Name                 string `json:"name"`
 
 	// Objective Target good ratio, 0.5 to 0.99999.
 	Objective float64 `json:"objective"`
@@ -2076,6 +2794,9 @@ type SloSpec struct {
 	// quarter, UTC).
 	WindowDays int32 `json:"window_days"`
 }
+
+// SloTier defines model for SloTier.
+type SloTier string
 
 // StaleAs defines model for StaleAs.
 type StaleAs string
@@ -2118,9 +2839,11 @@ type TemplatePage struct {
 
 // TestRequest defines model for TestRequest.
 type TestRequest struct {
-	// EventId Hex id of a stored event of the project.
-	EventId string                 `json:"event_id"`
-	Rule    map[string]interface{} `json:"rule"`
+	// EventType One of the trigger event types.
+	EventType string `json:"event_type"`
+
+	// Payload A sample event payload (at most 64 KiB).
+	Payload map[string]interface{} `json:"payload"`
 }
 
 // TestSent defines model for TestSent.
@@ -2128,9 +2851,6 @@ type TestSent struct {
 	// NotificationId The queued notification; follow it in `GET /notifications`.
 	NotificationId string `json:"notification_id"`
 }
-
-// Tier defines model for Tier.
-type Tier string
 
 // TimeRestriction defines model for TimeRestriction.
 type TimeRestriction struct {
@@ -2154,17 +2874,25 @@ type TraceQlMetric struct {
 	Query string `json:"query"`
 }
 
-// TreeNode defines model for TreeNode.
-type TreeNode struct {
-	Children []TreeNode `json:"children"`
+// TransactionQuery A business transaction (APM-002): the entry spans of one endpoint (`wt.endpoint`) of a
+// service, against its seasonal baseline or counted when they stall.
+type TransactionQuery struct {
+	// Endpoint The `wt.endpoint` value of the transaction's entry spans.
+	Endpoint string `json:"endpoint"`
 
-	// Health Worst last: the derived order is the severity order.
-	Health Health `json:"health"`
+	// K `baseline`: standard deviations above the mean p95 that count (0.5 to 10, default 3).
+	K       *float64 `json:"k"`
+	Service string   `json:"service"`
 
-	// RolledUp Worst last: the derived order is the severity order.
-	RolledUp Health `json:"rolled_up"`
-	Service  string `json:"service"`
+	// Signal What a `transaction` rule watches.
+	Signal TxSignal `json:"signal"`
+
+	// StallMs `stalls`: a request at least this slow is stalled, in ms (1000 to 3600000, default 45000).
+	StallMs *int32 `json:"stall_ms"`
 }
+
+// TxSignal What a `transaction` rule watches.
+type TxSignal string
 
 // TypeDto defines model for TypeDto.
 type TypeDto struct {
@@ -2195,10 +2923,18 @@ type TypeRequest struct {
 
 // UpdateDashboardRequest defines model for UpdateDashboardRequest.
 type UpdateDashboardRequest struct {
-	Description *string                `json:"description"`
-	Note        *string                `json:"note"`
-	Spec        map[string]interface{} `json:"spec"`
-	Title       *string                `json:"title"`
+	Description *string `json:"description"`
+	Note        *string `json:"note"`
+
+	// Spec Stored verbatim too, so GET returns the same key order.
+	Spec  map[string]interface{} `json:"spec"`
+	Title *string                `json:"title"`
+}
+
+// WaitInvestigation defines model for WaitInvestigation.
+type WaitInvestigation struct {
+	// TimeoutMin 1 to 30 minutes.
+	TimeoutMin int32 `json:"timeout_min"`
 }
 
 // WindowDto defines model for WindowDto.
@@ -2293,7 +3029,9 @@ type WorkflowRequest struct {
 	// Steps 1 to 50 steps. Actions: `send_notification`, `http_request`, `create_incident`,
 	// `update_incident`, `add_timeline_note`, `page`, `create_jira_issue`, `create_slack_channel`,
 	// `post_slack_message`, `run_query`, `start_postmortem`, `wait` (`seconds` 1 to 900) and
-	// `trigger_workflow` (chains at most 3 deep). `${$.json.path}` in a string parameter is
+	// `trigger_workflow` (chains at most 3 deep). A step may repeat with `loop` (`over` a JSON
+	// path, `over_expr` a CEL list or `until` a CEL condition with `max_iterations`); action
+	// `loop` runs `loop.steps` per iteration. `${$.json.path}` in a string parameter is
 	// replaced from the event payload. The caller needs the permission of every action.
 	Steps []map[string]interface{} `json:"steps"`
 
@@ -2345,6 +3083,20 @@ type GetV1ProjectsPrjAlertRulesParams struct {
 
 	// Cursor Opaque cursor from a previous page's `next_cursor`.
 	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// DeleteV1ProjectsPrjAlertRulesRuleParams defines parameters for DeleteV1ProjectsPrjAlertRulesRule.
+type DeleteV1ProjectsPrjAlertRulesRuleParams struct {
+	// Force Write a rule labelled `managed-by` from a user session anyway. Its repo's next apply
+	// overwrites the edit.
+	Force *bool `form:"force,omitempty" json:"force,omitempty"`
+}
+
+// PutV1ProjectsPrjAlertRulesRuleParams defines parameters for PutV1ProjectsPrjAlertRulesRule.
+type PutV1ProjectsPrjAlertRulesRuleParams struct {
+	// Force Write a rule labelled `managed-by` from a user session anyway. Its repo's next apply
+	// overwrites the edit.
+	Force *bool `form:"force,omitempty" json:"force,omitempty"`
 }
 
 // GetV1ProjectsPrjCatalogServicesParams defines parameters for GetV1ProjectsPrjCatalogServices.
@@ -3980,6 +4732,188 @@ func (t *RuleQuery) MergeRuleQuery39(v RuleQuery39) error {
 	return err
 }
 
+// AsRuleQuery40 returns the union data inside the RuleQuery as a RuleQuery40
+func (t RuleQuery) AsRuleQuery40() (RuleQuery40, error) {
+	var body RuleQuery40
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromRuleQuery40 overwrites any union data inside the RuleQuery as the provided RuleQuery40
+func (t *RuleQuery) FromRuleQuery40(v RuleQuery40) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeRuleQuery40 performs a merge with any union data inside the RuleQuery, using the provided RuleQuery40
+func (t *RuleQuery) MergeRuleQuery40(v RuleQuery40) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsRuleQuery41 returns the union data inside the RuleQuery as a RuleQuery41
+func (t RuleQuery) AsRuleQuery41() (RuleQuery41, error) {
+	var body RuleQuery41
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromRuleQuery41 overwrites any union data inside the RuleQuery as the provided RuleQuery41
+func (t *RuleQuery) FromRuleQuery41(v RuleQuery41) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeRuleQuery41 performs a merge with any union data inside the RuleQuery, using the provided RuleQuery41
+func (t *RuleQuery) MergeRuleQuery41(v RuleQuery41) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsRuleQuery42 returns the union data inside the RuleQuery as a RuleQuery42
+func (t RuleQuery) AsRuleQuery42() (RuleQuery42, error) {
+	var body RuleQuery42
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromRuleQuery42 overwrites any union data inside the RuleQuery as the provided RuleQuery42
+func (t *RuleQuery) FromRuleQuery42(v RuleQuery42) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeRuleQuery42 performs a merge with any union data inside the RuleQuery, using the provided RuleQuery42
+func (t *RuleQuery) MergeRuleQuery42(v RuleQuery42) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsRuleQuery43 returns the union data inside the RuleQuery as a RuleQuery43
+func (t RuleQuery) AsRuleQuery43() (RuleQuery43, error) {
+	var body RuleQuery43
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromRuleQuery43 overwrites any union data inside the RuleQuery as the provided RuleQuery43
+func (t *RuleQuery) FromRuleQuery43(v RuleQuery43) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeRuleQuery43 performs a merge with any union data inside the RuleQuery, using the provided RuleQuery43
+func (t *RuleQuery) MergeRuleQuery43(v RuleQuery43) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsRuleQuery44 returns the union data inside the RuleQuery as a RuleQuery44
+func (t RuleQuery) AsRuleQuery44() (RuleQuery44, error) {
+	var body RuleQuery44
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromRuleQuery44 overwrites any union data inside the RuleQuery as the provided RuleQuery44
+func (t *RuleQuery) FromRuleQuery44(v RuleQuery44) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeRuleQuery44 performs a merge with any union data inside the RuleQuery, using the provided RuleQuery44
+func (t *RuleQuery) MergeRuleQuery44(v RuleQuery44) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsRuleQuery45 returns the union data inside the RuleQuery as a RuleQuery45
+func (t RuleQuery) AsRuleQuery45() (RuleQuery45, error) {
+	var body RuleQuery45
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromRuleQuery45 overwrites any union data inside the RuleQuery as the provided RuleQuery45
+func (t *RuleQuery) FromRuleQuery45(v RuleQuery45) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeRuleQuery45 performs a merge with any union data inside the RuleQuery, using the provided RuleQuery45
+func (t *RuleQuery) MergeRuleQuery45(v RuleQuery45) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsRuleQuery46 returns the union data inside the RuleQuery as a RuleQuery46
+func (t RuleQuery) AsRuleQuery46() (RuleQuery46, error) {
+	var body RuleQuery46
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromRuleQuery46 overwrites any union data inside the RuleQuery as the provided RuleQuery46
+func (t *RuleQuery) FromRuleQuery46(v RuleQuery46) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeRuleQuery46 performs a merge with any union data inside the RuleQuery, using the provided RuleQuery46
+func (t *RuleQuery) MergeRuleQuery46(v RuleQuery46) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
 func (t RuleQuery) MarshalJSON() ([]byte, error) {
 	b, err := t.union.MarshalJSON()
 	return b, err
@@ -4156,6 +5090,146 @@ func (t *Sli) UnmarshalJSON(b []byte) error {
 	return err
 }
 
+// AsSloBurnMode0 returns the union data inside the SloBurnMode as a SloBurnMode0
+func (t SloBurnMode) AsSloBurnMode0() (SloBurnMode0, error) {
+	var body SloBurnMode0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSloBurnMode0 overwrites any union data inside the SloBurnMode as the provided SloBurnMode0
+func (t *SloBurnMode) FromSloBurnMode0(v SloBurnMode0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSloBurnMode0 performs a merge with any union data inside the SloBurnMode, using the provided SloBurnMode0
+func (t *SloBurnMode) MergeSloBurnMode0(v SloBurnMode0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsSloBurnMode1 returns the union data inside the SloBurnMode as a SloBurnMode1
+func (t SloBurnMode) AsSloBurnMode1() (SloBurnMode1, error) {
+	var body SloBurnMode1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSloBurnMode1 overwrites any union data inside the SloBurnMode as the provided SloBurnMode1
+func (t *SloBurnMode) FromSloBurnMode1(v SloBurnMode1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSloBurnMode1 performs a merge with any union data inside the SloBurnMode, using the provided SloBurnMode1
+func (t *SloBurnMode) MergeSloBurnMode1(v SloBurnMode1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsSloBurnMode2 returns the union data inside the SloBurnMode as a SloBurnMode2
+func (t SloBurnMode) AsSloBurnMode2() (SloBurnMode2, error) {
+	var body SloBurnMode2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSloBurnMode2 overwrites any union data inside the SloBurnMode as the provided SloBurnMode2
+func (t *SloBurnMode) FromSloBurnMode2(v SloBurnMode2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSloBurnMode2 performs a merge with any union data inside the SloBurnMode, using the provided SloBurnMode2
+func (t *SloBurnMode) MergeSloBurnMode2(v SloBurnMode2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsSloBurnMode3 returns the union data inside the SloBurnMode as a SloBurnMode3
+func (t SloBurnMode) AsSloBurnMode3() (SloBurnMode3, error) {
+	var body SloBurnMode3
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSloBurnMode3 overwrites any union data inside the SloBurnMode as the provided SloBurnMode3
+func (t *SloBurnMode) FromSloBurnMode3(v SloBurnMode3) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSloBurnMode3 performs a merge with any union data inside the SloBurnMode, using the provided SloBurnMode3
+func (t *SloBurnMode) MergeSloBurnMode3(v SloBurnMode3) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsSloBurnMode4 returns the union data inside the SloBurnMode as a SloBurnMode4
+func (t SloBurnMode) AsSloBurnMode4() (SloBurnMode4, error) {
+	var body SloBurnMode4
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSloBurnMode4 overwrites any union data inside the SloBurnMode as the provided SloBurnMode4
+func (t *SloBurnMode) FromSloBurnMode4(v SloBurnMode4) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSloBurnMode4 performs a merge with any union data inside the SloBurnMode, using the provided SloBurnMode4
+func (t *SloBurnMode) MergeSloBurnMode4(v SloBurnMode4) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t SloBurnMode) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *SloBurnMode) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
 
@@ -4279,15 +5353,15 @@ type ClientInterface interface {
 	PostV1ProjectsPrjAlertRules(ctx context.Context, prj string, body PostV1ProjectsPrjAlertRulesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteV1ProjectsPrjAlertRulesRule request
-	DeleteV1ProjectsPrjAlertRulesRule(ctx context.Context, prj string, rule string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	DeleteV1ProjectsPrjAlertRulesRule(ctx context.Context, prj string, rule string, params *DeleteV1ProjectsPrjAlertRulesRuleParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetV1ProjectsPrjAlertRulesRule request
 	GetV1ProjectsPrjAlertRulesRule(ctx context.Context, prj string, rule string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PutV1ProjectsPrjAlertRulesRuleWithBody request with any body
-	PutV1ProjectsPrjAlertRulesRuleWithBody(ctx context.Context, prj string, rule string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PutV1ProjectsPrjAlertRulesRuleWithBody(ctx context.Context, prj string, rule string, params *PutV1ProjectsPrjAlertRulesRuleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PutV1ProjectsPrjAlertRulesRule(ctx context.Context, prj string, rule string, body PutV1ProjectsPrjAlertRulesRuleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PutV1ProjectsPrjAlertRulesRule(ctx context.Context, prj string, rule string, params *PutV1ProjectsPrjAlertRulesRuleParams, body PutV1ProjectsPrjAlertRulesRuleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetV1ProjectsPrjCatalogServices request
 	GetV1ProjectsPrjCatalogServices(ctx context.Context, prj string, params *GetV1ProjectsPrjCatalogServicesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -4773,8 +5847,8 @@ func (c *Client) PostV1ProjectsPrjAlertRules(ctx context.Context, prj string, bo
 	return c.Client.Do(req)
 }
 
-func (c *Client) DeleteV1ProjectsPrjAlertRulesRule(ctx context.Context, prj string, rule string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDeleteV1ProjectsPrjAlertRulesRuleRequest(c.Server, prj, rule)
+func (c *Client) DeleteV1ProjectsPrjAlertRulesRule(ctx context.Context, prj string, rule string, params *DeleteV1ProjectsPrjAlertRulesRuleParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteV1ProjectsPrjAlertRulesRuleRequest(c.Server, prj, rule, params)
 	if err != nil {
 		return nil, err
 	}
@@ -4797,8 +5871,8 @@ func (c *Client) GetV1ProjectsPrjAlertRulesRule(ctx context.Context, prj string,
 	return c.Client.Do(req)
 }
 
-func (c *Client) PutV1ProjectsPrjAlertRulesRuleWithBody(ctx context.Context, prj string, rule string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPutV1ProjectsPrjAlertRulesRuleRequestWithBody(c.Server, prj, rule, contentType, body)
+func (c *Client) PutV1ProjectsPrjAlertRulesRuleWithBody(ctx context.Context, prj string, rule string, params *PutV1ProjectsPrjAlertRulesRuleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutV1ProjectsPrjAlertRulesRuleRequestWithBody(c.Server, prj, rule, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -4809,8 +5883,8 @@ func (c *Client) PutV1ProjectsPrjAlertRulesRuleWithBody(ctx context.Context, prj
 	return c.Client.Do(req)
 }
 
-func (c *Client) PutV1ProjectsPrjAlertRulesRule(ctx context.Context, prj string, rule string, body PutV1ProjectsPrjAlertRulesRuleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPutV1ProjectsPrjAlertRulesRuleRequest(c.Server, prj, rule, body)
+func (c *Client) PutV1ProjectsPrjAlertRulesRule(ctx context.Context, prj string, rule string, params *PutV1ProjectsPrjAlertRulesRuleParams, body PutV1ProjectsPrjAlertRulesRuleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutV1ProjectsPrjAlertRulesRuleRequest(c.Server, prj, rule, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -6703,7 +7777,7 @@ func NewPostV1ProjectsPrjAlertRulesRequestWithBody(server string, prj string, co
 }
 
 // NewDeleteV1ProjectsPrjAlertRulesRuleRequest generates requests for DeleteV1ProjectsPrjAlertRulesRule
-func NewDeleteV1ProjectsPrjAlertRulesRuleRequest(server string, prj string, rule string) (*http.Request, error) {
+func NewDeleteV1ProjectsPrjAlertRulesRuleRequest(server string, prj string, rule string, params *DeleteV1ProjectsPrjAlertRulesRuleParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -6733,6 +7807,28 @@ func NewDeleteV1ProjectsPrjAlertRulesRuleRequest(server string, prj string, rule
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Force != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "force", runtime.ParamLocationQuery, *params.Force); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
@@ -6785,18 +7881,18 @@ func NewGetV1ProjectsPrjAlertRulesRuleRequest(server string, prj string, rule st
 }
 
 // NewPutV1ProjectsPrjAlertRulesRuleRequest calls the generic PutV1ProjectsPrjAlertRulesRule builder with application/json body
-func NewPutV1ProjectsPrjAlertRulesRuleRequest(server string, prj string, rule string, body PutV1ProjectsPrjAlertRulesRuleJSONRequestBody) (*http.Request, error) {
+func NewPutV1ProjectsPrjAlertRulesRuleRequest(server string, prj string, rule string, params *PutV1ProjectsPrjAlertRulesRuleParams, body PutV1ProjectsPrjAlertRulesRuleJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewPutV1ProjectsPrjAlertRulesRuleRequestWithBody(server, prj, rule, "application/json", bodyReader)
+	return NewPutV1ProjectsPrjAlertRulesRuleRequestWithBody(server, prj, rule, params, "application/json", bodyReader)
 }
 
 // NewPutV1ProjectsPrjAlertRulesRuleRequestWithBody generates requests for PutV1ProjectsPrjAlertRulesRule with any type of body
-func NewPutV1ProjectsPrjAlertRulesRuleRequestWithBody(server string, prj string, rule string, contentType string, body io.Reader) (*http.Request, error) {
+func NewPutV1ProjectsPrjAlertRulesRuleRequestWithBody(server string, prj string, rule string, params *PutV1ProjectsPrjAlertRulesRuleParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -6826,6 +7922,28 @@ func NewPutV1ProjectsPrjAlertRulesRuleRequestWithBody(server string, prj string,
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Force != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "force", runtime.ParamLocationQuery, *params.Force); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("PUT", queryURL.String(), body)
@@ -10598,15 +11716,15 @@ type ClientWithResponsesInterface interface {
 	PostV1ProjectsPrjAlertRulesWithResponse(ctx context.Context, prj string, body PostV1ProjectsPrjAlertRulesJSONRequestBody, reqEditors ...RequestEditorFn) (*PostV1ProjectsPrjAlertRulesResponse, error)
 
 	// DeleteV1ProjectsPrjAlertRulesRuleWithResponse request
-	DeleteV1ProjectsPrjAlertRulesRuleWithResponse(ctx context.Context, prj string, rule string, reqEditors ...RequestEditorFn) (*DeleteV1ProjectsPrjAlertRulesRuleResponse, error)
+	DeleteV1ProjectsPrjAlertRulesRuleWithResponse(ctx context.Context, prj string, rule string, params *DeleteV1ProjectsPrjAlertRulesRuleParams, reqEditors ...RequestEditorFn) (*DeleteV1ProjectsPrjAlertRulesRuleResponse, error)
 
 	// GetV1ProjectsPrjAlertRulesRuleWithResponse request
 	GetV1ProjectsPrjAlertRulesRuleWithResponse(ctx context.Context, prj string, rule string, reqEditors ...RequestEditorFn) (*GetV1ProjectsPrjAlertRulesRuleResponse, error)
 
 	// PutV1ProjectsPrjAlertRulesRuleWithBodyWithResponse request with any body
-	PutV1ProjectsPrjAlertRulesRuleWithBodyWithResponse(ctx context.Context, prj string, rule string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutV1ProjectsPrjAlertRulesRuleResponse, error)
+	PutV1ProjectsPrjAlertRulesRuleWithBodyWithResponse(ctx context.Context, prj string, rule string, params *PutV1ProjectsPrjAlertRulesRuleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutV1ProjectsPrjAlertRulesRuleResponse, error)
 
-	PutV1ProjectsPrjAlertRulesRuleWithResponse(ctx context.Context, prj string, rule string, body PutV1ProjectsPrjAlertRulesRuleJSONRequestBody, reqEditors ...RequestEditorFn) (*PutV1ProjectsPrjAlertRulesRuleResponse, error)
+	PutV1ProjectsPrjAlertRulesRuleWithResponse(ctx context.Context, prj string, rule string, params *PutV1ProjectsPrjAlertRulesRuleParams, body PutV1ProjectsPrjAlertRulesRuleJSONRequestBody, reqEditors ...RequestEditorFn) (*PutV1ProjectsPrjAlertRulesRuleResponse, error)
 
 	// GetV1ProjectsPrjCatalogServicesWithResponse request
 	GetV1ProjectsPrjCatalogServicesWithResponse(ctx context.Context, prj string, params *GetV1ProjectsPrjCatalogServicesParams, reqEditors ...RequestEditorFn) (*GetV1ProjectsPrjCatalogServicesResponse, error)
@@ -13084,8 +14202,8 @@ func (c *ClientWithResponses) PostV1ProjectsPrjAlertRulesWithResponse(ctx contex
 }
 
 // DeleteV1ProjectsPrjAlertRulesRuleWithResponse request returning *DeleteV1ProjectsPrjAlertRulesRuleResponse
-func (c *ClientWithResponses) DeleteV1ProjectsPrjAlertRulesRuleWithResponse(ctx context.Context, prj string, rule string, reqEditors ...RequestEditorFn) (*DeleteV1ProjectsPrjAlertRulesRuleResponse, error) {
-	rsp, err := c.DeleteV1ProjectsPrjAlertRulesRule(ctx, prj, rule, reqEditors...)
+func (c *ClientWithResponses) DeleteV1ProjectsPrjAlertRulesRuleWithResponse(ctx context.Context, prj string, rule string, params *DeleteV1ProjectsPrjAlertRulesRuleParams, reqEditors ...RequestEditorFn) (*DeleteV1ProjectsPrjAlertRulesRuleResponse, error) {
+	rsp, err := c.DeleteV1ProjectsPrjAlertRulesRule(ctx, prj, rule, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -13102,16 +14220,16 @@ func (c *ClientWithResponses) GetV1ProjectsPrjAlertRulesRuleWithResponse(ctx con
 }
 
 // PutV1ProjectsPrjAlertRulesRuleWithBodyWithResponse request with arbitrary body returning *PutV1ProjectsPrjAlertRulesRuleResponse
-func (c *ClientWithResponses) PutV1ProjectsPrjAlertRulesRuleWithBodyWithResponse(ctx context.Context, prj string, rule string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutV1ProjectsPrjAlertRulesRuleResponse, error) {
-	rsp, err := c.PutV1ProjectsPrjAlertRulesRuleWithBody(ctx, prj, rule, contentType, body, reqEditors...)
+func (c *ClientWithResponses) PutV1ProjectsPrjAlertRulesRuleWithBodyWithResponse(ctx context.Context, prj string, rule string, params *PutV1ProjectsPrjAlertRulesRuleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutV1ProjectsPrjAlertRulesRuleResponse, error) {
+	rsp, err := c.PutV1ProjectsPrjAlertRulesRuleWithBody(ctx, prj, rule, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParsePutV1ProjectsPrjAlertRulesRuleResponse(rsp)
 }
 
-func (c *ClientWithResponses) PutV1ProjectsPrjAlertRulesRuleWithResponse(ctx context.Context, prj string, rule string, body PutV1ProjectsPrjAlertRulesRuleJSONRequestBody, reqEditors ...RequestEditorFn) (*PutV1ProjectsPrjAlertRulesRuleResponse, error) {
-	rsp, err := c.PutV1ProjectsPrjAlertRulesRule(ctx, prj, rule, body, reqEditors...)
+func (c *ClientWithResponses) PutV1ProjectsPrjAlertRulesRuleWithResponse(ctx context.Context, prj string, rule string, params *PutV1ProjectsPrjAlertRulesRuleParams, body PutV1ProjectsPrjAlertRulesRuleJSONRequestBody, reqEditors ...RequestEditorFn) (*PutV1ProjectsPrjAlertRulesRuleResponse, error) {
+	rsp, err := c.PutV1ProjectsPrjAlertRulesRule(ctx, prj, rule, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

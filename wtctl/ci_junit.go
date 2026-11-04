@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"github.com/watchtowerobservability/watchtower-cli/internal/netguard"
 )
 
 // maxJunitBytes matches the API limit for the whole multipart body.
@@ -29,8 +28,18 @@ type junitUpload struct {
 }
 
 func ciMain(ctx context.Context, args []string, out io.Writer) error {
+	if len(args) > 0 && args[0] == "junit" {
+		return ciJunitMain(ctx, args[1:], out)
+	}
+	if len(args) > 0 && args[0] == "plan" {
+		return ciPlanMain(ctx, args[1:], out)
+	}
+	if len(args) > 0 && args[0] == "gotest" {
+		return ciGotestMain(ctx, args[1:], os.Stdin, out)
+	}
 	if len(args) == 0 || args[0] != "upload-junit" {
-		return errors.New(ciUsage)
+		return errors.New(ciUsage + "\n       " + ciJunitUsage[len("usage: "):] + "\n       " + ciPlanUsage[len("usage: "):] +
+			"\n       " + ciGotestUsage[len("usage: "):])
 	}
 	fs := flag.NewFlagSet("ci upload-junit", flag.ContinueOnError)
 	var u junitUpload
@@ -65,7 +74,7 @@ func ciMain(ctx context.Context, args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	body, err := uploadJunit(ctx, netguard.Guarded("wtctl", 0), u, data)
+	body, err := uploadJunit(ctx, guardedClient(0), u, data)
 	if err != nil {
 		return err
 	}

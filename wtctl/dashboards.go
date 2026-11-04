@@ -18,6 +18,7 @@ import (
 
 const dashboardsUsage = "usage: wtctl dashboards export [<id|title>] --project <id> [--format manifest|yaml|json] [--out file] [--api <url>] [--key <key>]\n" +
 	"       wtctl dashboards import <file> --project <id> [--format grafana|yaml|json] [--folder <id>] [--dry-run]\n" +
+	"       wtctl dashboards import-grafana --grafana-url <url> --project <id> [--folder <id>] [--dry-run]  (token in GRAFANA_TOKEN)\n" +
 	"       wtctl dashboards diff -f <dir|file> --project <id>\n" +
 	"       wtctl dashboards apply -f <dir|file> --project <id> [--dry-run]"
 
@@ -31,6 +32,8 @@ func dashboardsMain(ctx context.Context, args []string, out io.Writer) error {
 		return dashboardsExport(ctx, args[1:], out)
 	case "import":
 		return dashboardsImport(ctx, args[1:], out)
+	case "import-grafana":
+		return dashboardsImportGrafana(ctx, args[1:], out)
 	case "diff", "apply":
 		if err := onlyDashboards(args[1:]); err != nil {
 			return err

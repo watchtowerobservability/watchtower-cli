@@ -88,7 +88,7 @@ func session(t *testing.T, api *fakeAPI, root string, reqs ...[2]any) map[int]js
 }
 
 func lensReq(root, rel string) [2]any {
-	return [2]any{"textDocument/codeLens", map[string]any{"textDocument": map[string]string{"uri": "file://" + filepath.ToSlash(filepath.Join(root, rel))}}}
+	return [2]any{"textDocument/codeLens", map[string]any{"textDocument": map[string]string{"uri": fileURI(filepath.Join(root, rel))}}}
 }
 
 func TestCodeLensForMappedFile(t *testing.T) {
@@ -125,7 +125,7 @@ func TestNoLensForUnmappedFile(t *testing.T) {
 func TestHoverShowsLatestIssue(t *testing.T) {
 	api := newFakeAPI(t)
 	root := repo(t, "service: api\nproject: prj_1\n", "a.go")
-	uri := "file://" + filepath.ToSlash(filepath.Join(root, "a.go"))
+	uri := fileURI(filepath.Join(root, "a.go"))
 	res := session(t, api, root,
 		[2]any{"textDocument/hover", map[string]any{"textDocument": map[string]string{"uri": uri}, "position": map[string]int{"line": 2, "character": 6}}},
 		[2]any{"workspace/executeCommand", map[string]any{"command": cmdOpenTrace, "arguments": []string{"prj_1", "abcd"}}},
@@ -198,6 +198,19 @@ func TestNoSourceSentToServer(t *testing.T) {
 		}
 		if !strings.Contains(r, "functions=Handle%2Cother") || !strings.Contains(r, "file=a.go") {
 			t.Fatalf("want path and names only: %s", r)
+		}
+	}
+}
+
+// fileURI builds a file URI; Windows drive paths need file:///C:/...
+func fileURI(p string) string {
+	return "file://" + map[bool]string{true: "", false: "/"}[strings.HasPrefix(filepath.ToSlash(p), "/")] + filepath.ToSlash(p)
+}
+
+func TestUriPathWindowsStyle(t *testing.T) {
+	for in, want := range map[string]string{"file:///C:/a/b.go": "C:/a/b.go", "file:///c%3A/a/b.go": "c:/a/b.go", "file:///a/b.go": "/a/b.go"} {
+		if got := filepath.ToSlash(uriPath(in)); got != want {
+			t.Errorf("%s: got %s want %s", in, got, want)
 		}
 	}
 }

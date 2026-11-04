@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"github.com/watchtowerobservability/watchtower-cli/internal/netguard"
 
 	"github.com/watchtowerobservability/watchtower-cli/internal/ascode"
 )
@@ -139,7 +138,7 @@ func internalBootstrap(ctx context.Context, o internalOpts, out io.Writer) error
 	if err != nil {
 		return err
 	}
-	c, err := ascode.New(o.api, o.key, prj, netguard.Guarded("wtctl", 0))
+	c, err := ascode.New(o.api, o.key, prj, guardedClient(0))
 	if err != nil {
 		return err
 	}

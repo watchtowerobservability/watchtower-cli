@@ -12,12 +12,12 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"github.com/watchtowerobservability/watchtower-cli/internal/netguard"
 
 	"gopkg.in/yaml.v3"
 )
 
 const rulesUsage = "usage: wtctl rules import <rules.yaml> --api <url> --key <key> --project <id>\n" +
+	"       wtctl rules test <tests.yaml> --api <url> --key <key> --project <id>\n" +
 	"       wtctl routing import-alertmanager <alertmanager.yaml> --api <url> --key <key> --project <id> [--apply]"
 
 type rulesOpts struct {
@@ -49,6 +49,9 @@ func (o *rulesOpts) parse(fs *flag.FlagSet, args []string) (string, error) {
 
 // rulesMain is `wtctl rules ...`: each group of a Prometheus rule file is PUT as JSON.
 func rulesMain(ctx context.Context, args []string, out io.Writer) error {
+	if len(args) >= 1 && args[0] == "test" {
+		return rulesTest(ctx, args[1:], out)
+	}
 	if len(args) < 1 || args[0] != "import" {
 		return errors.New(rulesUsage)
 	}
@@ -132,7 +135,7 @@ func routingMain(ctx context.Context, args []string, out io.Writer) error {
 	}
 	req.Header.Set("Authorization", "Bearer "+o.key)
 	req.Header.Set("Content-Type", "application/yaml")
-	resp, err := netguard.Guarded("wtctl", 0).Do(req)
+	resp, err := guardedClient(0).Do(req)
 	if err != nil {
 		return err
 	}

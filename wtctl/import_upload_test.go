@@ -98,7 +98,7 @@ func TestImportApplyAndFailure(t *testing.T) {
 }
 
 func TestImportRefusesUnknownSourceAndMissingFile(t *testing.T) {
-	for _, args := range [][]string{{"pagerduty"}, {"newrelic", "--api", "http://x", "--key", "k", "--project", "p"}} {
+	for _, args := range [][]string{{"nosuchvendor"}, {"newrelic", "--api", "http://x", "--key", "k", "--project", "p"}} {
 		if err := importMain(context.Background(), args, &bytes.Buffer{}); err == nil {
 			t.Errorf("%v must fail", args)
 		}

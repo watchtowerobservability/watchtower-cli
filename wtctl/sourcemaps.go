@@ -14,7 +14,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"github.com/watchtowerobservability/watchtower-cli/internal/netguard"
 )
 
 // maxArtifactBytes matches the API limit per file (after decompression).
@@ -22,7 +21,7 @@ const maxArtifactBytes = 100 << 20
 
 // artifactOpts is where and as whom files are uploaded.
 type artifactOpts struct {
-	api, key, project, release string
+	api, key, project, release, dist string
 }
 
 func (o *artifactOpts) flags(fs *flag.FlagSet) {
@@ -30,6 +29,7 @@ func (o *artifactOpts) flags(fs *flag.FlagSet) {
 	fs.StringVar(&o.key, "key", os.Getenv("WT_API_KEY"), "API key (project admin); default $WT_API_KEY")
 	fs.StringVar(&o.project, "project", "", "project id")
 	fs.StringVar(&o.release, "release", "", "release version (must exist)")
+	fs.StringVar(&o.dist, "dist", "", "build of the release (Sentry dist); events with that dist prefer these files")
 }
 
 func (o *artifactOpts) check() error {
@@ -56,6 +56,9 @@ func uploadArtifact(ctx context.Context, o artifactOpts, kind, name string, data
 	if o.release != "" {
 		q.Set("release", o.release)
 	}
+	if o.dist != "" {
+		q.Set("dist", o.dist)
+	}
 	u := strings.TrimRight(o.api, "/") + "/v1/projects/" + url.PathEscape(o.project) + "/artifacts?" + q.Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, &z)
 	if err != nil {
@@ -64,7 +67,7 @@ func uploadArtifact(ctx context.Context, o artifactOpts, kind, name string, data
 	req.Header.Set("Authorization", "Bearer "+o.key)
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Header.Set("Content-Encoding", "gzip")
-	resp, err := netguard.Guarded("wtctl", 0).Do(req)
+	resp, err := guardedClient(0).Do(req)
 	if err != nil {
 		return err
 	}
@@ -120,7 +123,7 @@ func sourcemapsUpload(ctx context.Context, o artifactOpts, dir string, out io.Wr
 }
 
 func sourcemapsMain(ctx context.Context, args []string, out io.Writer) error {
-	const usage = "usage: wtctl sourcemaps upload <dir> --api <url> --key <key> --project <prj_...> [--release <version>]"
+	const usage = "usage: wtctl sourcemaps upload <dir> --api <url> --key <key> --project <prj_...> [--release <version>] [--dist <dist>]"
 	if len(args) < 2 || args[0] != "upload" || strings.HasPrefix(args[1], "-") {
 		return errors.New(usage)
 	}
