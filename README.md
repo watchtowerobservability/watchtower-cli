@@ -8,8 +8,7 @@ It calls the public `/v1` API with your key; it contains no server logic.
 
 | Method | Command |
 |---|---|
-| Homebrew | `brew install watchtowerobservability/tap/wtctl` |
-| npm | `npm i -g @watchtowerobservability/cli` (downloads and SHA256-verifies the release binary; GitHub Packages registry) |
+| npm | `npm i -g @watchtowerobservability/cli` (public npm; downloads and SHA256-verifies the release binary) |
 | Go | `go install github.com/watchtowerobservability/watchtower-cli/wtctl@latest` |
 | Scoop | `scoop install https://github.com/watchtowerobservability/watchtower-cli/releases/latest/download/wtctl.json` |
 | Download | the release page: `wtctl_<os>_<arch>` for linux, darwin and windows on amd64 and arm64, plus `SHA256SUMS` |

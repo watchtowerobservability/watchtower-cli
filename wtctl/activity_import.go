@@ -198,20 +198,23 @@ var retracedMap = map[string][]string{
 	"target_name": {"target_name"}, "ip": {"source_ip"},
 }
 
-func parseTime(s string) (string, bool) {
+// parseTime returns the normalized RFC3339Nano UTC string and the instant it denotes.
+func parseTime(s string) (string, time.Time, bool) {
 	s = strings.TrimSpace(s)
 	for _, l := range []string{time.RFC3339Nano, "2006-01-02 15:04:05", "2006-01-02T15:04:05", "2006-01-02 15:04:05.999999999"} {
 		if t, err := time.Parse(l, s); err == nil {
-			return t.UTC().Format(time.RFC3339Nano), true
+			t = t.UTC()
+			return t.Format(time.RFC3339Nano), t, true
 		}
 	}
 	if n, err := strconv.ParseInt(s, 10, 64); err == nil && n > 0 {
+		t := time.Unix(n, 0).UTC()
 		if n > 1e12 {
-			return time.UnixMilli(n).UTC().Format(time.RFC3339Nano), true
+			t = time.UnixMilli(n).UTC()
 		}
-		return time.Unix(n, 0).UTC().Format(time.RFC3339Nano), true
+		return t.Format(time.RFC3339Nano), t, true
 	}
-	return "", false
+	return "", time.Time{}, false
 }
 
 // buildImportEvents maps rows to Event v2 bodies sorted by (account, occurred_at); unusable rows are listed in skipped.
@@ -235,8 +238,9 @@ func buildImportEvents(from string, rows []map[string]string, defAccount string)
 		}
 	}
 	type item struct {
-		acct, at string
-		ev       map[string]any
+		acct string
+		ts   time.Time
+		ev   map[string]any
 	}
 	var items []item
 	for n, row := range rows {
@@ -252,7 +256,7 @@ func buildImportEvents(from string, rows []map[string]string, defAccount string)
 		if account == "" {
 			account = defAccount
 		}
-		at, okAt := parseTime(get("occurred_at"))
+		at, atTime, okAt := parseTime(get("occurred_at"))
 		if account == "" || action == "" || actor == "" || !okAt {
 			skipped = append(skipped, fmt.Sprintf("row %d: needs account_id, action, actor_id and a parseable occurred_at", n+1))
 			continue
@@ -313,13 +317,13 @@ func buildImportEvents(from string, rows []map[string]string, defAccount string)
 		}
 		sum := sha256.Sum256([]byte(src))
 		ev["idempotency_key"] = hex.EncodeToString(sum[:])
-		items = append(items, item{account, at, ev})
+		items = append(items, item{account, atTime, ev})
 	}
 	sort.SliceStable(items, func(i, j int) bool {
 		if items[i].acct != items[j].acct {
 			return items[i].acct < items[j].acct
 		}
-		return items[i].at < items[j].at // RFC3339 UTC strings of equal precision; shortcut: mixed fractional digits can mis-order sub-second ties
+		return items[i].ts.Before(items[j].ts)
 	})
 	for _, it := range items {
 		events = append(events, it.ev)

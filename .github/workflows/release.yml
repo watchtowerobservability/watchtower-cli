@@ -13,6 +13,8 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      - name: Refuse stage versions
+        run: case "${GITHUB_REF_NAME#v}" in 0.0.0|0.0.0-*) echo "refusing to release $GITHUB_REF_NAME"; exit 1;; esac
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
@@ -116,6 +118,8 @@ jobs:
       contents: read
       packages: write
     steps:
+      - name: Refuse stage versions
+        run: case "${GITHUB_REF_NAME#v}" in 0.0.0|0.0.0-*) echo "refusing to release $GITHUB_REF_NAME"; exit 1;; esac
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:

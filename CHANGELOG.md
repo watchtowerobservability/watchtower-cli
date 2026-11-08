@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+- `wtctl deps upload` sends the symbols your code uses, so the server can rank vulnerabilities by reachability. Servers that need this answer `426 client_too_old` to older clients; update with `wtctl self-update`.
+- `wtctl scan`: taint analysis for Go, JavaScript and Python sources (a source reaching a sink), plus the `r.URL.Query()` source and Python sink-line fixes.
+- `wtctl ci`: CI visibility commands and quality gates, synthetic checks with multi-browser fan-out.
+
 ## 0.2.0
 
 - `wtctl version [--check]`: the release version (stamped at build time) and a check against the latest release.

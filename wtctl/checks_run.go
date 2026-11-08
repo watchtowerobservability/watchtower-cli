@@ -98,6 +98,11 @@ func checksRun(ctx context.Context, args []string, stdout, stderr io.Writer) int
 	timeout := fs.Duration("timeout", 5*time.Minute, "give up waiting after this long")
 	junitPath := fs.String("junit", "", "write JUnit XML here (needs --wait)")
 	poll := fs.Duration("poll", 2*time.Second, "poll interval")
+	startURL := fs.String("start-url", "", "override the first navigation URL of every monitor (e.g. a PR preview)")
+	var vars, locations, ids repeated
+	fs.Var(&vars, "var", "override variable K=V (repeatable)")
+	fs.Var(&locations, "location", "run only these locations (repeatable)")
+	fs.Var(&ids, "id", "run exactly these monitors (mon_…) instead of --tag (repeatable)")
 	if err := fs.Parse(args); err != nil {
 		return exitError
 	}
@@ -105,7 +110,19 @@ func checksRun(ctx context.Context, args []string, stdout, stderr io.Writer) int
 		fmt.Fprintln(stderr, "--api, --key and --project are required; --junit needs --wait")
 		return exitError
 	}
-	run, err := runChecks(ctx, runOpts{*api, *key, *project, *tag, *wait, *timeout, *poll}, stdout)
+	varMap := map[string]string{}
+	for _, kv := range vars {
+		k, v, ok := strings.Cut(kv, "=")
+		if !ok || k == "" {
+			fmt.Fprintf(stderr, "--var %q: want K=V\n", kv)
+			return exitError
+		}
+		varMap[k] = v
+	}
+	run, err := runChecks(ctx, runOpts{
+		api: *api, key: *key, project: *project, tag: *tag, wait: *wait, timeout: *timeout, poll: *poll,
+		startURL: *startURL, vars: varMap, locations: locations, ids: ids,
+	}, stdout)
 	if err != nil {
 		fmt.Fprintln(stderr, "checks run failed:", err)
 		if *junitPath != "" && run.ID != "" { // CI wants the report most when the run did not finish
@@ -144,6 +161,33 @@ type runOpts struct {
 	api, key, project, tag string
 	wait                   bool
 	timeout, poll          time.Duration
+	// D12 CI overrides, recorded on the run and applied to every monitor in it.
+	startURL  string
+	vars      map[string]string
+	locations []string
+	ids       []string
+}
+
+// body is the POST /check-runs request: the tag or explicit monitor ids, plus any CI overrides.
+func (o runOpts) body() map[string]any {
+	b := map[string]any{"tag": o.tag}
+	if len(o.ids) > 0 {
+		b["monitor_ids"] = o.ids
+	}
+	ov := map[string]any{}
+	if o.startURL != "" {
+		ov["start_url"] = o.startURL
+	}
+	if len(o.vars) > 0 {
+		ov["variables"] = o.vars
+	}
+	if len(o.locations) > 0 {
+		ov["locations"] = o.locations
+	}
+	if len(ov) > 0 {
+		b["overrides"] = ov
+	}
+	return b
 }
 
 // runChecks starts a run and, with wait, polls it until it is over or the timeout passes (the
@@ -151,7 +195,7 @@ type runOpts struct {
 func runChecks(ctx context.Context, o runOpts, out io.Writer) (runDoc, error) {
 	base := strings.TrimRight(o.api, "/") + "/v1/projects/" + o.project + "/check-runs"
 	var run runDoc
-	if err := call(ctx, http.MethodPost, base, o.key, map[string]string{"tag": o.tag}, &run); err != nil {
+	if err := call(ctx, http.MethodPost, base, o.key, o.body(), &run); err != nil {
 		return run, err
 	}
 	fmt.Fprintf(out, "run %s started (%d checks tagged %q)\n", run.ID, len(run.Results), o.tag)

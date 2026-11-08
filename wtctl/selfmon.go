@@ -29,17 +29,29 @@ func selfmonRule(name, promql, op string, threshold float64, forS int, sev strin
 	}
 }
 
+// selfmonRules query metrics the services really expose. The worker's come from the agent's
+// prometheus module scraping :8889. Every series exists at 0 from startup, so no data means monitoring
+// is blind and each rule fires. A memory error outside a per-query limit fires at once (for_s 0): one failed merge or
+// insert is already a signal, and increase() falls back to 0 five minutes later.
+// shortcut: no rule for alert evaluation lag, no service exposes it yet; add it with the metric.
 func selfmonRules() []map[string]any {
-	return []map[string]any{
-		selfmonRule("Consumer lag over 60s", "max(wt_consumer_lag_seconds)", "gt", 60, 300, "high"),
+	rules := []map[string]any{
+		selfmonRule("Worker lag over 1000 messages", "max(wt_worker_lag)", "gt", 1000, 300, "high"),
 		selfmonRule("ClickHouse insert errors", "increase(wt_ch_insert_errors_total[5m])", "gt", 0, 300, "high"),
-		selfmonRule("Gateway 5xx rate over 1%", "100 * sum(rate(wt_gateway_responses_total{class=\"5xx\"}[5m])) / sum(rate(wt_gateway_responses_total[5m]))", "gt", 1, 0, "critical"),
-		selfmonRule("Alert evaluation lag over 120s", "max(wt_alert_eval_lag_seconds)", "gt", 120, 0, "high"),
-		selfmonRule("Outbox age over 5m", "max(wt_outbox_age_seconds)", "gt", 300, 0, "warning"),
+		selfmonRule("ClickHouse memory limit errors", `sum(increase({__name__="clickhouse.errors","error.type"="MEMORY_LIMIT_EXCEEDED"}[5m])) - sum(increase({__name__="clickhouse.errors","error.type"="QUERY_MEMORY_LIMIT_EXCEEDED"}[5m]))`, "gt", 0, 0, "high"),
+		selfmonRule("Gateway produce errors", "sum(increase(wt_gateway_produce_errors_total[5m]))", "gt", 0, 300, "high"),
+		selfmonRule("Host disk under 10 GB free", `min({__name__="system.filesystem.usage",state="free",mountpoint="/etc/hosts"})`, "lt", 10e9, 300, "high"),
+		selfmonRule("Gateway throttling platform ingest", "sum(increase(wt_gateway_throttled_total[5m]))", "gt", 0, 300, "high"),
+		selfmonRule("Notifier page queued over 5 minutes", "max(wt_notifier_oldest_due_seconds)", "gt", 300, 0, "high"),
+		selfmonRule("Agent dropping records", "sum(increase(wt_agent_export_records_dropped_total[5m]))", "gt", 0, 300, "warning"),
 	}
+	for _, r := range rules {
+		r["no_data"] = "alerting"
+	}
+	return rules
 }
 
-// selfMonitorMain is `wtctl self-monitor init`: the "Platform health" dashboard and five rules.
+// selfMonitorMain is `wtctl self-monitor init`: the "Platform health" dashboard and its rules.
 func selfMonitorMain(ctx context.Context, args []string, out io.Writer) error {
 	if len(args) < 1 || args[0] != "init" {
 		return errors.New(selfmonUsage)

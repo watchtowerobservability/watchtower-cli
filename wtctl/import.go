@@ -13,7 +13,7 @@ import (
 const importUsage = "usage: wtctl import datadog|grafana|newrelic|splunk|promrules|chronosphere|sentry|honeycomb|dynatrace|kibana\n" +
 	"       wtctl import helicone --file <export.jsonl> [--endpoint <gateway>] [--key <ingestion key>] [--dry-run]\n" +
 	"       wtctl import pagerduty|opsgenie|victorops|splunk-on-call|grafana-oncall|datadog --live ...  (live pull; see below)\n" +
-	"           [--alerts <file>] [--dashboards <file>] [--alertmanager <file>] [--monitors <file>] [--pipelines <file>] [--alert-rules <file>]\n" +
+	"           [--alerts <file>] [--dashboards <file>] [--alertmanager <file>] [--monitors <file>] [--slos <file>] [--downtimes <file>] [--notebooks <file>] [--pipelines <file>] [--alert-rules <file>]\n" +
 	"           [--apply] [--report <prefix>]  (export files are uploaded and mapped on the server; dry run unless --apply; see docs/product/migration)\n" +
 	"       (also --api <url> --key <wt key> --project <id>, defaulting to $WT_API, $WT_API_KEY, $WT_PROJECT)"
 
@@ -39,7 +39,7 @@ func importMain(ctx context.Context, args []string, out io.Writer) error {
 	var api, key, project, report string
 	var apply bool
 	files := map[string]*string{}
-	for _, role := range []string{"alerts", "dashboards", "alertmanager", "monitors", "pipelines", "alert_rules"} {
+	for _, role := range []string{"alerts", "dashboards", "alertmanager", "monitors", "slos", "downtimes", "notebooks", "pipelines", "alert_rules"} {
 		files[role] = new(string)
 	}
 	fs.StringVar(&api, "api", os.Getenv("WT_API"), "")
@@ -47,7 +47,7 @@ func importMain(ctx context.Context, args []string, out io.Writer) error {
 	fs.StringVar(&project, "project", os.Getenv("WT_PROJECT"), "")
 	fs.StringVar(&report, "report", "import-report", "")
 	fs.BoolVar(&apply, "apply", false, "")
-	for _, role := range []string{"alerts", "dashboards", "alertmanager", "monitors", "pipelines"} {
+	for _, role := range []string{"alerts", "dashboards", "alertmanager", "monitors", "slos", "downtimes", "notebooks", "pipelines"} {
 		fs.StringVar(files[role], role, "", "")
 	}
 	fs.StringVar(files["alert_rules"], "alert-rules", "", "")

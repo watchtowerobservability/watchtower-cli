@@ -17,7 +17,7 @@ var liveSources = []string{"pagerduty", "opsgenie", "victorops", "splunk-on-call
 
 const liveUsage = "usage: wtctl import pagerduty|opsgenie|victorops|splunk-on-call|grafana-oncall|zenduty|datadog --live\n" +
 	"           --api-key-env <VAR> [--app-key-env <VAR>] [--api-id-env <VAR>] [--region us|eu] [--site datadoghq.com]\n" +
-	"           [--url <oncall https url>] [--scope policy=<id>,schedule=<id>,user=<email> | monitors,dashboards,pipelines]\n" +
+	"           [--url <oncall https url>] [--scope policy=<id>,schedule=<id>,user=<email> | monitors,slos,downtimes,dashboards,notebooks,pipelines]\n" +
 	"           [--apply] [--report <prefix>]  (the key is sealed on the server and never returned)"
 
 // isLiveImport reports whether args select a live pull: a live-only source, or datadog --live.

@@ -37,9 +37,12 @@ func ciMain(ctx context.Context, args []string, out io.Writer) error {
 	if len(args) > 0 && args[0] == "gotest" {
 		return ciGotestMain(ctx, args[1:], os.Stdin, out)
 	}
+	if len(args) > 0 && args[0] == "gate" {
+		return ciGateMain(ctx, args[1:], out)
+	}
 	if len(args) == 0 || args[0] != "upload-junit" {
 		return errors.New(ciUsage + "\n       " + ciJunitUsage[len("usage: "):] + "\n       " + ciPlanUsage[len("usage: "):] +
-			"\n       " + ciGotestUsage[len("usage: "):])
+			"\n       " + ciGotestUsage[len("usage: "):] + "\n       " + ciGateUsage[len("usage: "):])
 	}
 	fs := flag.NewFlagSet("ci upload-junit", flag.ContinueOnError)
 	var u junitUpload

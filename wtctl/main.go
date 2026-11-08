@@ -51,6 +51,8 @@ func main() {
 		"profile":      profileMain,
 		"size":         sizeMain,
 		"checks":       checksMain,
+		"scan":         scanMain,
+		"deps":         depsMain,
 		"test":         testMain,
 		"ci":           ciMain,
 		"rules":        rulesMain,
@@ -59,6 +61,7 @@ func main() {
 		"gen":          func(ctx context.Context, a []string, o io.Writer) error { return genreplay.Main(ctx, a, o, nil) },
 		"apply":        applyMain,
 		"import":       importMain,
+		"shadow":       shadowMain,
 		"diff":         diffMain,
 		"export":       exportMain,
 		"completion":   completionMain,
@@ -141,6 +144,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "       "+genreplay.GenUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(asCodeUsage[len("usage: "):], "\n       ", "\n       "))
 		fmt.Fprintln(os.Stderr, "       "+importUsage[len("usage: "):])
+		fmt.Fprintln(os.Stderr, "       "+shadowUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       "+completionUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(datasetsUsage[len("usage: "):], "\n       ", "\n       "))
 		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(evalsUsage[len("usage: "):], "\n", "\n       "))

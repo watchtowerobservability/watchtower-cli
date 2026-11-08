@@ -72,6 +72,28 @@ func TestWtctlChecksRunExitCode(t *testing.T) {
 	}
 }
 
+func TestRunOptsBody(t *testing.T) {
+	o := runOpts{
+		tag: "ci", startURL: "https://pr-42.example.com",
+		vars: map[string]string{"ENV": "pr-42"}, locations: []string{"eu"}, ids: []string{"mon_a"},
+	}
+	b := o.body()
+	if got := b["monitor_ids"].([]string); len(got) != 1 || got[0] != "mon_a" {
+		t.Fatalf("monitor_ids = %v", b["monitor_ids"])
+	}
+	ov := b["overrides"].(map[string]any)
+	if ov["start_url"] != "https://pr-42.example.com" {
+		t.Fatalf("start_url = %v", ov["start_url"])
+	}
+	if ov["variables"].(map[string]string)["ENV"] != "pr-42" || ov["locations"].([]string)[0] != "eu" {
+		t.Fatalf("overrides = %v", ov)
+	}
+	// a plain tag run carries no overrides key
+	if _, ok := (runOpts{tag: "ci"}).body()["overrides"]; ok {
+		t.Fatal("bare run should not carry overrides")
+	}
+}
+
 func TestJUnitOutput(t *testing.T) {
 	srv := api(t, "failed", []runResult{
 		{Name: "api", Status: "passed"},

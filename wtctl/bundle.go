@@ -36,7 +36,22 @@ const bundleUsage = `usage: wtctl bundle create --version v --out bundle.tar --k
 func guardedClient(timeout time.Duration) *http.Client {
 	c := netguard.NewClientWith(netguard.FromEnv("wtctl"), netguard.Options{}, func(t *http.Transport) { t.Proxy = http.ProxyFromEnvironment })
 	c.Timeout = timeout
+	c.Transport = clientHeader{c.Transport}
 	return c
+}
+
+// clientHeader names the wtctl version on every request (X-WT-Client: wtctl/0.3.0), so the server can
+// answer a too-old client with client_too_old instead of quietly empty data (B16).
+type clientHeader struct{ next http.RoundTripper }
+
+func (h clientHeader) RoundTrip(r *http.Request) (*http.Response, error) {
+	r = r.Clone(r.Context())
+	r.Header.Set("X-WT-Client", "wtctl/"+Version)
+	next := h.next
+	if next == nil {
+		next = http.DefaultTransport
+	}
+	return next.RoundTrip(r)
 }
 
 type bundleFile struct {

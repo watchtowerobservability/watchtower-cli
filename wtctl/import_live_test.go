@@ -130,7 +130,11 @@ func TestChecksRequireConnectionFlags(t *testing.T) {
 
 func TestGuardedClientHonoursTheProxyEnvironment(t *testing.T) {
 	// net/http reads the environment once per process, so only the wiring is checked here.
-	tr, ok := guardedClient(time.Second).Transport.(*http.Transport)
+	h, isHeader := guardedClient(time.Second).Transport.(clientHeader) // names the version on every request
+	if !isHeader {
+		t.Fatal("the transport does not send X-WT-Client")
+	}
+	tr, ok := h.next.(*http.Transport)
 	if !ok || tr.Proxy == nil {
 		t.Fatal("the transport has no proxy function (D-85)")
 	}
