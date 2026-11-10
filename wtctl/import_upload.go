@@ -31,10 +31,11 @@ type importJobView struct {
 	State  string `json:"state"`
 	Error  string `json:"error"`
 	Result struct {
-		Output   string          `json:"output"`
-		Report   json.RawMessage `json:"report"`
-		Markdown string          `json:"markdown"`
-		Monitor  json.RawMessage `json:"monitor"` // checks jobs: the monitor the server built
+		Output    string          `json:"output"`
+		Report    json.RawMessage `json:"report"`
+		Markdown  string          `json:"markdown"`
+		Terraform string          `json:"terraform"` // Watchtower provider HCL of the plan
+		Monitor   json.RawMessage `json:"monitor"`   // checks jobs: the monitor the server built
 	} `json:"result"`
 }
 
@@ -114,6 +115,11 @@ func uploadImport(ctx context.Context, api, key, project, source string, apply b
 func writeImportReport(prefix string, v importJobView) error {
 	if len(v.Result.Report) > 0 {
 		if err := os.WriteFile(prefix+".json", append(v.Result.Report, '\n'), 0o644); err != nil {
+			return err
+		}
+	}
+	if v.Result.Terraform != "" { // the Terraform path: a team that keeps Datadog in Terraform keeps Watchtower there
+		if err := os.WriteFile(prefix+".tf", []byte(v.Result.Terraform), 0o644); err != nil {
 			return err
 		}
 	}

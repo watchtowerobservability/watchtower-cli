@@ -97,7 +97,8 @@ func scanTree(root string, read func(string) ([]byte, error), walk walkFn) (sari
 			return nil
 		}
 		ext := strings.ToLower(filepath.Ext(path))
-		if !textExt[ext] {
+		source := textExt[ext]
+		if !source && !secretFile(path) {
 			return nil
 		}
 		b, rerr := read(path)
@@ -109,6 +110,10 @@ func scanTree(root string, read func(string) ([]byte, error), walk walkFn) (sari
 			rel = path
 		}
 		rel = filepath.ToSlash(rel)
+		results = append(results, scanSecrets(rel, string(b))...)
+		if !source {
+			return nil // configuration files get the secret rules only
+		}
 		results = append(results, scanSource(rel, string(b))...)
 		if ext == ".go" && !strings.HasSuffix(rel, "_test.go") {
 			goPkgs[pathpkg.Dir(rel)] = append(goPkgs[pathpkg.Dir(rel)], taintFile{rel, string(b)})
@@ -213,6 +218,10 @@ type sarifRegion struct {
 func newSarifLog(results []sarifResult) sarifLog {
 	meta := make([]sarifRuleMeta, 0, len(rules))
 	for _, r := range rules {
+		meta = append(meta, sarifRuleMeta{ID: r.id, Name: r.name,
+			Properties: sarifRuleProps{SecuritySeverity: r.severity}})
+	}
+	for _, r := range secretRules {
 		meta = append(meta, sarifRuleMeta{ID: r.id, Name: r.name,
 			Properties: sarifRuleProps{SecuritySeverity: r.severity}})
 	}

@@ -205,7 +205,7 @@ func (s *Server) initialize(raw json.RawMessage) (any, error) {
 			"textDocumentSync":       1,
 			"codeLensProvider":       map[string]any{"resolveProvider": false},
 			"hoverProvider":          true,
-			"executeCommandProvider": map[string]any{"commands": []string{cmdOpenIssue, cmdOpenTrace}},
+			"executeCommandProvider": map[string]any{"commands": []string{cmdOpenIssue, cmdOpenTrace, cmdOpenLogs}},
 		},
 		"serverInfo": map[string]any{"name": "wtctl-lsp"},
 	}, nil

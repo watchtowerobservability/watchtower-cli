@@ -43,6 +43,7 @@ func selfmonRules() []map[string]any {
 		selfmonRule("Host disk under 10 GB free", `min({__name__="system.filesystem.usage",state="free",mountpoint="/etc/hosts"})`, "lt", 10e9, 300, "high"),
 		selfmonRule("Gateway throttling platform ingest", "sum(increase(wt_gateway_throttled_total[5m]))", "gt", 0, 300, "high"),
 		selfmonRule("Notifier page queued over 5 minutes", "max(wt_notifier_oldest_due_seconds)", "gt", 300, 0, "high"),
+		selfmonRule("Gateway refusing repeated bad keys", "sum(increase(wt_gateway_auth_fail_limited_total[5m]))", "gt", 0, 0, "warning"),
 		selfmonRule("Agent dropping records", "sum(increase(wt_agent_export_records_dropped_total[5m]))", "gt", 0, 300, "warning"),
 	}
 	for _, r := range rules {

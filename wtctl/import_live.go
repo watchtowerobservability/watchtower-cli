@@ -17,7 +17,7 @@ var liveSources = []string{"pagerduty", "opsgenie", "victorops", "splunk-on-call
 
 const liveUsage = "usage: wtctl import pagerduty|opsgenie|victorops|splunk-on-call|grafana-oncall|zenduty|datadog --live\n" +
 	"           --api-key-env <VAR> [--app-key-env <VAR>] [--api-id-env <VAR>] [--region us|eu] [--site datadoghq.com]\n" +
-	"           [--url <oncall https url>] [--scope policy=<id>,schedule=<id>,user=<email> | monitors,slos,downtimes,dashboards,notebooks,pipelines]\n" +
+	"           [--url <oncall https url>] [--scope policy=<id>,schedule=<id>,user=<email> | monitors,slos,downtimes,dashboards,notebooks,pipelines,synthetics,indexes,catalog,schedule:<id>,policy:<id>]\n" +
 	"           [--apply] [--report <prefix>]  (the key is sealed on the server and never returned)"
 
 // isLiveImport reports whether args select a live pull: a live-only source, or datadog --live.
@@ -26,6 +26,11 @@ func isLiveImport(args []string) bool {
 }
 
 func importLive(ctx context.Context, args []string, out io.Writer) error {
+	return importLiveRun(ctx, args, out, false)
+}
+
+// importLiveRun is importLive; markdown also prints the report (what did not map, the share per kind).
+func importLiveRun(ctx context.Context, args []string, out io.Writer, markdown bool) error {
 	which := args[0]
 	fs := flag.NewFlagSet("import "+which, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -80,6 +85,9 @@ func importLive(ctx context.Context, args []string, out io.Writer) error {
 	}
 	v, err := uploadImport(ctx, api, key, project, source, apply, fields, nil)
 	fmt.Fprint(out, v.Result.Output)
+	if markdown {
+		fmt.Fprint(out, "\n", v.Result.Markdown)
+	}
 	if err != nil {
 		return err
 	}

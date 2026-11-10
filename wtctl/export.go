@@ -46,6 +46,9 @@ func exportMain(ctx context.Context, args []string, out io.Writer) error {
 			return err
 		}
 		name := strings.ToLower(d.Kind + "-" + d.Metadata.Name)
+		if k := ascode.ByKind(d.Kind); k != nil && k.Singleton {
+			name = strings.ToLower(d.Kind) // routing.yaml, orgsso.yaml
+		}
 		name = strings.Map(func(r rune) rune {
 			if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-' || r == '.' {
 				return r

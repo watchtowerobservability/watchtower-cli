@@ -71,6 +71,7 @@ var funcRe = map[string]*regexp.Regexp{
 	".mjs":  tsRe,
 	".py":   regexp.MustCompile(`^\s*(?:async\s+)?def\s+([A-Za-z_]\w*)`),
 	".java": regexp.MustCompile(`^\s*(?:(?:public|protected|private|static|final|synchronized|abstract)\s+)+[\w<>\[\],.? ]+\s+([A-Za-z_]\w*)\s*\([^;]*$`),
+	".kt":   regexp.MustCompile(`^\s*(?:(?:public|private|protected|internal|override|suspend|inline|open|abstract|operator)\s+)*fun\s+(?:<[^>]*>\s*)?(?:[\w.<>?]+\.)?([A-Za-z_]\w*)\s*\(`),
 	".cs":   regexp.MustCompile(`^\s*(?:(?:public|protected|private|internal|static|async|virtual|override|sealed)\s+)+[\w<>\[\],.?]+\s+([A-Za-z_]\w*)\s*\([^;]*$`),
 }
 

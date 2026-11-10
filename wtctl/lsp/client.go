@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 	"github.com/watchtowerobservability/watchtower-cli/internal/netguard"
 )
@@ -31,6 +32,9 @@ type Client struct {
 	BaseURL string // WT_API_URL
 	Key     string // WT_API_KEY
 	HTTP    *http.Client
+
+	mu       sync.Mutex
+	logCache map[string]cached
 }
 
 // maxFuncs is the API limit per request.

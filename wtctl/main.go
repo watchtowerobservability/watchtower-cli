@@ -57,10 +57,12 @@ func main() {
 		"ci":           ciMain,
 		"rules":        rulesMain,
 		"routing":      routingMain,
+		"security":     securityMain,
 		"gatus":        gatusMain,
 		"gen":          func(ctx context.Context, a []string, o io.Writer) error { return genreplay.Main(ctx, a, o, nil) },
 		"apply":        applyMain,
 		"import":       importMain,
+		"migrate":      migrateMain,
 		"shadow":       shadowMain,
 		"diff":         diffMain,
 		"export":       exportMain,
@@ -72,6 +74,7 @@ func main() {
 		"pipeline":     pipelineMain,
 		"kafka":        kafkaMain,
 		"backup":       backupMain,
+		"archive":      archiveMain,
 		"restore":      restoreMain,
 		"fleet":        fleetMain,
 		"upgrade":      upgradeMain,
@@ -90,6 +93,7 @@ func main() {
 		"activity":     activityMain,
 		"metrics":      metricsMain,
 		"plugin":       pluginMain,
+		"integration":  integrationMain,
 		"ch":           chMain,
 		"mib":          mibMain,
 		"login":        loginMain,
@@ -144,6 +148,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "       "+genreplay.GenUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(asCodeUsage[len("usage: "):], "\n       ", "\n       "))
 		fmt.Fprintln(os.Stderr, "       "+importUsage[len("usage: "):])
+		fmt.Fprintln(os.Stderr, "       "+migrateUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       "+shadowUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       "+completionUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(datasetsUsage[len("usage: "):], "\n       ", "\n       "))
@@ -154,6 +159,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(dashboardsUsage[len("usage: "):], "\n       ", "\n       "))
 		fmt.Fprintln(os.Stderr, "       "+kafkaUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       "+backupUsage[len("usage: "):])
+		fmt.Fprintln(os.Stderr, "       "+archiveUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(pluginUsage[len("usage: "):], "\n       ", "\n       "))
 		fmt.Fprintln(os.Stderr, "       "+restoreUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       "+chTuneUsage[len("usage: "):])

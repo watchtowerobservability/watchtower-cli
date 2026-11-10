@@ -145,3 +145,24 @@ func TestDebugFilesDetectKindAndSkipOthers(t *testing.T) {
 		t.Fatal("paths are required")
 	}
 }
+
+func TestSourcemapsUploadReadsEnvAndCreatesTheRelease(t *testing.T) {
+	var paths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.Method+" "+r.URL.Path)
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("WT_API", srv.URL)
+	t.Setenv("WT_API_KEY", "k")
+	t.Setenv("WT_PROJECT", "prj_1")
+	dir := t.TempDir()
+	write(t, filepath.Join(dir, "a.js.map"), []byte(`{"version":3}`))
+	if err := sourcemapsMain(context.Background(), []string{"upload", dir, "--release", "1.0.0"}, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if len(paths) != 2 || paths[0] != "POST /v1/projects/prj_1/releases" || paths[1] != "POST /v1/projects/prj_1/artifacts" {
+		t.Fatalf("calls = %v", paths)
+	}
+}

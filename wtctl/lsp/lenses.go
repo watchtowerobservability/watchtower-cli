@@ -61,6 +61,7 @@ func (s *Server) codeLens(ctx context.Context, raw json.RawMessage) (any, error)
 	if d == nil {
 		return lenses, nil // unmapped files get no lens
 	}
+	lenses = append(lenses, s.logLenses(ctx, d)...)
 	stats, err := s.stats(ctx, d)
 	if err != nil {
 		return lenses, nil // an unreachable API must not break the editor

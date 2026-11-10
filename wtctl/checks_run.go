@@ -24,6 +24,8 @@ type runResult struct {
 	Name      string `json:"name"`
 	Status    string `json:"status"`
 	Error     string `json:"error"`
+	// Flaky is set by --retries: the check failed first and passed on a retry.
+	Flaky bool `json:"-"`
 }
 
 type runDoc struct {
@@ -51,6 +53,8 @@ type junitCase struct {
 	Class   string     `xml:"classname,attr"`
 	Failure *junitFail `xml:"failure,omitempty"`
 	Err     *junitFail `xml:"error,omitempty"`
+	// FlakyFailure marks a check that passed on a retry (Surefire convention).
+	FlakyFailure *junitFail `xml:"flakyFailure,omitempty"`
 }
 
 type junitFail struct {
@@ -67,6 +71,10 @@ func junit(r runDoc) ([]byte, error) {
 		case "failed":
 			s.Failures++
 			c.Failure = &junitFail{Message: x.Error}
+		case "passed":
+			if x.Flaky {
+				c.FlakyFailure = &junitFail{Message: "failed first, passed on retry"}
+			}
 		case "pending":
 			s.Errors++
 			c.Err = &junitFail{Message: "no result before the run ended"}
@@ -98,6 +106,7 @@ func checksRun(ctx context.Context, args []string, stdout, stderr io.Writer) int
 	timeout := fs.Duration("timeout", 5*time.Minute, "give up waiting after this long")
 	junitPath := fs.String("junit", "", "write JUnit XML here (needs --wait)")
 	poll := fs.Duration("poll", 2*time.Second, "poll interval")
+	retries := fs.Int("retries", 0, "re-run failed checks up to N times (needs --wait); a pass on retry is flaky, not a failure")
 	startURL := fs.String("start-url", "", "override the first navigation URL of every monitor (e.g. a PR preview)")
 	var vars, locations, ids repeated
 	fs.Var(&vars, "var", "override variable K=V (repeatable)")
@@ -119,10 +128,14 @@ func checksRun(ctx context.Context, args []string, stdout, stderr io.Writer) int
 		}
 		varMap[k] = v
 	}
-	run, err := runChecks(ctx, runOpts{
+	if *retries < 0 || *retries > 5 || (*retries > 0 && !*wait) {
+		fmt.Fprintln(stderr, "--retries is 0 to 5 and needs --wait")
+		return exitError
+	}
+	run, err := runWithRetries(ctx, runOpts{
 		api: *api, key: *key, project: *project, tag: *tag, wait: *wait, timeout: *timeout, poll: *poll,
 		startURL: *startURL, vars: varMap, locations: locations, ids: ids,
-	}, stdout)
+	}, *retries, stdout)
 	if err != nil {
 		fmt.Fprintln(stderr, "checks run failed:", err)
 		if *junitPath != "" && run.ID != "" { // CI wants the report most when the run did not finish

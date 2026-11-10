@@ -70,7 +70,7 @@ func TestScanTreeSkipsAndBuildsSarif(t *testing.T) {
 		t.Fatalf("path should be relative to root: %+v", results[0])
 	}
 	// The driver declares the rule set with severities, so the server can rank.
-	if len(log.Runs[0].Tool.Driver.Rules) != len(rules)+len(taintRules) {
+	if len(log.Runs[0].Tool.Driver.Rules) != len(rules)+len(secretRules)+len(taintRules) {
 		t.Fatalf("driver must declare every rule")
 	}
 }

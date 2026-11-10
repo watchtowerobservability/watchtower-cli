@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1
+
+- As code converges: `apply` followed by `diff` reports `0 change(s)`; `write_token_to` works for every token kind (written 0600); `ServiceAccount` and the newer kinds apply.
+- Routing documents name Receivers (`receiver: <name>`) at any depth, and `export` writes the names back.
+- `export` drops server-owned fields (`next_eval_at`, `groups_truncated`, `warnings`, `muted_until`, `rebuilt_at`, `rebuild_error`) and writes singletons as `routing.yaml` / `orgsso.yaml`.
+- `sourcemaps upload` takes everything from `WT_*` env and creates the release when it is missing; `diff` output no longer escapes `<` and `&`.
+
 ## 0.3.0
 
 - `wtctl deps upload` sends the symbols your code uses, so the server can rank vulnerabilities by reachability. Servers that need this answer `426 client_too_old` to older clients; update with `wtctl self-update`.

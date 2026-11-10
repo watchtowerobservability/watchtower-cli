@@ -164,6 +164,8 @@ func TestFunctionRegexPerLanguage(t *testing.T) {
 		"a.py":        {"    async def fetch(self):", "fetch"},
 		"A.java":      {"  public static void main(String[] a) {", "main"},
 		"A.cs":        {"    public async Task<int> Run(int x)", "Run"},
+		"A.kt":        {"    private suspend fun String.load(id: Int): X {", "load"},
+		"B.kt":        {"fun main() {", "main"},
 		"notes.txt":   {"func nope()", ""},
 		"a.go-no-ext": {"func nope()", ""},
 	}
@@ -212,5 +214,98 @@ func TestUriPathWindowsStyle(t *testing.T) {
 		if got := filepath.ToSlash(uriPath(in)); got != want {
 			t.Errorf("%s: got %s want %s", in, got, want)
 		}
+	}
+}
+
+func TestLogLensAndHover(t *testing.T) {
+	var body string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b := new(bytes.Buffer)
+		_, _ = b.ReadFrom(r.Body)
+		if strings.HasSuffix(r.URL.Path, "/logs/search") {
+			body = b.String()
+			fmt.Fprint(w, `{"data":[{"body":"disk full","severity_text":"ERROR"},{"body":"retrying","severity_text":"WARN"}]}`)
+			return
+		}
+		fmt.Fprint(w, `{"data":[]}`)
+	}))
+	defer srv.Close()
+	root := t.TempDir()
+	_ = os.WriteFile(filepath.Join(root, "watchtower.yaml"), []byte("service: api\nproject: prj_1\n"), 0o600)
+	_ = os.WriteFile(filepath.Join(root, "a.go"), []byte("package x\n\nfunc Handle() {\n\tlog.Printf(\"hi\")\n}\n"), 0o600)
+	uri := fileURI(filepath.Join(root, "a.go"))
+	var out bytes.Buffer
+	var in bytes.Buffer
+	for i, m := range [][2]any{{"initialize", map[string]any{"rootPath": root}},
+		{"textDocument/codeLens", map[string]any{"textDocument": map[string]string{"uri": uri}}},
+		{"textDocument/hover", map[string]any{"textDocument": map[string]string{"uri": uri}, "position": map[string]int{"line": 3, "character": 2}}},
+		{"workspace/executeCommand", map[string]any{"command": cmdOpenLogs, "arguments": []string{"prj_1", "api", "a.go", "4"}}}} {
+		b, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": i + 1, "method": m[0], "params": m[1]})
+		fmt.Fprintf(&in, "Content-Length: %d\r\n\r\n%s", len(b), b)
+	}
+	s := NewServer(&Client{BaseURL: srv.URL, Key: "k"}, "https://wt.example", &out)
+	if err := s.Serve(context.Background(), &in); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	for _, want := range []string{"2 log lines/24h", cmdOpenLogs, "disk full", "Open in Logs", "code.filepath", "/projects/prj_1/logs?q="} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in %s", want, got)
+		}
+	}
+	if !strings.Contains(body, `"value":"4"`) || !strings.Contains(body, `"services":["api"]`) {
+		t.Fatalf("search body %s", body)
+	}
+	if strings.Contains(body, "log.Printf") {
+		t.Fatal("source leaked")
+	}
+}
+
+func TestLogSites(t *testing.T) {
+	got := LogSites("a.py", "x = 1\nlogger.info('a')\nlogging.error(x)\n", 10)
+	if len(got) != 2 || got[0] != 1 || got[1] != 2 {
+		t.Fatalf("got %v", got)
+	}
+	if len(LogSites("a.txt", "log.Info(", 5)) != 0 {
+		t.Fatal("unsupported ext")
+	}
+}
+
+func TestLiteralTemplate(t *testing.T) {
+	for in, want := range map[string]string{
+		`log.Printf("payment failed for user %s, retrying", id)`: "payment failed for user",
+		`logger.info("Order {} shipped late", o)`:                "shipped late",
+		`log.Println("ok")`: "",
+		`foo()`:             "",
+		"console.error(`cache miss ${key} in region`)": "cache miss",
+	} {
+		if got := Literal(in); got != want {
+			t.Errorf("%s: got %q want %q", in, got, want)
+		}
+	}
+}
+
+func TestLogsFallbackToTemplateAndCache(t *testing.T) {
+	var bodies []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b := new(bytes.Buffer)
+		_, _ = b.ReadFrom(r.Body)
+		bodies = append(bodies, b.String())
+		if strings.Contains(b.String(), `"text":"payment failed"`) {
+			fmt.Fprint(w, `{"data":[{"body":"payment failed","severity_text":"ERROR"}]}`)
+			return
+		}
+		fmt.Fprint(w, `{"data":[]}`)
+	}))
+	defer srv.Close()
+	c := &Client{BaseURL: srv.URL, Key: "k"}
+	for i := 0; i < 2; i++ {
+		s, err := c.LogsAt(context.Background(), "p", "api", "a.go", 4, "payment failed")
+		if err != nil || s.Count != 1 {
+			t.Fatalf("site %+v err %v", s, err)
+		}
+	}
+	if len(bodies) != 2 || !strings.Contains(bodies[0], "code.lineno") || strings.Contains(bodies[1], "code.lineno") {
+		t.Fatalf("want location query then text query, once (cached): %v", bodies)
 	}
 }

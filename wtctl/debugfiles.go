@@ -13,7 +13,7 @@ import (
 )
 
 // debugKind names the artifact kind of a native debug file from its first bytes, "" if unknown.
-// Fat Mach-O files (multiple architectures) are not supported: thin them first.
+// A fat Mach-O (several architectures) is recognised as "macho"; debugFilesUpload splits it.
 func debugKind(head []byte) string {
 	switch {
 	case bytes.HasPrefix(head, []byte("\x7fELF")):
@@ -25,6 +25,9 @@ func debugKind(head []byte) string {
 		switch [4]byte(head[:4]) {
 		case [4]byte{0xfe, 0xed, 0xfa, 0xce}, [4]byte{0xfe, 0xed, 0xfa, 0xcf},
 			[4]byte{0xce, 0xfa, 0xed, 0xfe}, [4]byte{0xcf, 0xfa, 0xed, 0xfe}:
+			return "macho"
+		}
+		if _, _, ok := fatHeader(head); ok {
 			return "macho"
 		}
 	}
@@ -53,6 +56,21 @@ func debugFilesUpload(ctx context.Context, o artifactOpts, paths []string, out i
 			data, err := os.ReadFile(p)
 			if err != nil {
 				return err
+			}
+			if _, _, fat := fatHeader(data); fat {
+				slices, ok := splitFatMachO(data)
+				if !ok {
+					fmt.Fprintf(out, "skipped %s (not a valid universal Mach-O)\n", n)
+					continue
+				}
+				for _, sl := range slices {
+					if err := uploadArtifact(ctx, o, "macho", n+"."+sl.arch, sl.data); err != nil {
+						return err
+					}
+					uploaded++
+					fmt.Fprintf(out, "uploaded %s.%s (macho)\n", n, sl.arch)
+				}
+				continue
 			}
 			kind := debugKind(data[:min(len(data), 32)])
 			if kind == "" && strings.HasPrefix(filepath.Base(n), "mapping") && strings.HasSuffix(n, ".txt") {

@@ -32,7 +32,7 @@ func TestSelfMonitorInitCreatesDashboardAndRules(t *testing.T) {
 	if err := selfMonitorInit(context.Background(), srv.URL, "k", "p1", &out); err != nil {
 		t.Fatal(err)
 	}
-	if len(paths) != 9 || paths[0] != "POST /v1/projects/p1/dashboards" { // dashboard + 8 rules (A1 adds the notifier queue age)
+	if len(paths) != 10 || paths[0] != "POST /v1/projects/p1/dashboards" { // dashboard + 9 rules (A1 notifier queue age, auth-failure limiter)
 		t.Fatalf("calls %v", paths)
 	}
 	for _, p := range paths[1:] {

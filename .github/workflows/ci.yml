@@ -21,3 +21,13 @@ jobs:
         with:
           node-version: '20'
       - run: node --test npm/test.js
+      - name: Pack, install the tarball into a clean project, run wtctl
+        # --ignore-scripts: postinstall downloads the released binary, which does not exist yet for an unreleased version;
+        # put the freshly built one where it would have gone
+        run: |
+          tmp="$(mktemp -d)"
+          (cd npm && npm pack --ignore-scripts --pack-destination "$tmp")
+          mkdir "$tmp/app" && cd "$tmp/app" && npm init -y >/dev/null
+          npm install --ignore-scripts --no-audit --no-fund "$tmp"/*.tgz
+          (cd "$GITHUB_WORKSPACE" && go build -o "$tmp/app/node_modules/@watchtowerobservability/cli/bin/wtctl-bin" ./wtctl)
+          npx --no-install wtctl version

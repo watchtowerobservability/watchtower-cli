@@ -35,7 +35,7 @@ func (s *Server) hover(ctx context.Context, raw json.RawMessage) (any, error) {
 		}
 	}
 	if fn == nil {
-		return nil, nil
+		return s.logHover(ctx, d, p.Position.Line), nil
 	}
 	stats, err := s.stats(ctx, d)
 	if err != nil {
@@ -64,6 +64,13 @@ func (s *Server) executeCommand(raw json.RawMessage) (any, error) {
 	}
 	if err := json.Unmarshal(raw, &p); err != nil {
 		return nil, err
+	}
+	if p.Command == cmdOpenLogs && len(p.Arguments) >= 4 && len(p.Arguments) <= 5 {
+		lit := ""
+		if len(p.Arguments) == 5 {
+			lit = p.Arguments[4]
+		}
+		return s.logsURL(p.Arguments[0], p.Arguments[1], p.Arguments[2], p.Arguments[3], lit), nil
 	}
 	if len(p.Arguments) != 2 {
 		return nil, fmt.Errorf("%s needs [project, id]", p.Command)

@@ -52,6 +52,8 @@ func scanRun(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	sarifOut := fs.String("sarif", "", "also write the SARIF log here")
 	upload := fs.Bool("upload", true, "upload the SARIF to the API")
 	reportDeps := fs.Bool("deps", true, "also report lockfile and manifest dependencies for the OSV sweep (SCA)")
+	history := fs.Bool("history", false, "also scan the added lines of past commits for secrets (needs git)")
+	historyDepth := fs.Int("history-depth", 1000, "commits of history to scan with --history")
 	failOnGate := fs.Bool("fail-on-gate", true, "exit non-zero when the quality gate blocks")
 	if err := fs.Parse(args); err != nil {
 		return scanError
@@ -61,6 +63,13 @@ func scanRun(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		fmt.Fprintln(stderr, "scan failed:", err)
 		return scanError
+	}
+	if *history {
+		hs, herr := gitHistory(ctx, *dir, *historyDepth)
+		if herr != nil {
+			fmt.Fprintln(stderr, "history scan:", herr)
+		}
+		log.Runs[0].Results = append(log.Runs[0].Results, hs...)
 	}
 	n := len(log.Runs[0].Results)
 	fmt.Fprintf(stdout, "scanned %s: %d finding(s)\n", *dir, n)
