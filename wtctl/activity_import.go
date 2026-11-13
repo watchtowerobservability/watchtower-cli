@@ -41,7 +41,7 @@ var importSleep = time.Sleep
 func activityImportMain(ctx context.Context, args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("activity import", flag.ContinueOnError)
 	from := fs.String("from", "", "workos-csv, retraced-ndjson or a mapping.yaml path")
-	api := fs.String("api", os.Getenv("WT_API_URL"), "API base URL; default $WT_API_URL")
+	api := fs.String("api", apiEnv(), "API base URL; default $WT_API_URL")
 	key := fs.String("key", os.Getenv("WT_ACTIVITY_KEY"), "ingestion key (wti_...); default $WT_ACTIVITY_KEY")
 	_ = fs.String("project", "", "project id (implied by the key)")
 	account := fs.String("account", "", "account_id for rows that carry none")

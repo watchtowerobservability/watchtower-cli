@@ -8800,8 +8800,20 @@
    "AddSource": {
     "additionalProperties": false,
     "properties": {
+     "auth": {
+      "$ref": "#/components/schemas/AuthIn",
+      "nullable": true
+     },
+     "enabled": {
+      "description": "Ask this server (default true; presets are added with `false`).",
+      "type": "boolean"
+     },
      "kind": {
       "description": "`microsoft`, `debuginfod` or `custom`.",
+      "type": "string"
+     },
+     "name": {
+      "description": "Display name (at most 100 characters).",
       "type": "string"
      },
      "url": {
@@ -10562,6 +10574,68 @@
     ],
     "type": "object"
    },
+   "AlertRecordingRuleDto": {
+    "properties": {
+     "every_s": {
+      "description": "Seconds between evaluations (the group interval).",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "expr": {
+      "type": "string"
+     },
+     "group": {
+      "description": "The rule group that owns the rule.",
+      "type": "string"
+     },
+     "ingest_delay_s": {
+      "description": "Seconds the rule reads behind its tick, for late data.",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "labels": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "description": "Labels added to every recorded series (the group's labels already applied).",
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "last_error": {
+      "description": "Why the last evaluation failed; absent when it succeeded.",
+      "nullable": true,
+      "type": "string"
+     },
+     "last_eval_at": {
+      "description": "RFC 3339; absent until the rule has been evaluated once.",
+      "nullable": true,
+      "type": "string"
+     },
+     "name": {
+      "description": "The metric name the rule writes.",
+      "type": "string"
+     },
+     "series_count": {
+      "description": "Series the last evaluation wrote.",
+      "format": "int32",
+      "nullable": true,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "group",
+     "name",
+     "expr",
+     "labels",
+     "every_s",
+     "ingest_delay_s"
+    ],
+    "type": "object"
+   },
    "AlertSettings": {
     "additionalProperties": false,
     "properties": {
@@ -10628,6 +10702,11 @@
       "properties": {
        "address": {
         "description": "An email source's address. Shown once; delete and recreate the source to rotate it.",
+        "nullable": true,
+        "type": "string"
+       },
+       "signing_key": {
+        "description": "A signed generic source's HMAC key. Shown once; delete and recreate the source to rotate it.",
         "nullable": true,
         "type": "string"
        }
@@ -11280,7 +11359,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -11309,7 +11388,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -12171,6 +12250,19 @@
     ],
     "type": "object"
    },
+   "ApprovalMode": {
+    "additionalProperties": false,
+    "properties": {
+     "mode": {
+      "description": "`second_admin` (default: a different `ManageSecurity` user approves each request) or\n`none` (requests are queued at once; for projects with a single admin).",
+      "type": "string"
+     }
+    },
+    "required": [
+     "mode"
+    ],
+    "type": "object"
+   },
    "ApproveRequest": {
     "additionalProperties": false,
     "properties": {
@@ -12245,7 +12337,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -12274,7 +12366,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -12834,7 +12926,7 @@
       "nullable": true
      },
      "credentials_ref": {
-      "description": "`wt+secret://\u003cstore\u003e/\u003cpath\u003e#\u003ckey\u003e` (SEC-011) naming a secret that holds\n`{\"access_key_id\", \"secret_access_key\"}`; the archiver reads it from the external store.\nReplaces sealed credentials; the bucket is not probed at save time.",
+      "description": "`wt+secret://\u003cstore\u003e/\u003cpath\u003e#\u003ckey\u003e` naming a secret that holds\n`{\"access_key_id\", \"secret_access_key\"}`; the archiver reads it from the external store.\nReplaces sealed credentials; the bucket is not probed at save time.",
       "nullable": true,
       "type": "string"
      },
@@ -12846,7 +12938,7 @@
       "type": "boolean"
      },
      "encrypt": {
-      "description": "Write objects encrypted with the project's data key so an erasure can shred them (G6-07).\nDefault: on for a new archive, unchanged on an update. Encrypted objects are not directly\nreadable in the bucket: use `wtctl archive decrypt` or the object download route. Turning\nit on re-encrypts earlier days in the background; archive search cannot read encrypted\narchives.",
+      "description": "Write objects encrypted with the project's data key so an erasure can shred them.\nDefault: on for a new archive, unchanged on an update. Encrypted objects are not directly\nreadable in the bucket: use `wtctl archive decrypt` or the object download route. Turning\nit on re-encrypts earlier days in the background; archive search cannot read encrypted\narchives.",
       "nullable": true,
       "type": "boolean"
      },
@@ -13498,6 +13590,25 @@
     ],
     "type": "object"
    },
+   "AuthIn": {
+    "additionalProperties": false,
+    "description": "A header sent with every request to the server. The value is sealed and write-only.",
+    "properties": {
+     "header": {
+      "description": "Header name, for example `Authorization` or `X-Api-Key`.",
+      "type": "string"
+     },
+     "value": {
+      "description": "Header value, at most 2048 bytes.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "header",
+     "value"
+    ],
+    "type": "object"
+   },
    "AutoDraftRequest": {
     "additionalProperties": false,
     "properties": {
@@ -14132,6 +14243,43 @@
     ],
     "type": "object"
    },
+   "BillingDto": {
+    "properties": {
+     "cancel_at_period_end": {
+      "type": "boolean"
+     },
+     "current_period_end": {
+      "nullable": true,
+      "type": "string"
+     },
+     "hosted": {
+      "description": "`false` on self-hosted installs: no checkout, no plans to buy.",
+      "type": "boolean"
+     },
+     "plan": {
+      "description": "Plan in force (`free`, `team`, `business`, `scale`; `self_hosted` only when the install is not hosted).",
+      "type": "string"
+     },
+     "plans": {
+      "items": {
+       "$ref": "#/components/schemas/PlanInfoDto"
+      },
+      "type": "array"
+     },
+     "status": {
+      "description": "Subscription status (`none`, `active`, `trialing`, `past_due`, `canceled` ...).",
+      "type": "string"
+     }
+    },
+    "required": [
+     "hosted",
+     "plan",
+     "status",
+     "cancel_at_period_end",
+     "plans"
+    ],
+    "type": "object"
+   },
    "BindingDto": {
     "additionalProperties": false,
     "properties": {
@@ -14654,7 +14802,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -14683,7 +14831,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -15212,6 +15360,56 @@
     ],
     "type": "object"
    },
+   "BundleFailure": {
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "reason"
+    ],
+    "type": "object"
+   },
+   "BundleResult": {
+    "properties": {
+     "errors": {
+      "items": {
+       "$ref": "#/components/schemas/BundleFailure"
+      },
+      "type": "array"
+     },
+     "failed": {
+      "description": "Maps refused or not stored; `errors` says why. The other maps are stored regardless.",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "skipped": {
+      "description": "Maps the server already had with the same bytes.",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "uploaded": {
+      "description": "Maps stored (new, or replaced by different bytes under the same name).",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "uploaded",
+     "skipped",
+     "failed",
+     "errors"
+    ],
+    "type": "object"
+   },
    "BurnSource": {
     "properties": {
      "burn_rate": {
@@ -15696,7 +15894,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -15725,7 +15923,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -15772,7 +15970,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -15801,7 +15999,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -17121,6 +17319,54 @@
     ],
     "type": "object"
    },
+   "CertSignal": {
+    "properties": {
+     "erased": {
+      "description": "True when every table of the signal was erased and verified empty for the scope.",
+      "type": "boolean"
+     },
+     "signal": {
+      "type": "string"
+     },
+     "stores": {
+      "items": {
+       "$ref": "#/components/schemas/CertStore"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "signal",
+     "erased",
+     "stores"
+    ],
+    "type": "object"
+   },
+   "CertStore": {
+    "properties": {
+     "rows_after": {
+      "format": "int64",
+      "nullable": true,
+      "type": "integer"
+     },
+     "rows_before": {
+      "format": "int64",
+      "nullable": true,
+      "type": "integer"
+     },
+     "store": {
+      "type": "string"
+     },
+     "target": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "store",
+     "target"
+    ],
+    "type": "object"
+   },
    "Change": {
     "enum": [
      "same",
@@ -17698,6 +17944,19 @@
     ],
     "type": "object"
    },
+   "CheckoutRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "plan": {
+      "description": "`team`, `business` or `scale`.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "plan"
+    ],
+    "type": "object"
+   },
    "Child": {
     "description": "A child of a composite SLO.",
     "properties": {
@@ -17942,7 +18201,7 @@
       "type": "string"
      },
      "team_id": {
-      "description": "Org team the group joins.",
+      "description": "Org team the group joins.\n`team_` id (a bare UUID is accepted too).",
       "nullable": true,
       "type": "string"
      },
@@ -18443,7 +18702,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -18472,7 +18731,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -18502,7 +18761,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -18531,7 +18790,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -18547,7 +18806,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -18576,7 +18835,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -18914,39 +19173,23 @@
     ],
     "type": "object"
    },
-   "CommitRequest": {
-    "additionalProperties": false,
+   "CommitDto": {
     "properties": {
-     "author_email": {
-      "nullable": true,
-      "type": "string"
-     },
-     "committed_at": {
-      "description": "RFC 3339.",
-      "nullable": true,
-      "type": "string"
-     },
-     "files": {
-      "items": {
-       "type": "string"
-      },
-      "nullable": true,
-      "type": "array"
-     },
-     "message": {
-      "nullable": true,
-      "type": "string"
-     },
      "repo": {
-      "nullable": true,
       "type": "string"
      },
      "sha": {
       "type": "string"
+     },
+     "timestamp": {
+      "description": "RFC 3339; null when the commit time was not recorded.",
+      "nullable": true,
+      "type": "string"
      }
     },
     "required": [
-     "sha"
+     "sha",
+     "repo"
     ],
     "type": "object"
    },
@@ -19053,7 +19296,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -19082,7 +19325,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -22729,6 +22972,25 @@
     ],
     "type": "object"
    },
+   "DataReceipt": {
+    "properties": {
+     "data": {
+      "description": "One entry per signal: `logs`, `traces`, `metrics`.",
+      "items": {
+       "$ref": "#/components/schemas/ReceiptSignal"
+      },
+      "type": "array"
+     },
+     "range": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "range",
+     "data"
+    ],
+    "type": "object"
+   },
    "DataplaneDto": {
     "properties": {
      "created_at": {
@@ -23015,7 +23277,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -23044,7 +23306,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -23104,7 +23366,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -23133,7 +23395,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -23404,7 +23666,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -23433,7 +23695,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -23497,7 +23759,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -23526,7 +23788,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -23732,7 +23994,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -23761,7 +24023,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -23777,7 +24039,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -23806,7 +24068,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -23958,7 +24220,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -23987,7 +24249,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -24003,7 +24265,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -24032,7 +24294,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -24198,7 +24460,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -24227,7 +24489,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -24603,6 +24865,67 @@
     },
     "required": [
      "deletion_id"
+    ],
+    "type": "object"
+   },
+   "DeletionCertificate": {
+    "properties": {
+     "all_erased": {
+      "description": "True when every requested signal is `erased`.",
+      "type": "boolean"
+     },
+     "completed_at": {
+      "nullable": true,
+      "type": "string"
+     },
+     "from": {
+      "description": "The scope, RFC 3339: `from` inclusive, `to` exclusive.",
+      "nullable": true,
+      "type": "string"
+     },
+     "kind": {
+      "type": "string"
+     },
+     "ledger_hash": {
+      "description": "Hex SHA-256 of the step ledger: the same value `GET /v1/orgs/{org}/deletions/{id}` shows.",
+      "nullable": true,
+      "type": "string"
+     },
+     "other_stores": {
+      "description": "Steps outside `ClickHouse` (replay recordings in object storage, dead letters).",
+      "items": {
+       "$ref": "#/components/schemas/CertStore"
+      },
+      "type": "array"
+     },
+     "project_id": {
+      "type": "string"
+     },
+     "reason": {
+      "type": "string"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "signals": {
+      "items": {
+       "$ref": "#/components/schemas/CertSignal"
+      },
+      "type": "array"
+     },
+     "to": {
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "request_id",
+     "project_id",
+     "kind",
+     "reason",
+     "all_erased",
+     "signals",
+     "other_stores"
     ],
     "type": "object"
    },
@@ -25167,7 +25490,7 @@
       "type": "string"
      },
      "reasons": {
-      "description": "Why it is not healthy; empty when it is.",
+      "description": "Why it is not healthy; empty when it is. For `insufficient_data` it names the ingest incident.",
       "items": {
        "type": "string"
       },
@@ -25179,7 +25502,7 @@
       "type": "integer"
      },
      "status": {
-      "description": "`healthy` (score 80+), `degraded` (50 to 79) or `failing`; a rolled-back deployment is\nalways `failing`.",
+      "description": "`healthy` (score 80+), `degraded` (50 to 79) or `failing`; a rolled-back deployment is\nalways `failing`. `insufficient_data` while a platform ingest incident overlaps the\ncompared windows (re-scored by itself once they no longer do).",
       "type": "string"
      }
     },
@@ -25537,6 +25860,29 @@
     ],
     "type": "object"
    },
+   "DeviceApproveRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "expires_in_days": {
+      "description": "1 to 90.",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "scopes": {
+      "description": "Non-empty set from the key scopes, for example `[\"bootstrap\"]`.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "scopes",
+     "expires_in_days"
+    ],
+    "type": "object"
+   },
    "DeviceDto": {
     "properties": {
      "commands": {
@@ -25610,6 +25956,30 @@
     ],
     "type": "object"
    },
+   "DeviceLoginDto": {
+    "properties": {
+     "created_at": {
+      "type": "string"
+     },
+     "expires_at": {
+      "type": "string"
+     },
+     "requested_scope": {
+      "description": "The scope the CLI asked for, if any.",
+      "nullable": true,
+      "type": "string"
+     },
+     "user_code": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "user_code",
+     "created_at",
+     "expires_at"
+    ],
+    "type": "object"
+   },
    "DevicePage": {
     "properties": {
      "data": {
@@ -25667,6 +26037,101 @@
       "type": "boolean"
      }
     },
+    "type": "object"
+   },
+   "DevicePollRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "device_code": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "device_code"
+    ],
+    "type": "object"
+   },
+   "DevicePolled": {
+    "properties": {
+     "expires_at": {
+      "nullable": true,
+      "type": "string"
+     },
+     "scopes": {
+      "items": {
+       "type": "string"
+      },
+      "nullable": true,
+      "type": "array"
+     },
+     "status": {
+      "description": "`pending`, `approved` (with `token`) or `denied`. An unknown, expired or collected code is 404.",
+      "type": "string"
+     },
+     "token": {
+      "description": "The personal access token, in this response only.",
+      "nullable": true,
+      "type": "string"
+     },
+     "token_id": {
+      "description": "Id of the token, for `DELETE /v1/me/tokens/{id}` (`wtctl logout`).",
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "status"
+    ],
+    "type": "object"
+   },
+   "DeviceStartRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "scope": {
+      "description": "The scope the CLI asks for (`wtctl login --scope bootstrap`); the approver may change it.",
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "DeviceStarted": {
+    "properties": {
+     "device_code": {
+      "description": "Secret of the CLI: sent only to the token endpoint.",
+      "type": "string"
+     },
+     "expires_in": {
+      "format": "int64",
+      "type": "integer"
+     },
+     "interval": {
+      "description": "Minimum seconds between polls.",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "user_code": {
+      "description": "What the user types or confirms on the approval page, `ABCD-EFGH`.",
+      "type": "string"
+     },
+     "verification_uri": {
+      "description": "The approval page; a path when the server does not know its public address.",
+      "type": "string"
+     },
+     "verification_uri_complete": {
+      "description": "The approval page with the code filled in.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "device_code",
+     "user_code",
+     "verification_uri",
+     "verification_uri_complete",
+     "expires_in",
+     "interval"
+    ],
     "type": "object"
    },
    "DifAssemble": {
@@ -26174,6 +26639,11 @@
       "format": "double",
       "nullable": true,
       "type": "number"
+     },
+     "lead_time_reason": {
+      "description": "Why `lead_time_hours` is null, when it is.",
+      "nullable": true,
+      "type": "string"
      },
      "reason": {
       "description": "Why `time_to_restore_hours` is null, when it is (e.g. no incidents in the range).",
@@ -27114,7 +27584,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -27143,7 +27613,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -27308,7 +27778,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -27337,7 +27807,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -28721,6 +29191,44 @@
     ],
     "type": "object"
    },
+   "EventLookup": {
+    "description": "A stored error event and the issue that owns it now.",
+    "properties": {
+     "event_id": {
+      "description": "The client event id, 32 lower-case hex digits.",
+      "type": "string"
+     },
+     "issue_id": {
+      "description": "Empty when the event is not grouped into an issue (yet).",
+      "type": "string"
+     },
+     "lucida_session_id": {
+      "description": "Lucida session (tag `lucida.session_id`); empty when none.",
+      "type": "string"
+     },
+     "session_id": {
+      "description": "RUM session; empty when none.",
+      "type": "string"
+     },
+     "timestamp": {
+      "description": "RFC 3339.",
+      "type": "string"
+     },
+     "trace_id": {
+      "description": "32 hex digits; empty when the event has no trace.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "event_id",
+     "issue_id",
+     "trace_id",
+     "timestamp",
+     "session_id",
+     "lucida_session_id"
+    ],
+    "type": "object"
+   },
    "EventSubscriptionsDeliveryDto": {
     "properties": {
      "attempts": {
@@ -29897,7 +30405,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -29926,7 +30434,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -30172,7 +30680,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -30201,7 +30709,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -30555,7 +31063,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -30584,7 +31092,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -30653,7 +31161,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -30682,7 +31190,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -30857,7 +31365,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -30886,7 +31394,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -32260,7 +32768,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -32289,7 +32797,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -36151,6 +36659,18 @@
      "release": {
       "type": "string"
      },
+     "services": {
+      "description": "Spans, logs and errors per hour of each service before and after the deploy.",
+      "items": {
+       "$ref": "#/components/schemas/ServiceRate"
+      },
+      "nullable": true,
+      "type": "array"
+     },
+     "status": {
+      "description": "`ok`, or `insufficient_data` when an ingest incident overlaps the windows (nothing is compared).",
+      "type": "string"
+     },
      "trace": {
       "$ref": "#/components/schemas/TraceDelta",
       "nullable": true
@@ -36175,6 +36695,7 @@
      "after",
      "partial",
      "unavailable",
+     "status",
      "gate"
     ],
     "type": "object"
@@ -37520,6 +38041,48 @@
     ],
     "type": "object"
    },
+   "IngestIncidentDto": {
+    "properties": {
+     "ended_at": {
+      "description": "RFC 3339; null while the incident is open.",
+      "nullable": true,
+      "type": "string"
+     },
+     "id": {
+      "type": "string"
+     },
+     "reason": {
+      "type": "string"
+     },
+     "signals": {
+      "description": "Affected signals: `traces`, `logs`, `metrics`, `rum`.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "source": {
+      "description": "`auto` (detected) or `operator`.",
+      "type": "string"
+     },
+     "started_at": {
+      "type": "string"
+     },
+     "state": {
+      "description": "`degraded` or `down`.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "state",
+     "signals",
+     "reason",
+     "source",
+     "started_at"
+    ],
+    "type": "object"
+   },
    "IngestLimitsBody": {
     "additionalProperties": false,
     "description": "A project's ingest caps; an absent field uses the gateway default.",
@@ -37778,6 +38341,31 @@
     },
     "required": [
      "data"
+    ],
+    "type": "object"
+   },
+   "IngestStatus": {
+    "properties": {
+     "incidents": {
+      "description": "Incidents that were open at any time in the last 7 days, newest first.",
+      "items": {
+       "$ref": "#/components/schemas/IngestIncidentDto"
+      },
+      "type": "array"
+     },
+     "since": {
+      "description": "Start of the open incident, else the end of the latest one; null when none in 7 days.",
+      "nullable": true,
+      "type": "string"
+     },
+     "state": {
+      "description": "`ok`, or the state of the open incident (`degraded` or `down`).",
+      "type": "string"
+     }
+    },
+    "required": [
+     "state",
+     "incidents"
     ],
     "type": "object"
    },
@@ -38734,6 +39322,34 @@
     ],
     "type": "object"
    },
+   "IssueDetail": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/IssueDto"
+     },
+     {
+      "properties": {
+       "replays": {
+        "description": "Up to 20 sessions of the issue's error events, newest first, with replay links from\n`settings/product-analytics` (url null without that setting).",
+        "items": {
+         "$ref": "#/components/schemas/IssueReplay"
+        },
+        "type": "array"
+       },
+       "unresolved_frames": {
+        "$ref": "#/components/schemas/UnresolvedFrames",
+        "description": "Files the newest event's symbolication could not resolve (`count`, first `reason`);\nabsent when every frame resolved or the event has none.",
+        "nullable": true
+       }
+      },
+      "required": [
+       "replays"
+      ],
+      "type": "object"
+     }
+    ],
+    "description": "One issue with the sessions that hit it."
+   },
    "IssueDto": {
     "properties": {
      "assignee_team_id": {
@@ -38892,7 +39508,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -38921,7 +39537,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -39105,7 +39721,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -39134,7 +39750,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -39143,6 +39759,34 @@
      "truncated",
      "elapsed_ms",
      "query_id"
+    ],
+    "type": "object"
+   },
+   "IssueReplay": {
+    "properties": {
+     "error_count": {
+      "format": "int64",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "first_seen": {
+      "description": "RFC 3339 time of the session's first error in this issue.",
+      "type": "string"
+     },
+     "session_id": {
+      "description": "RUM session id.",
+      "type": "string"
+     },
+     "url": {
+      "description": "Replay link from `settings/product-analytics`; null without that setting or any session id.",
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "session_id",
+     "first_seen",
+     "error_count"
     ],
     "type": "object"
    },
@@ -39174,7 +39818,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -39203,7 +39847,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -40157,6 +40801,92 @@
     ],
     "type": "object"
    },
+   "KeyInfo": {
+    "description": "The caller's own credential. Fields that do not apply to the kind are `null`.",
+    "properties": {
+     "created_at": {
+      "nullable": true,
+      "type": "string"
+     },
+     "env_id": {
+      "description": "The one environment the key is bound to (ingest and browser keys).",
+      "nullable": true,
+      "type": "string"
+     },
+     "expires_at": {
+      "nullable": true,
+      "type": "string"
+     },
+     "id": {
+      "description": "Key or token id; the user id for a session.",
+      "type": "string"
+     },
+     "kind": {
+      "description": "`session`, `pat`, `api_key`, `service_account_key`, `ingestion_key` or `browser_key`.",
+      "type": "string"
+     },
+     "last_used_at": {
+      "nullable": true,
+      "type": "string"
+     },
+     "may_call": {
+      "description": "Route families this kind may use: `management`, `query`, `ci`, `bootstrap`, `ingest`,\n`rum_ingest`, plus `key_introspection` (this route), which every kind may call.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "name": {
+      "nullable": true,
+      "type": "string"
+     },
+     "org_id": {
+      "nullable": true,
+      "type": "string"
+     },
+     "prefix": {
+      "description": "Not secret: the token's visible prefix (for example `wtk_ab12`).",
+      "nullable": true,
+      "type": "string"
+     },
+     "project_id": {
+      "description": "The one project the key is bound to, when it is.",
+      "nullable": true,
+      "type": "string"
+     },
+     "projects": {
+      "description": "Projects a PAT or service account is limited to; `null` = every project the principal reaches.",
+      "items": {
+       "type": "string"
+      },
+      "nullable": true,
+      "type": "array"
+     },
+     "read_only": {
+      "nullable": true,
+      "type": "boolean"
+     },
+     "role": {
+      "description": "The role it acts with (org API key, service account); `null` for a session or PAT.",
+      "nullable": true,
+      "type": "string"
+     },
+     "scopes": {
+      "description": "Scopes the credential is limited to (PAT and service account); `null` = not narrowed.",
+      "items": {
+       "type": "string"
+      },
+      "nullable": true,
+      "type": "array"
+     }
+    },
+    "required": [
+     "kind",
+     "id",
+     "may_call"
+    ],
+    "type": "object"
+   },
    "KeyLimits": {
     "additionalProperties": false,
     "description": "Per-key ingest limits; 0 inherits the project quota.",
@@ -40884,7 +41614,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -40913,7 +41643,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -41294,7 +42024,7 @@
    "LeakDto": {
     "properties": {
      "count": {
-      "description": "Stored values matching the kind. `card` counts digit-shaped candidates (no Luhn check).",
+      "description": "Stored values matching the kind. `card` needs a Luhn-valid run; SDK attributes (`wt.*`, `db.query.hash`) are skipped.",
       "format": "int64",
       "minimum": 0,
       "type": "integer"
@@ -41568,6 +42298,10 @@
      "license": {
       "description": "`{id, org_id | \"*\", plan, limits, valid_from, valid_to, key_id}`; times are unix seconds.",
       "type": "object"
+     },
+     "replace_plan": {
+      "description": "Install over a live plan or Stripe entitlement. Without it that case answers 409 and the\nplan limits stay in force.",
+      "type": "boolean"
      },
      "signature": {
       "description": "Unpadded base64url Ed25519 signature over the canonical license JSON.",
@@ -42492,7 +43226,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -42521,7 +43255,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -42758,7 +43492,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -42787,7 +43521,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -44235,7 +44969,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -44264,7 +44998,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -44391,6 +45125,37 @@
     ],
     "type": "object"
    },
+   "LookupIn": {
+    "additionalProperties": false,
+    "properties": {
+     "event_ids": {
+      "description": "Client event ids (32 hex digits, hyphens allowed), 1 to 200.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "event_ids"
+    ],
+    "type": "object"
+   },
+   "LookupOut": {
+    "properties": {
+     "data": {
+      "description": "Found events only, newest first.",
+      "items": {
+       "$ref": "#/components/schemas/EventLookup"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "type": "object"
+   },
    "LookupRowDto": {
     "properties": {
      "key": {
@@ -44488,12 +45253,19 @@
    },
    "LucidaDoc": {
     "properties": {
+     "effective_host": {
+      "description": "The host session links use: `host`, else Lucida's hosted app. Needs no API call to be set.",
+      "type": "string"
+     },
      "host": {
       "description": "`https://host[:port]`; null when not set.",
       "nullable": true,
       "type": "string"
      }
     },
+    "required": [
+     "effective_host"
+    ],
     "type": "object"
    },
    "LucidaRequest": {
@@ -44852,7 +45624,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -44881,7 +45653,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -45496,7 +46268,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -45525,7 +46297,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -46731,7 +47503,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -46760,7 +47532,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -47510,6 +48282,13 @@
        },
        "updated_at": {
         "type": "string"
+       },
+       "warnings": {
+        "description": "On create with `alert: true`: why a page about the monitor would go nowhere (no route\nmatches, no deliverable target). The monitor is created anyway.",
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
        }
       },
       "required": [
@@ -48418,11 +49197,15 @@
       "type": "string"
      },
      "mapping": {
-      "description": "Generic: `{\"preset\": name}` or a mapping (`title` required). Email: optional mapping\nplus `extract` parse rules; `{}` uses the email preset."
+      "description": "Generic: `{\"preset\": name}` or a mapping (`title` or `rules` required; optional\n`signature` makes the source accept signed posts without a key). Email: optional mapping\nplus `extract` parse rules; `{}` uses the email preset."
      },
      "name": {
       "description": "1 to 100 characters, unique in the project.",
       "type": "string"
+     },
+     "signed": {
+      "description": "Email only: `POST /v1/inbound/email/{token}` then needs an HMAC signature; the response\ncarries the `signing_key` once.",
+      "type": "boolean"
      }
     },
     "required": [
@@ -49002,7 +49785,7 @@
       "type": "string"
      },
      "signals": {
-      "description": "Any of `logs`, `traces`, `errors` (`errors` only for `user`).",
+      "description": "Any of `logs`, `traces`, `errors`, `rum`, `replay`, `profiles` (all but `logs` and\n`traces` only for `user`). `rum` and `replay` match the subject's sessions: the id is\nhashed server-side the way the browser SDK hashes it, and replay recordings are queued for\ndeletion from object storage. The request's steps list every store covered.",
       "items": {
        "type": "string"
       },
@@ -49081,7 +49864,7 @@
       "type": "object"
      },
      "credentials_ref": {
-      "description": "`wt+secret://\u003cstore\u003e/\u003cpath\u003e#\u003ckey\u003e` (SEC-011) in place of `secret`: the worker reads the\nsame JSON object from the external store at delivery. Only `vault`, `file` and `env`\nstores work here (422 `unsupported_in_this_service` otherwise).",
+      "description": "`wt+secret://\u003cstore\u003e/\u003cpath\u003e#\u003ckey\u003e` in place of `secret`: the worker reads the\nsame JSON object from the external store at delivery. Only `vault`, `file` and `env`\nstores work here (422 `unsupported_in_this_service` otherwise).",
       "nullable": true,
       "type": "string"
      },
@@ -50158,6 +50941,11 @@
       "nullable": true,
       "type": "string"
      },
+     "default_alerting": {
+      "description": "Default `true`: creates a \"Project owners (email)\" escalation policy and receiver that page\nevery owner and admin of the project by email, used by the default routing tree (no tree\nis saved and the policy does not count toward the plan's escalation paths). `false` starts\nthe project with no receivers. Edit or delete them any time.",
+      "nullable": true,
+      "type": "boolean"
+     },
      "name": {
       "type": "string"
      },
@@ -50336,9 +51124,9 @@
     "additionalProperties": false,
     "properties": {
      "commits": {
-      "description": "At most 1000. Known shas of an existing release are kept.",
+      "description": "At most 1000; each a sha string or `{sha, repo, timestamp}`. Known shas of an existing\nrelease are kept.",
       "items": {
-       "$ref": "#/components/schemas/CommitRequest"
+       "type": "object"
       },
       "nullable": true,
       "type": "array"
@@ -50544,6 +51332,7 @@
       "type": "integer"
      },
      "name": {
+      "description": "Required.",
       "type": "string"
      },
      "preset": {
@@ -53398,6 +54187,59 @@
     ],
     "type": "object"
    },
+   "PageViewVitals": {
+    "description": "The vitals of one page view; a metric the page view did not report is null.",
+    "properties": {
+     "CLS": {
+      "format": "double",
+      "nullable": true,
+      "type": "number"
+     },
+     "FCP": {
+      "format": "double",
+      "nullable": true,
+      "type": "number"
+     },
+     "INP": {
+      "format": "double",
+      "nullable": true,
+      "type": "number"
+     },
+     "LCP": {
+      "format": "double",
+      "nullable": true,
+      "type": "number"
+     },
+     "TTFB": {
+      "format": "double",
+      "nullable": true,
+      "type": "number"
+     },
+     "first_ts_ns": {
+      "description": "Start of the page view's first vital, unix ns.",
+      "format": "int64",
+      "type": "integer"
+     },
+     "navigation_id": {
+      "description": "Client navigation id; empty when the SDK sent none (the page view is then grouped by URL).",
+      "type": "string"
+     },
+     "rating": {
+      "description": "Worst rating of the reported metrics: `good`, `needs_improvement` or `poor`; empty when none.",
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "navigation_id",
+     "url",
+     "first_ts_ns",
+     "rating"
+    ],
+    "type": "object"
+   },
    "PagesPage": {
     "properties": {
      "data": {
@@ -53754,7 +54596,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -53783,7 +54625,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -53792,6 +54634,42 @@
      "truncated",
      "elapsed_ms",
      "query_id"
+    ],
+    "type": "object"
+   },
+   "PastePlan": {
+    "additionalProperties": false,
+    "properties": {
+     "plan": {
+      "description": "The JSON `EXPLAIN` output: PostgreSQL (`[{\"Plan\": {...}}]`) or MySQL (`{\"query_block\": {...}}`).",
+      "type": "object"
+     }
+    },
+    "required": [
+     "plan"
+    ],
+    "type": "object"
+   },
+   "PastedPlan": {
+    "properties": {
+     "plan_changed": {
+      "description": "This shape is new for the statement while an older one was recorded.",
+      "type": "boolean"
+     },
+     "plan_hash": {
+      "description": "Hash of the plan shape (costs left out).",
+      "type": "string"
+     },
+     "total_cost": {
+      "description": "The planner's total cost, when the plan carries one.",
+      "format": "double",
+      "nullable": true,
+      "type": "number"
+     }
+    },
+    "required": [
+     "plan_hash",
+     "plan_changed"
     ],
     "type": "object"
    },
@@ -54060,6 +54938,11 @@
        "type": "string"
       },
       "type": "object"
+     },
+     "service_silent_rules": {
+      "description": "Keep a managed \"\u003cservice\u003e stopped reporting\" rule per service (default true). `false` deletes\nthose rules and stops upkeep from recreating them.",
+      "nullable": true,
+      "type": "boolean"
      }
     },
     "type": "object"
@@ -54216,6 +55099,29 @@
       "type": "array"
      },
      "visibility": {
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "PatchSource": {
+    "additionalProperties": false,
+    "properties": {
+     "auth": {
+      "$ref": "#/components/schemas/AuthIn",
+      "description": "Replace the authentication header.",
+      "nullable": true
+     },
+     "clear_auth": {
+      "description": "Remove the authentication header (not with `auth`).",
+      "type": "boolean"
+     },
+     "enabled": {
+      "nullable": true,
+      "type": "boolean"
+     },
+     "name": {
       "nullable": true,
       "type": "string"
      }
@@ -54401,7 +55307,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -54430,7 +55336,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -55061,7 +55967,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -55090,7 +55996,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -55904,6 +56810,29 @@
     "required": [
      "data",
      "changed"
+    ],
+    "type": "object"
+   },
+   "PlanInfoDto": {
+    "properties": {
+     "limits": {
+      "description": "The plan's `Limits` document; a missing key is unlimited.",
+      "type": "object"
+     },
+     "name": {
+      "type": "string"
+     },
+     "price_usd": {
+      "description": "Monthly US dollars; 0 = free.",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "name",
+     "price_usd",
+     "limits"
     ],
     "type": "object"
    },
@@ -57531,6 +58460,29 @@
     ],
     "type": "object"
    },
+   "PresetDto": {
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "kind": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "kind",
+     "url"
+    ],
+    "type": "object"
+   },
    "PreviewAlert": {
     "properties": {
      "alert_id": {
@@ -58025,7 +58977,7 @@
    "PrintPanel": {
     "properties": {
      "frames": {
-      "description": "`promql` and `sql` panels with transformations or field config: the result as data frames\nafter them (`crates/wt-dashboards` transform and fieldconfig), for reports and CSV.",
+      "description": "`promql` and `sql` panels with transformations or field config: the result as data frames\nafter them (the dashboard transforms and field config), for reports and CSV.",
       "items": {
        "type": "object"
       },
@@ -58460,8 +59412,8 @@
     "description": "RFC 9457 problem document.",
     "properties": {
      "code": {
-      "description": "One of `not_found`, `forbidden`, `unauthorized`, `read_only_key`, `method_not_allowed`, `validation`, `unprocessable`, `limit_exceeded`, `conflict`, `version_limit`, `rate_limited`,\n`payload_too_large`, `precondition_failed`, `precondition_required`, `unavailable`, `unsupported_promql`, `query_timeout`, `query_cancelled`, `query_overloaded`, `internal`.",
-      "type": "string"
+      "$ref": "#/components/schemas/ProblemCode",
+      "description": "One of:\n`not_found`, `forbidden`, `unauthorized`, `read_only_key`, `method_not_allowed`,\n`validation`, `unprocessable`, `would_exceed_cap`, `limit_exceeded`, `limit_reached`,\n`query_too_expensive`, `data_shredded`, `conflict`, `legal_hold`, `version_limit`,\n`rate_limited`, `ai_disabled`, `no_model_key`, `ai_cap_reached`,\n`too_many_investigations`, `payload_unavailable`, `payload_too_large`, `quota_exceeded`,\n`precondition_failed`, `precondition_required`, `ip_not_allowed`, `would_lock_out_self`,\n`unavailable`, `unsupported_promql`, `query_timeout`, `query_cancelled`,\n`query_overloaded`, `internal`, `client_too_old`, `dataplane_bad_response`,\n`dataplane_unreachable`, `dataplane_error`, `key_revoked`, `key_unavailable`, `mfa_required`,\n`privacy_change_requires_admin`, `sso_required`, `wrong_region`.\nThe same set is listed in the error reference."
      },
      "detail": {
       "nullable": true,
@@ -58494,6 +59446,55 @@
      "code"
     ],
     "type": "object"
+   },
+   "ProblemCode": {
+    "description": "The stable `Problem.code` values; the same set as the error reference (`/docs/errors`).",
+    "enum": [
+     "not_found",
+     "forbidden",
+     "unauthorized",
+     "method_not_allowed",
+     "validation",
+     "unprocessable",
+     "conflict",
+     "would_exceed_cap",
+     "limit_exceeded",
+     "limit_reached",
+     "query_too_expensive",
+     "legal_hold",
+     "version_limit",
+     "rate_limited",
+     "ai_disabled",
+     "ai_cap_reached",
+     "too_many_investigations",
+     "payload_unavailable",
+     "payload_too_large",
+     "quota_exceeded",
+     "precondition_failed",
+     "precondition_required",
+     "ip_not_allowed",
+     "would_lock_out_self",
+     "read_only_key",
+     "unavailable",
+     "unsupported_promql",
+     "query_timeout",
+     "query_cancelled",
+     "query_overloaded",
+     "internal",
+     "sso_required",
+     "mfa_required",
+     "privacy_change_requires_admin",
+     "wrong_region",
+     "dataplane_unreachable",
+     "dataplane_bad_response",
+     "dataplane_error",
+     "key_revoked",
+     "key_unavailable",
+     "client_too_old",
+     "data_shredded",
+     "no_model_key"
+    ],
+    "type": "string"
    },
    "ProblemDto": {
     "properties": {
@@ -58647,6 +59648,62 @@
     },
     "required": [
      "data"
+    ],
+    "type": "object"
+   },
+   "ProductAnalyticsDoc": {
+    "properties": {
+     "base_url": {
+      "nullable": true,
+      "type": "string"
+     },
+     "kind": {
+      "description": "`lucida`, `posthog`, `amplitude`, `mixpanel` or `other`; null when nothing is set.",
+      "nullable": true,
+      "type": "string"
+     },
+     "person_url_template": {
+      "nullable": true,
+      "type": "string"
+     },
+     "project_id": {
+      "nullable": true,
+      "type": "string"
+     },
+     "replay_url_template": {
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "ProductAnalyticsRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "base_url": {
+      "description": "An https URL that is not a private address; any path is dropped.",
+      "type": "string"
+     },
+     "kind": {
+      "description": "`lucida`, `posthog`, `amplitude`, `mixpanel` or `other`.",
+      "type": "string"
+     },
+     "person_url_template": {
+      "description": "As `replay_url_template`, for the person page.",
+      "type": "string"
+     },
+     "project_id": {
+      "description": "The product's project id; required for `posthog`.",
+      "type": "string"
+     },
+     "replay_url_template": {
+      "description": "Starts with `{base_url}`; may use `{session_id}`, `{distinct_id}` and `{project_id}`.\nEmpty: the default of `lucida` and `posthog`, else no replay link.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "base_url"
     ],
     "type": "object"
    },
@@ -59297,6 +60354,11 @@
       },
       "type": "object"
      },
+     "service_silent_rules": {
+      "description": "Whether upkeep keeps a managed \"stopped reporting\" rule per service (default true); present on GET and PATCH.",
+      "nullable": true,
+      "type": "boolean"
+     },
      "slug": {
       "type": "string"
      }
@@ -59307,6 +60369,80 @@
      "slug",
      "name",
      "created_at"
+    ],
+    "type": "object"
+   },
+   "ProjectIncidentDto": {
+    "properties": {
+     "duration_s": {
+      "description": "Seconds so far for an open incident.",
+      "format": "int64",
+      "type": "integer"
+     },
+     "ended_at": {
+      "description": "Null while the incident is open.",
+      "nullable": true,
+      "type": "string"
+     },
+     "estimated_lost": {
+      "additionalProperties": {
+       "format": "int64",
+       "minimum": 0,
+       "type": "integer"
+      },
+      "description": "Estimated records this project sent and lost, per signal: its volume in the hour before the\nincident times the duration. Empty when the project sent nothing in that hour.",
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "id": {
+      "type": "string"
+     },
+     "reason": {
+      "type": "string"
+     },
+     "signals": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "started_at": {
+      "type": "string"
+     },
+     "state": {
+      "description": "`degraded` or `down`.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "state",
+     "signals",
+     "reason",
+     "started_at",
+     "duration_s",
+     "estimated_lost"
+    ],
+    "type": "object"
+   },
+   "ProjectIncidentList": {
+    "properties": {
+     "data": {
+      "description": "Incidents of the last 7 days, newest first (at most 20).",
+      "items": {
+       "$ref": "#/components/schemas/ProjectIncidentDto"
+      },
+      "type": "array"
+     },
+     "next_cursor": {
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "data"
     ],
     "type": "object"
    },
@@ -60861,7 +61997,7 @@
     "properties": {
      "rules": {
       "items": {
-       "type": "object"
+       "$ref": "#/components/schemas/SamplingRule"
       },
       "type": "array"
      },
@@ -61835,7 +62971,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -61864,7 +63000,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -61923,7 +63059,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -61952,7 +63088,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -62082,7 +63218,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -62111,7 +63247,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -62354,7 +63490,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -62383,7 +63519,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -62941,6 +64077,59 @@
     ],
     "type": "string"
    },
+   "ReceiptRow": {
+    "description": "What reached storage for one signal in a window (`wtctl doctor`, the data-receipt report).",
+    "properties": {
+     "first_seen_ns": {
+      "description": "Event time of the oldest stored record, Unix ns; 0 when there is none.",
+      "format": "int64",
+      "type": "integer"
+     },
+     "last_seen_ns": {
+      "description": "Event time of the newest stored record, Unix ns; 0 when there is none.",
+      "format": "int64",
+      "type": "integer"
+     },
+     "received": {
+      "description": "Records stored in the window (spans, log records, metric samples).",
+      "format": "int64",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "signal": {
+      "description": "`logs`, `traces` or `metrics`.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "signal",
+     "received",
+     "first_seen_ns",
+     "last_seen_ns"
+    ],
+    "type": "object"
+   },
+   "ReceiptSignal": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/ReceiptRow"
+     },
+     {
+      "properties": {
+       "rejected_samples": {
+        "description": "Rejected and throttled debug samples for this signal in the window: a lower bound (the\ngateway keeps at most 60 samples per key and minute).",
+        "format": "int64",
+        "minimum": 0,
+        "type": "integer"
+       }
+      },
+      "required": [
+       "rejected_samples"
+      ],
+      "type": "object"
+     }
+    ]
+   },
    "ReceiverCount": {
     "properties": {
      "notifications": {
@@ -63042,7 +64231,7 @@
       "type": "object"
      },
      "credentials_ref": {
-      "description": "`wt+secret://\u003cstore\u003e/\u003cpath\u003e#\u003ckey\u003e` (SEC-011): the notifier reads the secrets (a JSON\nobject like `secrets`, or a plain string used as `secret`) from the external store at\ndelivery, in place of `secrets`. Stored in `config`; not itself secret.",
+      "description": "`wt+secret://\u003cstore\u003e/\u003cpath\u003e#\u003ckey\u003e`: the notifier reads the secrets (a JSON\nobject like `secrets`, or a plain string used as `secret`) from the external store at\ndelivery, in place of `secrets`. Stored in `config`; not itself secret.",
       "nullable": true,
       "type": "string"
      },
@@ -63261,6 +64450,24 @@
     ],
     "type": "object"
    },
+   "RecordingRulePage": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/AlertRecordingRuleDto"
+      },
+      "type": "array"
+     },
+     "next_cursor": {
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "type": "object"
+   },
    "RecordingRuleRequest": {
     "additionalProperties": false,
     "properties": {
@@ -63386,7 +64593,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -63415,7 +64622,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -63897,6 +65104,10 @@
       "minimum": 0,
       "type": "integer"
      },
+     "protocol": {
+      "description": "Ingest protocol of the sample (`otlp_http`, `splunk_hec`, ...).",
+      "type": "string"
+     },
      "reason": {
       "type": "string"
      },
@@ -63907,6 +65118,7 @@
     "required": [
      "reason",
      "signal",
+     "protocol",
      "count"
     ],
     "type": "object"
@@ -64105,10 +65317,21 @@
    },
    "ReleaseDetailDto": {
     "properties": {
-     "commits": {
-      "description": "Up to 200 commit shas recorded on the release.",
-      "items": {
+     "artifact_counts": {
+      "additionalProperties": {
+       "format": "int64",
+       "type": "integer"
+      },
+      "description": "Uploaded files of this release by kind (`sourcemap`, `proguard`, ...); empty when none.",
+      "propertyNames": {
        "type": "string"
+      },
+      "type": "object"
+     },
+     "commits": {
+      "description": "Up to 200 commits recorded on the release.",
+      "items": {
+       "$ref": "#/components/schemas/CommitDto"
       },
       "type": "array"
      },
@@ -64146,7 +65369,8 @@
      "version",
      "created_at",
      "commits",
-     "deployments"
+     "deployments",
+     "artifact_counts"
     ],
     "type": "object"
    },
@@ -64250,7 +65474,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -64279,7 +65503,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -64541,24 +65765,59 @@
       "type": "integer"
      },
      "kind": {
-      "description": "click or scroll",
+      "description": "click, scroll, move, type or highlight",
+      "type": "string"
+     },
+     "node": {
+      "description": "Replay node id of the target element (what the player shows); the SDK resolves it.\nRequired for `type`.",
+      "format": "int32",
+      "nullable": true,
+      "type": "integer"
+     },
+     "text": {
+      "description": "`type`: up to 200 characters without control characters. `highlight`: an optional\nlabel of up to 80.",
+      "nullable": true,
       "type": "string"
      },
      "x": {
-      "description": "Horizontal position as a fraction of the end user's viewport, 0 to 1.",
+      "description": "Fallback target when there is no node: a fraction of the end user's viewport, 0 to 1.",
       "format": "double",
+      "nullable": true,
       "type": "number"
      },
      "y": {
-      "description": "Vertical position as a fraction of the end user's viewport, 0 to 1.",
       "format": "double",
+      "nullable": true,
       "type": "number"
      }
     },
     "required": [
-     "kind",
-     "x",
-     "y"
+     "kind"
+    ],
+    "type": "object"
+   },
+   "ReplayAssistControlSettings": {
+    "additionalProperties": false,
+    "properties": {
+     "enabled": {
+      "description": "Whether agents may ask end users for remote control (clicks, scrolls, typing into plain\nfields). Off by default; the SDK must also enable it and each end user must consent.",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "enabled"
+    ],
+    "type": "object"
+   },
+   "ReplayAssistControlToken": {
+    "properties": {
+     "token": {
+      "description": "Send as `X-Wt-Control-Token` on every command. Shown once; only its hash is stored. It\nworks for this member, this session and this grant, and dies with the grant (15 minutes\nat most, two minutes idle).",
+      "type": "string"
+     }
+    },
+    "required": [
+     "token"
     ],
     "type": "object"
    },
@@ -65618,6 +66877,68 @@
     "required": [
      "deleted"
     ],
+    "type": "object"
+   },
+   "ResolveRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "column": {
+      "description": "One-based column in the minified script.",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "line": {
+      "description": "One-based line in the minified script.",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "release": {
+      "description": "Release version the map was uploaded under.",
+      "type": "string"
+     },
+     "url": {
+      "description": "The minified script's URL or path; only its last path segment is used.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "release",
+     "url",
+     "line",
+     "column"
+    ],
+    "type": "object"
+   },
+   "ResolveResponse": {
+    "properties": {
+     "column": {
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "line": {
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "name": {
+      "nullable": true,
+      "type": "string"
+     },
+     "reason": {
+      "description": "Set instead of the position: `no_map_for_release`, `no_map_for_file` or `line_out_of_range`.",
+      "nullable": true,
+      "type": "string"
+     },
+     "source": {
+      "nullable": true,
+      "type": "string"
+     }
+    },
     "type": "object"
    },
    "ResolvedDto": {
@@ -69174,6 +70495,24 @@
     ],
     "type": "object"
    },
+   "RumPageViewPage": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/PageViewVitals"
+      },
+      "type": "array"
+     },
+     "next_cursor": {
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "type": "object"
+   },
    "RumPagesPage": {
     "properties": {
      "data": {
@@ -70247,7 +71586,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -70276,7 +71615,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -70710,12 +72049,150 @@
      }
     ]
    },
+   "SamplingRule": {
+    "additionalProperties": false,
+    "description": "A sampling rule: the first enabled rule whose `match` fits a trace decides.",
+    "properties": {
+     "action": {
+      "$ref": "#/components/schemas/SamplingRuleAction"
+     },
+     "enabled": {
+      "description": "Default true.",
+      "nullable": true,
+      "type": "boolean"
+     },
+     "match": {
+      "$ref": "#/components/schemas/SamplingRuleMatch"
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "match",
+     "action"
+    ],
+    "type": "object"
+   },
+   "SamplingRuleAction": {
+    "additionalProperties": false,
+    "properties": {
+     "kind": {
+      "description": "`keep`, `drop`, `ratio`, `tail` or `rate`.",
+      "type": "string"
+     },
+     "max_per_second": {
+      "description": "Traces per second cap: required for `rate`, optional on `ratio`.",
+      "format": "double",
+      "nullable": true,
+      "type": "number"
+     },
+     "ratio": {
+      "description": "0 to 1, for `ratio`.",
+      "format": "double",
+      "nullable": true,
+      "type": "number"
+     },
+     "retention_days": {
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "single_span": {
+      "description": "Keep a matching span even when its trace is dropped.",
+      "nullable": true,
+      "type": "boolean"
+     },
+     "tail": {
+      "description": "For `tail`: `window_s`, `keep_errors`, `keep_slower_than_ms`, `base_ratio`, `policies`,\n`diverse_min`, `diverse_window_s`.",
+      "nullable": true,
+      "type": "object"
+     },
+     "tier": {
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind"
+    ],
+    "type": "object"
+   },
+   "SamplingRuleMatch": {
+    "additionalProperties": false,
+    "description": "Every set field must hold; an empty match fits every trace.",
+    "properties": {
+     "attrs": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "nullable": true,
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "env": {
+      "description": "The `deployment.environment.name` (or `deployment.environment`) resource attribute.",
+      "nullable": true,
+      "type": "string"
+     },
+     "min_duration_ms": {
+      "format": "int64",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "resource_glob": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "description": "Resource attribute key to glob its value must match.",
+      "nullable": true,
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "service": {
+      "nullable": true,
+      "type": "string"
+     },
+     "service_glob": {
+      "description": "Whole-name glob on the service.",
+      "nullable": true,
+      "type": "string"
+     },
+     "span_name_glob": {
+      "description": "Whole-name glob (`*`, `?`) on the span name.",
+      "nullable": true,
+      "type": "string"
+     },
+     "span_name_prefix": {
+      "nullable": true,
+      "type": "string"
+     },
+     "span_name_regex": {
+      "description": "Regex (unanchored) on the span name.",
+      "nullable": true,
+      "type": "string"
+     },
+     "status": {
+      "description": "Only `error`.",
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
    "SamplingRulesRulesResponse": {
     "properties": {
      "effective": {
       "description": "Stored rules followed by the implicit rules of the legacy `settings/sampling` policy.",
       "items": {
-       "type": "object"
+       "$ref": "#/components/schemas/SamplingRule"
       },
       "type": "array"
      },
@@ -70725,7 +72202,7 @@
      "rules": {
       "description": "The stored rules, in evaluation order.",
       "items": {
-       "type": "object"
+       "$ref": "#/components/schemas/SamplingRule"
       },
       "type": "array"
      },
@@ -71690,10 +73167,11 @@
     "type": "object"
    },
    "ScoreStatus": {
-    "description": "`ok` only with every component present; `partial` when some are present and some are\nmissing; `insufficient_data` when nothing could be measured (W39 follow-up).",
+    "description": "`ok` only with every component present; `partial` when some are present and some are\nmissing; `server_only` when only the session-based parts (`crash_free`, `adoption`) are\nmissing, i.e. the release has no RUM or browser data; `insufficient_data` when nothing could\nbe measured (W39 follow-up).",
     "enum": [
      "ok",
      "partial",
+     "server_only",
      "insufficient_data"
     ],
     "type": "string"
@@ -73433,6 +74911,11 @@
      "service": {
       "type": "string"
      },
+     "version": {
+      "description": "The `service.version` of the most recent telemetry that carried one; null when none did.",
+      "nullable": true,
+      "type": "string"
+     },
      "version_count": {
       "description": "Distinct non-empty `service.version` values.",
       "format": "int64",
@@ -73488,6 +74971,31 @@
      "ci"
     ],
     "type": "string"
+   },
+   "ServiceRate": {
+    "description": "Rates of one service before and after the deploy.",
+    "properties": {
+     "errors_per_hour": {
+      "$ref": "#/components/schemas/Delta",
+      "description": "Spans with an error status per hour."
+     },
+     "logs_per_hour": {
+      "$ref": "#/components/schemas/Delta"
+     },
+     "service": {
+      "type": "string"
+     },
+     "spans_per_hour": {
+      "$ref": "#/components/schemas/Delta"
+     }
+    },
+    "required": [
+     "service",
+     "spans_per_hour",
+     "logs_per_hour",
+     "errors_per_hour"
+    ],
+    "type": "object"
    },
    "ServiceRule": {
     "additionalProperties": false,
@@ -73707,7 +75215,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -73736,7 +75244,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -73808,8 +75316,13 @@
       },
       "type": "array"
      },
+     "links_hint": {
+      "description": "Set when the session carries `lucida.session_id` but the project has no product-analytics\nsetting, so no link could be built (Watchtower never guesses a host).",
+      "nullable": true,
+      "type": "string"
+     },
      "lucida_replay_url": {
-      "description": "The session in Lucida (`\u003chost\u003e/replays/\u003cid\u003e`); null without a configured host or a\n`lucida.session_id` from the SDK.",
+      "description": "The session in Lucida (`\u003chost\u003e/replays/\u003cid\u003e`, host `https://lucidace.com` unless the\nproject sets one); null without a `lucida.session_id` from the SDK.",
       "nullable": true,
       "type": "string"
      },
@@ -73817,10 +75330,20 @@
       "nullable": true,
       "type": "string"
      },
+     "person_url": {
+      "description": "Person link from the product-analytics setting; null without a user id.",
+      "nullable": true,
+      "type": "string"
+     },
      "posthog": {
       "$ref": "#/components/schemas/RumLinksPostHogLinks",
       "description": "Deep links into `PostHog`, from the ids the SDK stored; null when the project has no\n`PostHog` settings or the session has no ids.",
       "nullable": true
+     },
+     "replay_url": {
+      "description": "Replay link from the product-analytics setting (Lucida id first, then `PostHog` id).",
+      "nullable": true,
+      "type": "string"
      },
      "session": {
       "$ref": "#/components/schemas/RumSession"
@@ -74407,6 +75930,63 @@
     ],
     "type": "object"
    },
+   "ShapingImpactRequest": {
+    "additionalProperties": false,
+    "description": "Optional `POST …/impact` body: evaluate these instead of the stored rule's values.",
+    "properties": {
+     "match": {
+      "description": "Boolean pipeline expression to evaluate instead of the stored `match`.",
+      "nullable": true,
+      "type": "string"
+     },
+     "params": {
+      "description": "`drop_attrs` keys to evaluate instead of the stored `params`."
+     }
+    },
+    "type": "object"
+   },
+   "ShapingImpactResponse": {
+    "properties": {
+     "basis": {
+      "description": "`sampled` (the `match` evaluated on a hash sample of stored rows, at most 20 000),\n`attribute_rollup` (`drop_attrs` keys) or `stage_counters` (metrics, project level).",
+      "type": "string"
+     },
+     "bytes_est": {
+      "format": "int64",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "pct_of_signal": {
+      "format": "double",
+      "type": "number"
+     },
+     "rows": {
+      "description": "Records the rule's `match` selects in the window (estimated when sampled).",
+      "format": "int64",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "rows_scanned": {
+      "description": "Stored rows the estimate is based on: the rows the `match` was evaluated on (`sampled`),\nor the shaping stage's records seen (`stage_counters`); 0 for `attribute_rollup`.",
+      "format": "int64",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "window": {
+      "description": "The look-back window used, in hours, e.g. `24h` (attribute rollups round up to whole days).",
+      "type": "string"
+     }
+    },
+    "required": [
+     "rows",
+     "bytes_est",
+     "pct_of_signal",
+     "window",
+     "rows_scanned",
+     "basis"
+    ],
+    "type": "object"
+   },
    "ShapingRulePatchRequest": {
     "additionalProperties": false,
     "properties": {
@@ -74422,6 +76002,42 @@
     },
     "type": "object"
    },
+   "ShapingRuleTestRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "kind": {
+      "description": "Rule kind, as in the create body (validated when given).",
+      "nullable": true,
+      "type": "string"
+     },
+     "match": {
+      "description": "Boolean pipeline expression; empty or absent matches every record.",
+      "nullable": true,
+      "type": "string"
+     },
+     "mode": {
+      "description": "`preview` or `enabled`, as in the create body; not used by the test.",
+      "nullable": true,
+      "type": "string"
+     },
+     "params": {
+      "description": "Kind parameters, as in the create body (validated when `kind` is given)."
+     },
+     "signal": {
+      "description": "`logs` or `traces`.",
+      "type": "string"
+     },
+     "window": {
+      "description": "Look-back window, `1h` (default) to `7d`.",
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "signal"
+    ],
+    "type": "object"
+   },
    "ShapingRulesRuleDto": {
     "properties": {
      "created_at": {
@@ -74433,7 +76049,26 @@
      "kind": {
       "type": "string"
      },
+     "last_matched_at": {
+      "description": "Newest matching record seen in the last 24 hours (RFC 3339).",
+      "nullable": true,
+      "type": "string"
+     },
      "match": {},
+     "matched_1h": {
+      "description": "Records the `match` selected in the last hour (estimated from a hash sample of stored\nrows); only on `GET .../{id}`, null for metrics rules.",
+      "format": "int64",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "matched_24h": {
+      "description": "Same over the last 24 hours.",
+      "format": "int64",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
      "mode": {
       "type": "string"
      },
@@ -74448,6 +76083,16 @@
      },
      "source": {
       "type": "string"
+     },
+     "updated_at": {
+      "type": "string"
+     },
+     "warnings": {
+      "description": "For example an enabled rule that matched nothing in the last hour.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
      }
     },
     "required": [
@@ -74458,7 +76103,8 @@
      "params",
      "mode",
      "source",
-     "created_at"
+     "created_at",
+     "updated_at"
     ],
     "type": "object"
    },
@@ -75031,6 +76677,13 @@
       "nullable": true,
       "type": "number"
      },
+     "silent_services": {
+      "description": "Services whose span rate fell by more than 90% after the deploy.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
      "throughput_after_rpm": {
       "format": "double",
       "nullable": true,
@@ -75051,6 +76704,7 @@
     },
     "required": [
      "new_issues",
+     "silent_services",
      "confidence"
     ],
     "type": "object"
@@ -75371,7 +77025,7 @@
      },
      "rules": {
       "items": {
-       "type": "object"
+       "$ref": "#/components/schemas/SamplingRule"
       },
       "type": "array"
      },
@@ -75797,6 +77451,133 @@
     },
     "required": [
      "data"
+    ],
+    "type": "object"
+   },
+   "SlaReportDto": {
+    "properties": {
+     "achieved_pct": {
+      "format": "double",
+      "type": "number"
+     },
+     "breach": {
+      "description": "True when the achieved figure is under the target.",
+      "type": "boolean"
+     },
+     "credit_pct": {
+      "format": "double",
+      "type": "number"
+     },
+     "downtime_minutes": {
+      "format": "int64",
+      "type": "integer"
+     },
+     "excluded_minutes": {
+      "description": "Whole minutes removed by maintenance windows and corrections.",
+      "format": "int64",
+      "type": "integer"
+     },
+     "from": {
+      "description": "Unix seconds, `[from, to)`.",
+      "format": "int64",
+      "type": "integer"
+     },
+     "incidents": {
+      "items": {
+       "$ref": "#/components/schemas/SlaReportIncident"
+      },
+      "type": "array"
+     },
+     "name": {
+      "type": "string"
+     },
+     "period": {
+      "type": "string"
+     },
+     "policy_id": {
+      "type": "string"
+     },
+     "scope": {
+      "items": {
+       "$ref": "#/components/schemas/SlaReportScope"
+      },
+      "type": "array"
+     },
+     "target_pct": {
+      "format": "double",
+      "type": "number"
+     },
+     "to": {
+      "format": "int64",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "policy_id",
+     "name",
+     "period",
+     "from",
+     "to",
+     "target_pct",
+     "achieved_pct",
+     "downtime_minutes",
+     "excluded_minutes",
+     "breach",
+     "credit_pct",
+     "scope",
+     "incidents"
+    ],
+    "type": "object"
+   },
+   "SlaReportIncident": {
+    "properties": {
+     "cause_alert": {
+      "nullable": true,
+      "type": "string"
+     },
+     "end": {
+      "format": "int64",
+      "type": "integer"
+     },
+     "start": {
+      "description": "Unix seconds.",
+      "format": "int64",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "start",
+     "end"
+    ],
+    "type": "object"
+   },
+   "SlaReportScope": {
+    "properties": {
+     "downtime_minutes": {
+      "format": "int64",
+      "type": "integer"
+     },
+     "met": {
+      "description": "Against the policy target.",
+      "type": "boolean"
+     },
+     "name": {
+      "type": "string"
+     },
+     "slo_id": {
+      "type": "string"
+     },
+     "uptime_pct": {
+      "format": "double",
+      "type": "number"
+     }
+    },
+    "required": [
+     "slo_id",
+     "name",
+     "uptime_pct",
+     "downtime_minutes",
+     "met"
     ],
     "type": "object"
    },
@@ -76746,6 +78527,33 @@
     ],
     "type": "object"
    },
+   "SourcemapCoverage": {
+    "properties": {
+     "chunks_seen": {
+      "description": "Distinct script URLs (query and fragment dropped) seen for the release.",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "chunks_with_map": {
+      "description": "Of those, how many have an uploaded source map by name or `for=` alias.",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "missing": {
+      "description": "Up to 50 script URLs without a map.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "chunks_seen",
+     "chunks_with_map",
+     "missing"
+    ],
+    "type": "object"
+   },
    "SourcemapFetchDto": {
     "properties": {
      "enabled": {
@@ -77608,7 +79416,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "columns": {
@@ -77656,7 +79464,7 @@
       "nullable": true
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -78275,6 +80083,24 @@
      "errors",
      "total_ns",
      "p95_ns"
+    ],
+    "type": "object"
+   },
+   "StatementTrace": {
+    "description": "A slow run of a statement: the trace to open and how long that span took.",
+    "properties": {
+     "duration_ns": {
+      "format": "int64",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "trace_id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "trace_id",
+     "duration_ns"
     ],
     "type": "object"
    },
@@ -79505,8 +81331,31 @@
     ],
     "type": "object"
    },
+   "SymbolPresetPage": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/PresetDto"
+      },
+      "type": "array"
+     },
+     "next_cursor": {
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "type": "object"
+   },
    "SymbolSourceDto": {
     "properties": {
+     "auth_header": {
+      "description": "Name of the authentication header; its value is never returned.",
+      "nullable": true,
+      "type": "string"
+     },
      "enabled": {
       "type": "boolean"
      },
@@ -79517,6 +81366,9 @@
       "description": "`microsoft`, `debuginfod` or `custom` (a mirror with the debuginfod layout).",
       "type": "string"
      },
+     "name": {
+      "type": "string"
+     },
      "url": {
       "type": "string"
      }
@@ -79525,7 +81377,8 @@
      "id",
      "kind",
      "url",
-     "enabled"
+     "enabled",
+     "name"
     ],
     "type": "object"
    },
@@ -79648,7 +81501,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -79677,7 +81530,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -80405,6 +82258,35 @@
     ],
     "type": "object"
    },
+   "TestResponse": {
+    "properties": {
+     "matched": {
+      "description": "Records the expression selects in the window (estimated when sampled).",
+      "format": "int64",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "samples": {
+      "description": "Up to 5 matching records, one line each.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "scanned": {
+      "description": "Stored rows the expression was evaluated on.",
+      "format": "int64",
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "matched",
+     "scanned",
+     "samples"
+    ],
+    "type": "object"
+   },
    "TestRunUploaded": {
     "properties": {
      "failed": {
@@ -80637,7 +82519,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -80666,7 +82548,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -81267,7 +83149,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -81296,7 +83178,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -81383,7 +83265,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -81412,7 +83294,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -81532,7 +83414,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -81561,7 +83443,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -81714,6 +83596,31 @@
     "required": [
      "key",
      "value"
+    ],
+    "type": "object"
+   },
+   "TraceCost": {
+    "description": "Total cost and run count of one trace.",
+    "properties": {
+     "cost_micro": {
+      "description": "Sum of `cost_micro` over every call of the trace, in micro-USD.",
+      "format": "int64",
+      "type": "integer"
+     },
+     "runs": {
+      "description": "Distinct runs in the trace.",
+      "format": "int64",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "trace_id": {
+      "description": "Lower-case hex trace id.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "cost_micro",
+     "runs"
     ],
     "type": "object"
    },
@@ -82171,13 +84078,18 @@
      "query_id": {
       "type": "string"
      },
+     "replay_url": {
+      "description": "Replay link of the origin session from the project's product-analytics setting (Lucida\nsession first, then `PostHog`); null without a setting, an origin or a session id. First\npage only.",
+      "nullable": true,
+      "type": "string"
+     },
      "summary": {
       "$ref": "#/components/schemas/TraceSummary",
       "description": "Whole-trace critical path, error count and sampling; first page only.",
       "nullable": true
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -82307,7 +84219,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -82336,7 +84248,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -82692,6 +84604,51 @@
     ],
     "type": "object"
    },
+   "TracesResponse": {
+    "properties": {
+     "clamped_range": {
+      "$ref": "#/components/schemas/TimeRange",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
+      "nullable": true
+     },
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/StatementTrace"
+      },
+      "type": "array"
+     },
+     "elapsed_ms": {
+      "format": "int64",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "next_cursor": {
+      "description": "Opaque; pass back as `cursor` for the next page.",
+      "nullable": true,
+      "type": "string"
+     },
+     "partial": {
+      "$ref": "#/components/schemas/Partial",
+      "description": "Why the result may be incomplete; null when it is complete.",
+      "nullable": true
+     },
+     "query_id": {
+      "description": "`{project_id}:{ulid}`; `DELETE /v1/queries/{query_id}` cancels a running query.",
+      "type": "string"
+     },
+     "truncated": {
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "data",
+     "truncated",
+     "elapsed_ms",
+     "query_id"
+    ],
+    "type": "object"
+   },
    "TrackerDto": {
     "properties": {
      "active_series": {
@@ -82916,7 +84873,7 @@
      },
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -82939,7 +84896,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -83465,6 +85422,25 @@
     ],
     "type": "object"
    },
+   "UnresolvedFrames": {
+    "description": "Files of the newest event that symbolication could not resolve.",
+    "properties": {
+     "count": {
+      "description": "Number of files (source maps or debug files) that were missing.",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "reason": {
+      "description": "The first file's reason, for example `no source map uploaded for app.js in release 1.2.0`.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "count",
+     "reason"
+    ],
+    "type": "object"
+   },
    "UnsupportedDto": {
     "properties": {
      "fragment": {
@@ -83510,6 +85486,20 @@
      "title": {
       "nullable": true,
       "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "UpdateChangeSourceRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "enabled": {
+      "description": "`false` makes the URL answer 404 until it is enabled again.",
+      "nullable": true,
+      "type": "boolean"
+     },
+     "mapping": {
+      "description": "Replaces the whole mapping."
      }
     },
     "type": "object"
@@ -83970,6 +85960,18 @@
     ],
     "type": "object"
    },
+   "UrlDto": {
+    "properties": {
+     "url": {
+      "description": "Stripe-hosted page to send the browser to.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "url"
+    ],
+    "type": "object"
+   },
    "UsageAdvisorProposal": {
     "description": "The shaping rule a recommendation would create (the body of `POST …/shaping-rules`).",
     "properties": {
@@ -84361,7 +86363,7 @@
     "properties": {
      "clamped_range": {
       "$ref": "#/components/schemas/TimeRange",
-      "description": "Deprecated alias of `partial` containing `range_clamped`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `range_clamped`.",
       "nullable": true
      },
      "data": {
@@ -84390,7 +86392,7 @@
       "type": "string"
      },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`; removed after Phase 3.",
+      "description": "Deprecated alias of `partial` containing `row_cap`.",
       "type": "boolean"
      }
     },
@@ -84837,6 +86839,102 @@
      "good_share",
      "needs_improvement_share",
      "poor_share"
+    ],
+    "type": "object"
+   },
+   "VitalsExport": {
+    "properties": {
+     "enabled": {
+      "type": "boolean"
+     },
+     "interval_s": {
+      "format": "int32",
+      "type": "integer"
+     },
+     "last_error": {
+      "description": "Why the last push failed; null when it worked.",
+      "nullable": true,
+      "type": "string"
+     },
+     "last_routes": {
+      "description": "Routes sent in the last successful push.",
+      "format": "int32",
+      "nullable": true,
+      "type": "integer"
+     },
+     "last_run_at": {
+      "description": "Last push attempt, Unix seconds; null before the first.",
+      "format": "int64",
+      "nullable": true,
+      "type": "integer"
+     },
+     "provider": {
+      "description": "`seolyticize` or `webhook`.",
+      "type": "string"
+     },
+     "site_id": {
+      "nullable": true,
+      "type": "string"
+     },
+     "url": {
+      "description": "`seolyticize`: the base URL; `webhook`: the full receiving URL.",
+      "type": "string"
+     },
+     "window_days": {
+      "format": "int32",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "provider",
+     "url",
+     "window_days",
+     "interval_s",
+     "enabled"
+    ],
+    "type": "object"
+   },
+   "VitalsExportRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "enabled": {
+      "nullable": true,
+      "type": "boolean"
+     },
+     "interval_s": {
+      "description": "Seconds between pushes, 3600 to 604800 (default 86400).",
+      "format": "int32",
+      "nullable": true,
+      "type": "integer"
+     },
+     "provider": {
+      "description": "`seolyticize` (Bearer API key) or `webhook` (JSON body signed with `X-Watchtower-Signature`).",
+      "type": "string"
+     },
+     "secret": {
+      "description": "Write-only: the Seolyticize API key, or the webhook signing secret (16 to 256 bytes).\nRequired the first time; omit to keep the stored one.",
+      "nullable": true,
+      "type": "string"
+     },
+     "site_id": {
+      "description": "Required for `seolyticize`: the site the vitals belong to (1 to 128 characters of `A-Za-z0-9._-`).",
+      "nullable": true,
+      "type": "string"
+     },
+     "url": {
+      "description": "An https URL that is not a private address. `seolyticize`: the host (any path is dropped);\n`webhook`: the full URL.",
+      "type": "string"
+     },
+     "window_days": {
+      "description": "Days of vitals each push covers, 1 to 28 (default 7).",
+      "format": "int32",
+      "nullable": true,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "provider",
+     "url"
     ],
     "type": "object"
    },
@@ -85687,8 +87785,25 @@
   },
   "securitySchemes": {
    "bearer": {
+    "description": "API key (`wtk_`), service account key (`wta_`) or personal access token (`wtu_`) in `Authorization: Bearer`.",
     "scheme": "bearer",
     "type": "http"
+   },
+   "browserKey": {
+    "description": "Browser key (`wtp_`), safe to embed in pages. Valid only on browser telemetry endpoints; management routes answer 403.",
+    "scheme": "bearer",
+    "type": "http"
+   },
+   "ingestKey": {
+    "description": "Ingestion key (`wti_`). Valid only on the ingest endpoints of the edge; management routes answer 403.",
+    "scheme": "bearer",
+    "type": "http"
+   },
+   "session": {
+    "description": "The console's browser session cookie.",
+    "in": "cookie",
+    "name": "wt_session",
+    "type": "apiKey"
    }
   }
  },
@@ -85760,7 +87875,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Live projects of the org.",
@@ -85828,10 +87952,19 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
-    "summary": "Create a project with its default environment, retention and quotas.",
+    "summary": "Create a project with its default environment, retention and quotas, and (when\n`default_alerting` is not false) a receiver that emails every project owner and admin.",
     "tags": [
      "projects"
     ]
@@ -85907,7 +88040,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Soft-delete the project and queue its purge after the grace period (`?purge_now=true\u0026confirm=\u003cslug\u003e`\nskips the grace and needs `ManageSecurity`). `POST /v1/orgs/{org}/projects/{prj}/restore` cancels it.",
@@ -85965,7 +88107,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "One project. A missing, deleted or foreign id is a 404.",
@@ -86033,7 +88184,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Rename, change retention and/or the localhost-origins switch. Each part is checked against its own permission.",
@@ -86113,7 +88273,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Agent configs (newest version of each), ordered by id.",
@@ -86190,7 +88359,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Create an agent config (at most 200 per project; the 201st is 422 `limit_exceeded`).",
@@ -86251,7 +88429,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Delete a config with all its versions. Agents that ran it are told to clear it.",
@@ -86318,7 +88505,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "The newest version of one config.",
@@ -86395,7 +88591,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Restore an earlier version as a new version. The path segment is `{c}:rollback`, for example\n`POST /v1/projects/{prj}/agent-configs/acf_...:rollback?version=3`.",
@@ -86481,7 +88686,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Change a config; the result is a new version.",
@@ -86561,7 +88775,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "A page of the project's rules, oldest first.",
@@ -86638,7 +88861,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Create a rule. At most 2000 per project (422).",
@@ -86708,7 +88940,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Delete a rule; its open alerts are resolved.",
@@ -86775,7 +89016,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -86869,7 +89119,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Replace a rule. Its state per group is kept; the next evaluation is the next aligned tick.\nDisabling it resolves its open alerts.",
@@ -86947,7 +89206,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Services seen in telemetry (names passed through the project's remaps) merged with catalog\nentries; services seen only in telemetry have `owner_team: null` and `owner_missing: true`, with `suggested_owners` from the commit authors of their deployed releases.",
@@ -87016,7 +89284,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "One catalog entry, or the observed service (`observed: true`, `owner_team: null`) when it has\ntelemetry but no entry, as the listing shows it. Unknown to both: 404.",
@@ -87102,7 +89379,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Create or replace one service's catalog entry. An unknown owner team is 422.",
@@ -87173,7 +89459,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Names and metadata of the project's vault secrets, never values.",
@@ -87234,7 +89529,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Delete a vault secret. Monitors that still reference it fail with \"secret not available\".",
@@ -87320,7 +89624,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      },
      "503": {
       "content": {
@@ -87409,7 +89722,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Dashboards of the project (without specs); `?kind=notebook` lists notebooks instead.",
@@ -87486,7 +89808,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Create a dashboard (version 1).",
@@ -87556,7 +89887,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Delete (versions are kept). Needs the project-wide edit permission; per-dashboard editors cannot.",
@@ -87623,7 +89963,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "One dashboard with its current spec; `ETag` is the version.",
@@ -87718,7 +90067,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Save a new version. Requires `If-Match: \u003ccurrent version\u003e`: 428 without it, 412 when stale.\nAt most 1000 versions per dashboard: 409 `version_limit`.",
@@ -87798,7 +90156,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -87883,7 +90250,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -87952,7 +90328,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "409 while a receiver, another policy or an open page uses the policy.",
@@ -88019,7 +90404,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -88113,7 +90507,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -88183,7 +90586,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Health tokens of the project (never the secret).",
@@ -88269,7 +90681,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Create a health token for one target. The token is in this response only.",
@@ -88330,7 +90751,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Revoke a health token immediately; its endpoint then answers 404.",
@@ -88410,7 +90840,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -88486,7 +90925,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -88555,7 +91003,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "409 while an incident uses the type.",
@@ -88622,7 +91079,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -88716,7 +91182,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -88795,7 +91270,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -88880,7 +91364,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -88940,7 +91433,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -89006,7 +91508,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -89109,7 +91620,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -89188,7 +91708,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "A page of the project's monitors, oldest first.",
@@ -89274,7 +91803,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Create a monitor and, with `alert`, its managed rule. At most 500 per project (422).",
@@ -89335,7 +91873,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Delete a monitor and its managed rule; the rule's open alerts are resolved.",
@@ -89402,9 +91949,141 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
+    "tags": [
+     "monitors"
+    ]
+   },
+   "patch": {
+    "operationId": "patch_v1_projects_prj_monitors_monitor",
+    "parameters": [
+     {
+      "description": "Project id",
+      "in": "path",
+      "name": "prj",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "description": "Monitor id",
+      "in": "path",
+      "name": "monitor",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "description": "The monitor's `updated_at`",
+      "in": "header",
+      "name": "If-Match",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/merge-patch+json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     },
+     "description": "Partial monitor",
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MonitorDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
+     },
+     "401": {
+      "content": {
+       "application/problem+json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      },
+      "description": "Missing or invalid credentials"
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
+     },
+     "412": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
+     },
+     "429": {
+      "content": {
+       "application/problem+json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      },
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
+     }
+    },
+    "summary": "Change some fields of a monitor (JSON merge patch, RFC 7386, over the monitor as `GET`\nreturns it: an object merges key by key, `null` removes a key, anything else replaces). The\nmerged monitor gets the same validation as `PUT`. Optional `If-Match: \u003cupdated_at\u003e` (the\nvalue `GET` returns, quotes optional) makes it 412 when the monitor changed since.",
     "tags": [
      "monitors"
     ]
@@ -89460,7 +92139,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Run the monitor once, as soon as the engine sees the request. The path segment is\n`{monitor}:run-now`, for example `POST /v1/projects/{prj}/monitors/mon_...:run-now`.",
@@ -89555,7 +92243,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Replace a monitor. Its managed rule is created, updated or deleted to match `alert`; disabling\nthe monitor resolves the rule's open alerts.",
@@ -89635,7 +92332,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -89711,7 +92417,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -89780,7 +92495,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Delete with its shifts, overrides, cover requests and feeds. 409 while another schedule\nnests it.",
@@ -89847,7 +92571,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -89950,7 +92683,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Replace the document; the horizon of this schedule and of those nesting it is rebuilt.",
@@ -90030,7 +92772,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -90115,7 +92866,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      },
      "503": {
       "content": {
@@ -90193,7 +92953,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Delete a receiver the current tree does not use (422 otherwise).",
@@ -90260,7 +93029,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -90420,7 +93198,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      },
      "503": {
       "content": {
@@ -90489,7 +93276,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -90601,7 +93397,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Save a new version of the tree. `If-Match` must carry the current version (0 before the\nfirst save): 428 without it, 409 when it is stale. Keep route ids stable across versions:\ngroups (and their timers) belong to a route id; a root sent without an `id` keeps the current\nroot's. A tree with no receiver and no child routes routes nothing, so it needs `?confirm=true`\n(422 otherwise).",
@@ -90662,7 +93467,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Delete a rule group with its alert rules (their open alerts resolve); recording stops.",
@@ -90757,7 +93571,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Create or replace a rule group. The body is a Prometheus group (`name`, `interval`, `rules`,\noptional `wt_ingest_delay`) or a rule file (`groups:`) holding exactly that group, as YAML or\nJSON. Alert rules become alert rules named `group/alert` and keep their id and state across\nre-applies; recording rules write series labelled `wt_recording_rule`.",
@@ -90846,7 +93669,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -90922,7 +93754,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -90982,7 +93823,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Expire a silence: it is removed and its alerts resume at the next `group_interval`.",
@@ -91049,7 +93899,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -91143,7 +94002,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Replace a silence (extend, shorten or change its matchers).",
@@ -91223,7 +94091,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "A page of the project's SLOs, oldest first.",
@@ -91309,7 +94186,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Create an SLO with its two managed burn-rate rules. At most 200 per project (422).",
@@ -91379,7 +94265,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Delete an SLO, its corrections and its managed rules (their open alerts are resolved). 422\nwhile a composite SLO uses it.",
@@ -91446,7 +94341,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -91540,7 +94444,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Replace an SLO; its managed rules follow.",
@@ -91611,7 +94524,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Templates of the project.",
@@ -91697,7 +94619,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      },
      "503": {
       "content": {
@@ -91767,7 +94698,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Delete a template.",
@@ -91834,7 +94774,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "One template. A template of another project is a 404.",
@@ -91938,7 +94887,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      },
      "503": {
       "content": {
@@ -92018,7 +94976,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Workflows of the project, ordered by id.",
@@ -92104,7 +95071,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      },
      "503": {
       "content": {
@@ -92183,7 +95159,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -92249,7 +95234,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "tags": [
@@ -92334,7 +95328,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      },
      "503": {
       "content": {
@@ -92447,7 +95450,16 @@
         }
        }
       },
-      "description": "Rate limit exceeded; retry after the `Retry-After` seconds"
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
      }
     },
     "summary": "Replace a workflow. You become its owner: its actions then run as you, so you need the\npermission of every step.",
@@ -92460,6 +95472,9 @@
  "security": [
   {
    "bearer": []
+  },
+  {
+   "session": []
   }
  ],
  "servers": [

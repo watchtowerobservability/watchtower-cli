@@ -25,7 +25,7 @@ func (c *Client) Export(ctx context.Context, kinds []string) ([]Doc, error) {
 	var ks []*Kind
 	if len(kinds) == 0 {
 		for _, k := range Kinds {
-			if k.Name != "ContactMethod" { // the exporter's own addresses are not the project's configuration
+			if k.Name != "ContactMethod" && k.Name != "Project" { // the exporter's own addresses and the org's project list are not the project's configuration
 				ks = append(ks, k)
 			}
 		}

@@ -40,7 +40,7 @@ func pipelineMain(ctx context.Context, args []string, out io.Writer) error {
 	var o pipelineOpts
 	fs := flag.NewFlagSet("pipeline "+args[0], flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	fs.StringVar(&o.api, "api", os.Getenv("WT_API"), "API base URL; default $WT_API")
+	fs.StringVar(&o.api, "api", apiEnv(), "API base URL; default $WT_API_URL")
 	fs.StringVar(&o.key, "key", os.Getenv("WT_API_KEY"), "API key; default $WT_API_KEY")
 	fs.StringVar(&o.project, "project", os.Getenv("WT_PROJECT"), "project id; default $WT_PROJECT")
 	fs.StringVar(&o.id, "id", "", "pipeline id")

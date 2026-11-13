@@ -38,7 +38,7 @@ func depsMain(ctx context.Context, args []string, out io.Writer) error {
 		return errors.New("usage: wtctl deps upload --project <prj> --service <svc> [--dir .] --api <url> --key <key>")
 	}
 	fs := flag.NewFlagSet("deps upload", flag.ContinueOnError)
-	api := fs.String("api", os.Getenv("WT_API_URL"), "API base URL; default $WT_API_URL")
+	api := fs.String("api", apiEnv(), "API base URL; default $WT_API_URL")
 	key := fs.String("key", os.Getenv("WT_API_KEY"), "API key; default $WT_API_KEY")
 	project := fs.String("project", os.Getenv("WT_PROJECT"), "project id")
 	service := fs.String("service", os.Getenv("WT_SERVICE"), "service name")

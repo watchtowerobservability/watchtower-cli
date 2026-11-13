@@ -86,7 +86,7 @@ func testMain(ctx context.Context, args []string, out io.Writer) error {
 func traceTestRun(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("test run", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	api := fs.String("api", os.Getenv("WT_API"), "API base URL")
+	api := fs.String("api", apiEnv(), "API base URL")
 	key := fs.String("key", os.Getenv("WT_API_KEY"), "API key (wtk_...)")
 	project := fs.String("project", os.Getenv("WT_PROJECT"), "project id")
 	suite := fs.String("suite", "", "trace test suite id")

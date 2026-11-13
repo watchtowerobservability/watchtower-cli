@@ -21,7 +21,7 @@ func metricsMain(ctx context.Context, args []string, out io.Writer) error {
 		return errors.New(usage)
 	}
 	fs := flag.NewFlagSet("metrics import", flag.ContinueOnError)
-	api := fs.String("api", os.Getenv("WT_API_URL"), "API base URL; default $WT_API_URL")
+	api := fs.String("api", apiEnv(), "API base URL; default $WT_API_URL")
 	key := fs.String("key", os.Getenv("WT_API_KEY"), "API key; default $WT_API_KEY")
 	project := fs.String("project", "", "project id")
 	file := fs.String("file", "", "OpenMetrics file, or - for stdin")

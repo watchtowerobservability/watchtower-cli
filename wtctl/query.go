@@ -25,7 +25,7 @@ const queryUsage = `usage: wtctl query logs [--text t] [--services a,b] [--sever
        wtctl query traces '<TraceQL>' [--since 1h] [--limit 20] [-o table|json]
        wtctl query metrics '<PromQL>' [--since 1h] [--step 60s] [-o table|json]
        wtctl logs tail [--follow] [--text t] [--services a,b] [--severities error] [-o table|json]
-       (--api --key --project, $WT_API $WT_API_KEY $WT_PROJECT, or a context from wtctl login)`
+       (--api --key --project, $WT_API_URL $WT_API_KEY $WT_PROJECT, or a context from wtctl login)`
 
 type queryOpts struct {
 	api, key, project, output, text, services, severities string
@@ -36,7 +36,7 @@ type queryOpts struct {
 }
 
 func (o *queryOpts) flags(fs *flag.FlagSet, limit int) {
-	fs.StringVar(&o.api, "api", os.Getenv("WT_API"), "API base URL; default $WT_API")
+	fs.StringVar(&o.api, "api", apiEnv(), "API base URL; default $WT_API_URL")
 	fs.StringVar(&o.key, "key", os.Getenv("WT_API_KEY"), "API key; default $WT_API_KEY")
 	fs.StringVar(&o.project, "project", os.Getenv("WT_PROJECT"), "project id; default $WT_PROJECT")
 	fs.StringVar(&o.output, "o", "table", "table or json (one JSON object per line)")
@@ -49,7 +49,7 @@ func (o *queryOpts) flags(fs *flag.FlagSet, limit int) {
 
 func (o *queryOpts) base() (string, error) {
 	if o.api == "" || o.key == "" || o.project == "" {
-		return "", errors.New("--api, --key and --project are required (or $WT_API, $WT_API_KEY, $WT_PROJECT, or wtctl login)")
+		return "", errors.New("--api, --key and --project are required (or $WT_API_URL, $WT_API_KEY, $WT_PROJECT, or wtctl login)")
 	}
 	if o.output != "table" && o.output != "json" {
 		return "", errors.New("-o must be table or json")

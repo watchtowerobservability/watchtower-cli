@@ -36,7 +36,7 @@ func importLiveRun(ctx context.Context, args []string, out io.Writer, markdown b
 	fs.SetOutput(io.Discard)
 	var api, key, project, report, keyEnv, appEnv, idEnv, region, site, url, scope string
 	var apply, live bool
-	fs.StringVar(&api, "api", os.Getenv("WT_API"), "")
+	fs.StringVar(&api, "api", apiEnv(), "")
 	fs.StringVar(&key, "key", os.Getenv("WT_API_KEY"), "")
 	fs.StringVar(&project, "project", os.Getenv("WT_PROJECT"), "")
 	fs.StringVar(&report, "report", "import-report", "")
@@ -53,7 +53,7 @@ func importLiveRun(ctx context.Context, args []string, out io.Writer, markdown b
 		return fmt.Errorf("%w\n%s", err, liveUsage)
 	}
 	if api == "" || key == "" || project == "" {
-		return errors.New("--api, --key and --project are required (or $WT_API, $WT_API_KEY, $WT_PROJECT)")
+		return errors.New("--api, --key and --project are required (or $WT_API_URL, $WT_API_KEY, $WT_PROJECT)")
 	}
 	env := func(name string) (string, error) {
 		if name == "" {

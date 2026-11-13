@@ -93,7 +93,7 @@ func instrumentMain(ctx context.Context, args []string, out io.Writer) error {
 	fs.BoolVar(&force, "force", false, "overwrite existing files")
 	fs.BoolVar(&openPR, "open-pr", false, "open a draft pull request (GitHub)")
 	fs.StringVar(&repo, "repo", "", "owner/name")
-	fs.StringVar(&api, "api", os.Getenv("WT_API_URL"), "Watchtower API base URL")
+	fs.StringVar(&api, "api", apiEnv(), "Watchtower API base URL")
 	fs.StringVar(&key, "key", os.Getenv("WT_API_KEY"), "Watchtower API key")
 	fs.StringVar(&project, "project", "", "Watchtower project id")
 	if err := fs.Parse(args[1:]); err != nil {

@@ -24,7 +24,7 @@ func manifestMain(ctx context.Context, args []string, out io.Writer) error {
 	var failOnDrift bool
 	fs := flag.NewFlagSet("manifest "+sub, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	fs.StringVar(&api, "api", os.Getenv("WT_API"), "API base URL; default $WT_API")
+	fs.StringVar(&api, "api", apiEnv(), "API base URL; default $WT_API_URL")
 	fs.StringVar(&key, "key", os.Getenv("WT_API_KEY"), "API key; default $WT_API_KEY")
 	fs.StringVar(&project, "project", os.Getenv("WT_PROJECT"), "project id; default $WT_PROJECT")
 	fs.StringVar(&file, "file", "watchtower.yaml", "manifest file")

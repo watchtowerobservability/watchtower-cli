@@ -98,7 +98,7 @@ func (e exitCode) Error() string { return fmt.Sprintf("exit status %d", int(e)) 
 func checksRun(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("checks run", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	api := fs.String("api", os.Getenv("WT_API"), "API base URL")
+	api := fs.String("api", apiEnv(), "API base URL")
 	key := fs.String("key", os.Getenv("WT_API_KEY"), "API key (wtk_...)")
 	project := fs.String("project", os.Getenv("WT_PROJECT"), "project id")
 	tag := fs.String("tag", "ci", "run the monitors with this tag")

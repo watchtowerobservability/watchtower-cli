@@ -97,12 +97,16 @@ func main() {
 		"ch":           chMain,
 		"mib":          mibMain,
 		"login":        loginMain,
+		"logout":       logoutMain,
+		"provision":    provisionMain,
 		"context":      contextMain,
 		"query":        queryMain,
 		"logs":         logsMain,
 		"spans":        spansMain,
 		"self-update":  selfUpdateMain,
 		"tests":        testsMain,
+		"doctor":       doctorMain,
+		"env":          envMain,
 		"version":      versionMain,
 		"--version":    versionMain,
 	} {
@@ -169,6 +173,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "       "+selfUpdateUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(testsUsage[len("usage: "):], "\n       ", "\n       "))
 		fmt.Fprintln(os.Stderr, "       "+versionUsage[len("usage: "):])
+		fmt.Fprintln(os.Stderr, "       "+provisionUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       wtctl gatus config --api <url> --key <key> --project <slug> --project-id <prj_...> [--env <e>]")
 		os.Exit(2)
 	}

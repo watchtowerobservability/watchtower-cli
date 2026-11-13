@@ -21,7 +21,7 @@ import (
 // the spec reader never ship here.
 
 const (
-	recordUsage  = "usage: wtctl checks record <url> [--out check.json] [--name <name>] [--apply] (--api --key --project or $WT_API, $WT_API_KEY, $WT_PROJECT)"
+	recordUsage  = "usage: wtctl checks record <url> [--out check.json] [--name <name>] [--apply] (--api --key --project or $WT_API_URL, $WT_API_KEY, $WT_PROJECT)"
 	openapiUsage = "usage: wtctl checks import-openapi <spec.yaml|json> --base-url <url> [--auth-secret <NAME>] [--name <name>] [--out monitor.json] [--apply]"
 )
 
@@ -107,7 +107,7 @@ type importConn struct {
 
 func addImportFlags(fs *flag.FlagSet) *importConn {
 	c := &importConn{}
-	fs.StringVar(&c.api, "api", os.Getenv("WT_API"), "")
+	fs.StringVar(&c.api, "api", apiEnv(), "")
 	fs.StringVar(&c.key, "key", os.Getenv("WT_API_KEY"), "")
 	fs.StringVar(&c.project, "project", os.Getenv("WT_PROJECT"), "")
 	c.apply = fs.Bool("apply", false, "create the monitor (dry run otherwise)")
@@ -116,7 +116,7 @@ func addImportFlags(fs *flag.FlagSet) *importConn {
 
 func (c *importConn) check() error {
 	if c.api == "" || c.key == "" || c.project == "" {
-		return errors.New("--api, --key and --project are required (or $WT_API, $WT_API_KEY, $WT_PROJECT)")
+		return errors.New("--api, --key and --project are required (or $WT_API_URL, $WT_API_KEY, $WT_PROJECT)")
 	}
 	return nil
 }

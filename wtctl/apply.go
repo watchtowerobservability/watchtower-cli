@@ -12,7 +12,7 @@ import (
 	"github.com/watchtowerobservability/watchtower-cli/internal/ascode"
 )
 
-const asCodeUsage = "usage: wtctl apply -f <dir|file> --project <id> [--dry-run] [--prune] [--watch] [--interval 5s] [--api <url>] [--key <key>]\n" +
+const asCodeUsage = "usage: wtctl apply -f <dir|file> --project <id> (or --org <id> for org-only manifests) [--dry-run] [--prune] [--watch] [--interval 5s] [--api <url>] [--key <key>]\n" +
 	"       wtctl diff -f <dir|file> --project <id> [--prune]\n" +
 	"       wtctl export --project <id> [--kinds AlertRule,Monitor] [--out <dir>]"
 
@@ -20,15 +20,16 @@ const asCodeUsage = "usage: wtctl apply -f <dir|file> --project <id> [--dry-run]
 var secretOut io.Writer = os.Stderr
 
 type asCodeOpts struct {
-	api, key, project, file, kinds, outDir string
-	dryRun, prune                          bool
+	api, key, project, org, file, kinds, outDir string
+	dryRun, prune                               bool
 }
 
 func (o *asCodeOpts) flags(name string) *flag.FlagSet {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
-	fs.StringVar(&o.api, "api", os.Getenv("WT_API"), "API base URL; default $WT_API")
+	fs.StringVar(&o.api, "api", apiEnv(), "API base URL; default $WT_API_URL")
 	fs.StringVar(&o.key, "key", os.Getenv("WT_API_KEY"), "API key; default $WT_API_KEY")
 	fs.StringVar(&o.project, "project", os.Getenv("WT_PROJECT"), "project id; default $WT_PROJECT")
+	fs.StringVar(&o.org, "org", os.Getenv("WT_ORG"), "org id for org-only manifests (Project, ApiKey, ...) applied without --project; default $WT_ORG, else the key's org")
 	fs.StringVar(&o.file, "f", "", "manifest file or directory")
 	fs.BoolVar(&o.prune, "prune", false, "also delete live resources of the manifests' kinds that no manifest names")
 	return fs
@@ -39,7 +40,27 @@ func (o *asCodeOpts) client(fs *flag.FlagSet, args []string) (*ascode.Client, er
 	if err := fs.Parse(args); err != nil {
 		return nil, fmt.Errorf("%w\n%s", err, asCodeUsage)
 	}
+	if o.project == "" && orgOnly(o.file) { // provisioning: no project exists yet
+		return ascode.NewOrgFromKey(context.Background(), o.api, o.key, o.org, guardedClient(0))
+	}
 	return ascode.New(o.api, o.key, o.project, guardedClient(0))
+}
+
+// orgOnly reports whether the manifests at file are non-empty and all of org-scoped kinds.
+func orgOnly(file string) bool {
+	if file == "" {
+		return false
+	}
+	docs, err := ascode.LoadDocs(file)
+	if err != nil || len(docs) == 0 {
+		return false
+	}
+	for _, d := range docs {
+		if k := ascode.ByKind(d.Kind); k == nil || !k.Org {
+			return false
+		}
+	}
+	return true
 }
 
 // plan loads the manifests and plans them against the live project.

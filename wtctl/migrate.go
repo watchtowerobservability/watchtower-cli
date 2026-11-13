@@ -14,7 +14,7 @@ const migrateUsage = "usage: wtctl migrate datadog [--api-key-env DD_API_KEY] [-
 	"           [--scope monitors,slos,downtimes,dashboards,notebooks,pipelines,synthetics,indexes,catalog,schedule:<id>,policy:<id>]\n" +
 	"           (pulls the account live with a read-only API and application key, then prints what did not map and the share migrated per kind; dry run unless --apply)\n" +
 	"       wtctl migrate terraform-datadog <terraform-show.json> [--apply] [--report <prefix>]  (datadog_* resources of a `terraform show -json` state or plan)\n" +
-	"       (also --api <url> --key <wt key> --project <id>, defaulting to $WT_API, $WT_API_KEY, $WT_PROJECT)"
+	"       (also --api <url> --key <wt key> --project <id>, defaulting to $WT_API_URL, $WT_API_KEY, $WT_PROJECT)"
 
 // migrateMain is `wtctl migrate datadog|terraform-datadog`; `wtctl import datadog` stays as the file-based form.
 func migrateMain(ctx context.Context, args []string, out io.Writer) error {
@@ -52,7 +52,7 @@ func migrateTerraform(ctx context.Context, args []string, out io.Writer) error {
 	fs.SetOutput(io.Discard)
 	var api, key, project, report string
 	var apply bool
-	fs.StringVar(&api, "api", os.Getenv("WT_API"), "")
+	fs.StringVar(&api, "api", apiEnv(), "")
 	fs.StringVar(&key, "key", os.Getenv("WT_API_KEY"), "")
 	fs.StringVar(&project, "project", os.Getenv("WT_PROJECT"), "")
 	fs.StringVar(&report, "report", "import-report", "")
@@ -69,7 +69,7 @@ func migrateTerraform(ctx context.Context, args []string, out io.Writer) error {
 		file = fs.Arg(0)
 	}
 	if file == "" || api == "" || key == "" || project == "" {
-		return errors.New("a state file, --api, --key and --project are required (or $WT_API, $WT_API_KEY, $WT_PROJECT)\n" + migrateUsage)
+		return errors.New("a state file, --api, --key and --project are required (or $WT_API_URL, $WT_API_KEY, $WT_PROJECT)\n" + migrateUsage)
 	}
 	v, err := uploadImport(ctx, api, key, project, "datadog", apply, nil, map[string]string{"terraform": file})
 	fmt.Fprint(out, v.Result.Output)

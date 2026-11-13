@@ -11,7 +11,7 @@ import (
 // lspMain runs the language server on stdin/stdout until the editor exits. It has no
 // deadline: the session lives as long as the editor.
 func lspMain(ctx context.Context) error {
-	api, key := os.Getenv("WT_API_URL"), os.Getenv("WT_API_KEY")
+	api, key := apiEnv(), os.Getenv("WT_API_KEY")
 	if api == "" || key == "" {
 		return errors.New("WT_API_URL and WT_API_KEY are required")
 	}

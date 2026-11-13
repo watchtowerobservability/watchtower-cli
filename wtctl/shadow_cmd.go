@@ -19,7 +19,7 @@ import (
 
 const shadowUsage = "usage: wtctl shadow datadog --monitors <file|api> --events <file|api> [--from <rfc3339>] [--to <rfc3339>] [--tolerance 10m] [--out shadow-report] [--upload]\n" +
 	"           [--api-key-env DD_API_KEY --app-key-env DD_APP_KEY --site datadoghq.com]  (for `api`)\n" +
-	"           (also --api <url> --key <wt key> --project <id>, defaulting to $WT_API, $WT_API_KEY, $WT_PROJECT)"
+	"           (also --api <url> --key <wt key> --project <id>, defaulting to $WT_API_URL, $WT_API_KEY, $WT_PROJECT)"
 
 var ddSiteOK = regexp.MustCompile(`^[a-z0-9.-]+\.[a-z]{2,}$`)
 
@@ -34,7 +34,7 @@ func shadowMain(ctx context.Context, args []string, out io.Writer) error {
 	var api, key, project, monitors, events, fromS, toS, outPrefix, keyEnv, appEnv, site string
 	tol := fs.Duration("tolerance", 10*time.Minute, "")
 	upload := fs.Bool("upload", false, "")
-	fs.StringVar(&api, "api", os.Getenv("WT_API"), "")
+	fs.StringVar(&api, "api", apiEnv(), "")
 	fs.StringVar(&key, "key", os.Getenv("WT_API_KEY"), "")
 	fs.StringVar(&project, "project", os.Getenv("WT_PROJECT"), "")
 	fs.StringVar(&monitors, "monitors", "", "")

@@ -218,3 +218,25 @@ func TestCompletionShells(t *testing.T) {
 		t.Fatal("unknown shell accepted")
 	}
 }
+
+func TestApplyProjectKindNeedsNoProject(t *testing.T) {
+	srv := ascodetest.New(t)
+	f := filepath.Join(t.TempDir(), "p.yaml")
+	doc := "apiVersion: watchtower.dev/v1\nkind: Project\nmetadata: {name: checkout-web}\nspec: {name: Checkout web}\n"
+	if err := os.WriteFile(f, []byte(doc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	args := []string{"-f", f, "--api", srv.URL, "--key", "test-key", "--org", ascodetest.Org}
+	for i, want := range []string{"applied 1 change(s)", "applied 0 change(s)"} {
+		var out bytes.Buffer
+		if err := applyMain(context.Background(), args, &out); err != nil {
+			t.Fatalf("apply %d: %v %s", i, err, out.String())
+		}
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("apply %d: %s", i, out.String())
+		}
+	}
+	if srv.Count("Project") != 1 {
+		t.Fatal("project not created once")
+	}
+}

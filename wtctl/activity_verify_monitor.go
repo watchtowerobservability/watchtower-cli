@@ -233,7 +233,7 @@ func (m *monitor) serveHeads(w http.ResponseWriter, _ *http.Request) {
 func activityMonitorMain(ctx context.Context, args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("activity monitor", flag.ContinueOnError)
 	m := &monitor{}
-	fs.StringVar(&m.api, "api", os.Getenv("WT_API_URL"), "API base URL")
+	fs.StringVar(&m.api, "api", apiEnv(), "API base URL")
 	fs.StringVar(&m.slug, "slug", "", "hosted-page slug of the project")
 	fs.StringVar(&m.account, "account", "", "account id")
 	fs.StringVar(&m.token, "token", os.Getenv("WT_ACTIVITY_TOKEN"), "account token wta_... with capability verify")

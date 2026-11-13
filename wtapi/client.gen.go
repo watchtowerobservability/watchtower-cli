@@ -18,7 +18,8 @@ import (
 )
 
 const (
-	BearerScopes = "bearer.Scopes"
+	BearerScopes  = "bearer.Scopes"
+	SessionScopes = "session.Scopes"
 )
 
 // Defines values for AlertKind.
@@ -227,6 +228,53 @@ const (
 	OpLe Op = "le"
 	OpLt Op = "lt"
 	OpNe Op = "ne"
+)
+
+// Defines values for ProblemCode.
+const (
+	ProblemCodeAiCapReached               ProblemCode = "ai_cap_reached"
+	ProblemCodeAiDisabled                 ProblemCode = "ai_disabled"
+	ProblemCodeClientTooOld               ProblemCode = "client_too_old"
+	ProblemCodeConflict                   ProblemCode = "conflict"
+	ProblemCodeDataShredded               ProblemCode = "data_shredded"
+	ProblemCodeDataplaneBadResponse       ProblemCode = "dataplane_bad_response"
+	ProblemCodeDataplaneError             ProblemCode = "dataplane_error"
+	ProblemCodeDataplaneUnreachable       ProblemCode = "dataplane_unreachable"
+	ProblemCodeForbidden                  ProblemCode = "forbidden"
+	ProblemCodeInternal                   ProblemCode = "internal"
+	ProblemCodeIpNotAllowed               ProblemCode = "ip_not_allowed"
+	ProblemCodeKeyRevoked                 ProblemCode = "key_revoked"
+	ProblemCodeKeyUnavailable             ProblemCode = "key_unavailable"
+	ProblemCodeLegalHold                  ProblemCode = "legal_hold"
+	ProblemCodeLimitExceeded              ProblemCode = "limit_exceeded"
+	ProblemCodeLimitReached               ProblemCode = "limit_reached"
+	ProblemCodeMethodNotAllowed           ProblemCode = "method_not_allowed"
+	ProblemCodeMfaRequired                ProblemCode = "mfa_required"
+	ProblemCodeNoModelKey                 ProblemCode = "no_model_key"
+	ProblemCodeNotFound                   ProblemCode = "not_found"
+	ProblemCodePayloadTooLarge            ProblemCode = "payload_too_large"
+	ProblemCodePayloadUnavailable         ProblemCode = "payload_unavailable"
+	ProblemCodePreconditionFailed         ProblemCode = "precondition_failed"
+	ProblemCodePreconditionRequired       ProblemCode = "precondition_required"
+	ProblemCodePrivacyChangeRequiresAdmin ProblemCode = "privacy_change_requires_admin"
+	ProblemCodeQueryCancelled             ProblemCode = "query_cancelled"
+	ProblemCodeQueryOverloaded            ProblemCode = "query_overloaded"
+	ProblemCodeQueryTimeout               ProblemCode = "query_timeout"
+	ProblemCodeQueryTooExpensive          ProblemCode = "query_too_expensive"
+	ProblemCodeQuotaExceeded              ProblemCode = "quota_exceeded"
+	ProblemCodeRateLimited                ProblemCode = "rate_limited"
+	ProblemCodeReadOnlyKey                ProblemCode = "read_only_key"
+	ProblemCodeSsoRequired                ProblemCode = "sso_required"
+	ProblemCodeTooManyInvestigations      ProblemCode = "too_many_investigations"
+	ProblemCodeUnauthorized               ProblemCode = "unauthorized"
+	ProblemCodeUnavailable                ProblemCode = "unavailable"
+	ProblemCodeUnprocessable              ProblemCode = "unprocessable"
+	ProblemCodeUnsupportedPromql          ProblemCode = "unsupported_promql"
+	ProblemCodeValidation                 ProblemCode = "validation"
+	ProblemCodeVersionLimit               ProblemCode = "version_limit"
+	ProblemCodeWouldExceedCap             ProblemCode = "would_exceed_cap"
+	ProblemCodeWouldLockOutSelf           ProblemCode = "would_lock_out_self"
+	ProblemCodeWrongRegion                ProblemCode = "wrong_region"
 )
 
 // Defines values for RetryMode.
@@ -1227,6 +1275,10 @@ type MonitorDto struct {
 	// TimeoutMs 100 to 60000 (browser: 120000) and at most the interval (default 10000).
 	TimeoutMs *int32 `json:"timeout_ms,omitempty"`
 	UpdatedAt string `json:"updated_at"`
+
+	// Warnings On create with `alert: true`: why a page about the monitor would go nowhere (no route
+	// matches, no deliverable target). The monitor is created anyway.
+	Warnings *[]string `json:"warnings,omitempty"`
 }
 
 // MonitorPage defines model for MonitorPage.
@@ -1342,8 +1394,14 @@ type NewHealthTokenRequest struct {
 type NewProjectRequest struct {
 	// DataplaneId A `managed` data plane or one owned by the org; fixed for the project's lifetime.
 	DataplaneId *openapi_types.UUID `json:"dataplane_id"`
-	Name        string              `json:"name"`
-	Slug        string              `json:"slug"`
+
+	// DefaultAlerting Default `true`: creates a "Project owners (email)" escalation policy and receiver that page
+	// every owner and admin of the project by email, used by the default routing tree (no tree
+	// is saved and the policy does not count toward the plan's escalation paths). `false` starts
+	// the project with no receivers. Edit or delete them any time.
+	DefaultAlerting *bool  `json:"default_alerting"`
+	Name            string `json:"name"`
+	Slug            string `json:"slug"`
 }
 
 // NewTemplateRequest defines model for NewTemplateRequest.
@@ -1372,6 +1430,10 @@ type PatchProjectRequest struct {
 
 	// RetentionDays Signal name to days (1 to 3650), e.g. `{"logs": 14}`.
 	RetentionDays *map[string]int32 `json:"retention_days"`
+
+	// ServiceSilentRules Keep a managed "<service> stopped reporting" rule per service (default true). `false` deletes
+	// those rules and stops upkeep from recreating them.
+	ServiceSilentRules *bool `json:"service_silent_rules"`
 }
 
 // PatchTemplateRequest defines model for PatchTemplateRequest.
@@ -1445,10 +1507,9 @@ type PolicySpec struct {
 
 // Problem RFC 9457 problem document.
 type Problem struct {
-	// Code One of `not_found`, `forbidden`, `unauthorized`, `read_only_key`, `method_not_allowed`, `validation`, `unprocessable`, `limit_exceeded`, `conflict`, `version_limit`, `rate_limited`,
-	// `payload_too_large`, `precondition_failed`, `precondition_required`, `unavailable`, `unsupported_promql`, `query_timeout`, `query_cancelled`, `query_overloaded`, `internal`.
-	Code   string  `json:"code"`
-	Detail *string `json:"detail"`
+	// Code The stable `Problem.code` values; the same set as the error reference (`/docs/errors`).
+	Code   ProblemCode `json:"code"`
+	Detail *string     `json:"detail"`
 
 	// Errors Present for input validation errors: the field(s) that failed.
 	Errors *[]FieldError `json:"errors"`
@@ -1456,6 +1517,9 @@ type Problem struct {
 	Title  string        `json:"title"`
 	Type   string        `json:"type"`
 }
+
+// ProblemCode The stable `Problem.code` values; the same set as the error reference (`/docs/errors`).
+type ProblemCode string
 
 // ProjectDto defines model for ProjectDto.
 type ProjectDto struct {
@@ -1471,7 +1535,10 @@ type ProjectDto struct {
 
 	// RetentionDays Retention in days per signal; present on GET and PATCH.
 	RetentionDays *map[string]int32 `json:"retention_days"`
-	Slug          string            `json:"slug"`
+
+	// ServiceSilentRules Whether upkeep keeps a managed "stopped reporting" rule per service (default true); present on GET and PATCH.
+	ServiceSilentRules *bool  `json:"service_silent_rules"`
+	Slug               string `json:"slug"`
 }
 
 // ProjectPage defines model for ProjectPage.
@@ -1525,7 +1592,7 @@ type ReceiverRequest struct {
 	// Config Public settings, returned as given.
 	Config *map[string]interface{} `json:"config"`
 
-	// CredentialsRef `wt+secret://<store>/<path>#<key>` (SEC-011): the notifier reads the secrets (a JSON
+	// CredentialsRef `wt+secret://<store>/<path>#<key>`: the notifier reads the secrets (a JSON
 	// object like `secrets`, or a plain string used as `secret`) from the external store at
 	// delivery, in place of `secrets`. Stored in `config`; not itself secret.
 	CredentialsRef *string `json:"credentials_ref"`
@@ -3302,6 +3369,15 @@ type GetV1ProjectsPrjMonitorsParams struct {
 	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
+// PatchV1ProjectsPrjMonitorsMonitorApplicationMergePatchPlusJSONBody defines parameters for PatchV1ProjectsPrjMonitorsMonitor.
+type PatchV1ProjectsPrjMonitorsMonitorApplicationMergePatchPlusJSONBody = map[string]interface{}
+
+// PatchV1ProjectsPrjMonitorsMonitorParams defines parameters for PatchV1ProjectsPrjMonitorsMonitor.
+type PatchV1ProjectsPrjMonitorsMonitorParams struct {
+	// IfMatch The monitor's `updated_at`
+	IfMatch string `json:"If-Match"`
+}
+
 // GetV1ProjectsPrjOncallSchedulesParams defines parameters for GetV1ProjectsPrjOncallSchedules.
 type GetV1ProjectsPrjOncallSchedulesParams struct {
 	// Limit Page size, 1 to 200 (default 50).
@@ -3428,6 +3504,9 @@ type PutV1ProjectsPrjMaintenanceWindowsWindowJSONRequestBody = WindowRequest
 
 // PostV1ProjectsPrjMonitorsJSONRequestBody defines body for PostV1ProjectsPrjMonitors for application/json ContentType.
 type PostV1ProjectsPrjMonitorsJSONRequestBody = MonitorSpec
+
+// PatchV1ProjectsPrjMonitorsMonitorApplicationMergePatchPlusJSONRequestBody defines body for PatchV1ProjectsPrjMonitorsMonitor for application/merge-patch+json ContentType.
+type PatchV1ProjectsPrjMonitorsMonitorApplicationMergePatchPlusJSONRequestBody = PatchV1ProjectsPrjMonitorsMonitorApplicationMergePatchPlusJSONBody
 
 // PutV1ProjectsPrjMonitorsMonitorJSONRequestBody defines body for PutV1ProjectsPrjMonitorsMonitor for application/json ContentType.
 type PutV1ProjectsPrjMonitorsMonitorJSONRequestBody = MonitorSpec
@@ -5776,6 +5855,11 @@ type ClientInterface interface {
 	// GetV1ProjectsPrjMonitorsMonitor request
 	GetV1ProjectsPrjMonitorsMonitor(ctx context.Context, prj string, monitor string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PatchV1ProjectsPrjMonitorsMonitorWithBody request with any body
+	PatchV1ProjectsPrjMonitorsMonitorWithBody(ctx context.Context, prj string, monitor string, params *PatchV1ProjectsPrjMonitorsMonitorParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PatchV1ProjectsPrjMonitorsMonitorWithApplicationMergePatchPlusJSONBody(ctx context.Context, prj string, monitor string, params *PatchV1ProjectsPrjMonitorsMonitorParams, body PatchV1ProjectsPrjMonitorsMonitorApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// PostV1ProjectsPrjMonitorsMonitor request
 	PostV1ProjectsPrjMonitorsMonitor(ctx context.Context, prj string, monitor string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -6715,6 +6799,30 @@ func (c *Client) DeleteV1ProjectsPrjMonitorsMonitor(ctx context.Context, prj str
 
 func (c *Client) GetV1ProjectsPrjMonitorsMonitor(ctx context.Context, prj string, monitor string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetV1ProjectsPrjMonitorsMonitorRequest(c.Server, prj, monitor)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PatchV1ProjectsPrjMonitorsMonitorWithBody(ctx context.Context, prj string, monitor string, params *PatchV1ProjectsPrjMonitorsMonitorParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPatchV1ProjectsPrjMonitorsMonitorRequestWithBody(c.Server, prj, monitor, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PatchV1ProjectsPrjMonitorsMonitorWithApplicationMergePatchPlusJSONBody(ctx context.Context, prj string, monitor string, params *PatchV1ProjectsPrjMonitorsMonitorParams, body PatchV1ProjectsPrjMonitorsMonitorApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPatchV1ProjectsPrjMonitorsMonitorRequestWithApplicationMergePatchPlusJSONBody(c.Server, prj, monitor, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -9977,6 +10085,73 @@ func NewGetV1ProjectsPrjMonitorsMonitorRequest(server string, prj string, monito
 	return req, nil
 }
 
+// NewPatchV1ProjectsPrjMonitorsMonitorRequestWithApplicationMergePatchPlusJSONBody calls the generic PatchV1ProjectsPrjMonitorsMonitor builder with application/merge-patch+json body
+func NewPatchV1ProjectsPrjMonitorsMonitorRequestWithApplicationMergePatchPlusJSONBody(server string, prj string, monitor string, params *PatchV1ProjectsPrjMonitorsMonitorParams, body PatchV1ProjectsPrjMonitorsMonitorApplicationMergePatchPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPatchV1ProjectsPrjMonitorsMonitorRequestWithBody(server, prj, monitor, params, "application/merge-patch+json", bodyReader)
+}
+
+// NewPatchV1ProjectsPrjMonitorsMonitorRequestWithBody generates requests for PatchV1ProjectsPrjMonitorsMonitor with any type of body
+func NewPatchV1ProjectsPrjMonitorsMonitorRequestWithBody(server string, prj string, monitor string, params *PatchV1ProjectsPrjMonitorsMonitorParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "prj", runtime.ParamLocationPath, prj)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "monitor", runtime.ParamLocationPath, monitor)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/monitors/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithLocation("simple", false, "If-Match", runtime.ParamLocationHeader, params.IfMatch)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("If-Match", headerParam0)
+
+	}
+
+	return req, nil
+}
+
 // NewPostV1ProjectsPrjMonitorsMonitorRequest generates requests for PostV1ProjectsPrjMonitorsMonitor
 func NewPostV1ProjectsPrjMonitorsMonitorRequest(server string, prj string, monitor string) (*http.Request, error) {
 	var err error
@@ -12161,6 +12336,11 @@ type ClientWithResponsesInterface interface {
 	// GetV1ProjectsPrjMonitorsMonitorWithResponse request
 	GetV1ProjectsPrjMonitorsMonitorWithResponse(ctx context.Context, prj string, monitor string, reqEditors ...RequestEditorFn) (*GetV1ProjectsPrjMonitorsMonitorResponse, error)
 
+	// PatchV1ProjectsPrjMonitorsMonitorWithBodyWithResponse request with any body
+	PatchV1ProjectsPrjMonitorsMonitorWithBodyWithResponse(ctx context.Context, prj string, monitor string, params *PatchV1ProjectsPrjMonitorsMonitorParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PatchV1ProjectsPrjMonitorsMonitorResponse, error)
+
+	PatchV1ProjectsPrjMonitorsMonitorWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, prj string, monitor string, params *PatchV1ProjectsPrjMonitorsMonitorParams, body PatchV1ProjectsPrjMonitorsMonitorApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchV1ProjectsPrjMonitorsMonitorResponse, error)
+
 	// PostV1ProjectsPrjMonitorsMonitorWithResponse request
 	PostV1ProjectsPrjMonitorsMonitorWithResponse(ctx context.Context, prj string, monitor string, reqEditors ...RequestEditorFn) (*PostV1ProjectsPrjMonitorsMonitorResponse, error)
 
@@ -13541,6 +13721,34 @@ func (r GetV1ProjectsPrjMonitorsMonitorResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetV1ProjectsPrjMonitorsMonitorResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PatchV1ProjectsPrjMonitorsMonitorResponse struct {
+	Body                      []byte
+	HTTPResponse              *http.Response
+	JSON200                   *MonitorDto
+	JSON400                   *Problem
+	ApplicationproblemJSON401 *Problem
+	JSON404                   *Problem
+	JSON412                   *Problem
+	JSON422                   *Problem
+	ApplicationproblemJSON429 *Problem
+}
+
+// Status returns HTTPResponse.Status
+func (r PatchV1ProjectsPrjMonitorsMonitorResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PatchV1ProjectsPrjMonitorsMonitorResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -15112,6 +15320,23 @@ func (c *ClientWithResponses) GetV1ProjectsPrjMonitorsMonitorWithResponse(ctx co
 		return nil, err
 	}
 	return ParseGetV1ProjectsPrjMonitorsMonitorResponse(rsp)
+}
+
+// PatchV1ProjectsPrjMonitorsMonitorWithBodyWithResponse request with arbitrary body returning *PatchV1ProjectsPrjMonitorsMonitorResponse
+func (c *ClientWithResponses) PatchV1ProjectsPrjMonitorsMonitorWithBodyWithResponse(ctx context.Context, prj string, monitor string, params *PatchV1ProjectsPrjMonitorsMonitorParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PatchV1ProjectsPrjMonitorsMonitorResponse, error) {
+	rsp, err := c.PatchV1ProjectsPrjMonitorsMonitorWithBody(ctx, prj, monitor, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePatchV1ProjectsPrjMonitorsMonitorResponse(rsp)
+}
+
+func (c *ClientWithResponses) PatchV1ProjectsPrjMonitorsMonitorWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, prj string, monitor string, params *PatchV1ProjectsPrjMonitorsMonitorParams, body PatchV1ProjectsPrjMonitorsMonitorApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchV1ProjectsPrjMonitorsMonitorResponse, error) {
+	rsp, err := c.PatchV1ProjectsPrjMonitorsMonitorWithApplicationMergePatchPlusJSONBody(ctx, prj, monitor, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePatchV1ProjectsPrjMonitorsMonitorResponse(rsp)
 }
 
 // PostV1ProjectsPrjMonitorsMonitorWithResponse request returning *PostV1ProjectsPrjMonitorsMonitorResponse
@@ -17978,6 +18203,74 @@ func ParseGetV1ProjectsPrjMonitorsMonitorResponse(rsp *http.Response) (*GetV1Pro
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON429 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePatchV1ProjectsPrjMonitorsMonitorResponse parses an HTTP response from a PatchV1ProjectsPrjMonitorsMonitorWithResponse call
+func ParsePatchV1ProjectsPrjMonitorsMonitorResponse(rsp *http.Response) (*PatchV1ProjectsPrjMonitorsMonitorResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PatchV1ProjectsPrjMonitorsMonitorResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MonitorDto
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 412:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON412 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
 		var dest Problem

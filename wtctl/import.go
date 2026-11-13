@@ -15,7 +15,7 @@ const importUsage = "usage: wtctl import datadog|grafana|newrelic|splunk|promrul
 	"       wtctl import pagerduty|opsgenie|victorops|splunk-on-call|grafana-oncall|datadog --live ...  (live pull; see below)\n" +
 	"           [--alerts <file>] [--dashboards <file>] [--alertmanager <file>] [--monitors <file>] [--slos <file>] [--downtimes <file>] [--notebooks <file>] [--pipelines <file>] [--alert-rules <file>]\n" +
 	"           [--apply] [--report <prefix>]  (export files are uploaded and mapped on the server; dry run unless --apply; see docs/product/migration)\n" +
-	"       (also --api <url> --key <wt key> --project <id>, defaulting to $WT_API, $WT_API_KEY, $WT_PROJECT)"
+	"       (also --api <url> --key <wt key> --project <id>, defaulting to $WT_API_URL, $WT_API_KEY, $WT_PROJECT)"
 
 // importSources are the export-file importers the server runs; the API-pull importers
 // (import_live.go) are server-side jobs too, with the vendor key sealed on the server.
@@ -42,7 +42,7 @@ func importMain(ctx context.Context, args []string, out io.Writer) error {
 	for _, role := range []string{"alerts", "dashboards", "alertmanager", "monitors", "slos", "downtimes", "notebooks", "pipelines", "alert_rules"} {
 		files[role] = new(string)
 	}
-	fs.StringVar(&api, "api", os.Getenv("WT_API"), "")
+	fs.StringVar(&api, "api", apiEnv(), "")
 	fs.StringVar(&key, "key", os.Getenv("WT_API_KEY"), "")
 	fs.StringVar(&project, "project", os.Getenv("WT_PROJECT"), "")
 	fs.StringVar(&report, "report", "import-report", "")
@@ -55,7 +55,7 @@ func importMain(ctx context.Context, args []string, out io.Writer) error {
 		return fmt.Errorf("%w\n%s", err, importUsage)
 	}
 	if api == "" || key == "" || project == "" {
-		return errors.New("--api, --key and --project are required (or $WT_API, $WT_API_KEY, $WT_PROJECT)")
+		return errors.New("--api, --key and --project are required (or $WT_API_URL, $WT_API_KEY, $WT_PROJECT)")
 	}
 	picked := map[string]string{}
 	for role, p := range files {

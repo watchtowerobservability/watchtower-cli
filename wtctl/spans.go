@@ -20,7 +20,7 @@ import (
 const spansUsage = `usage: wtctl spans search [--name n] [--kind server|client|internal|producer|consumer] [--status ok|error|unset]
                          [--services a,b] [--min-duration 500ms] [--where '<KQL>'] [--since 1h] [--limit 50] [-o table|json]
        wtctl spans annotate <trace_id> <span_id> --name <score name> --value <number|true|false|label> [--comment text]
-       (--api --key --project, $WT_API $WT_API_KEY $WT_PROJECT, or a context from wtctl login)`
+       (--api --key --project, $WT_API_URL $WT_API_KEY $WT_PROJECT, or a context from wtctl login)`
 
 var spanKinds = map[string]int{"internal": 1, "server": 2, "client": 3, "producer": 4, "consumer": 5}
 var spanStatuses = map[string]int{"unset": 0, "ok": 1, "error": 2}

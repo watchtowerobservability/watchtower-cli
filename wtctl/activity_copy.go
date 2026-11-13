@@ -27,7 +27,7 @@ type copyOpts struct {
 func activityCopyMain(ctx context.Context, args []string, out io.Writer) error {
 	var o copyOpts
 	fs := flag.NewFlagSet("activity copy-config", flag.ContinueOnError)
-	fs.StringVar(&o.api, "api", os.Getenv("WT_API_URL"), "API base URL; default $WT_API_URL")
+	fs.StringVar(&o.api, "api", apiEnv(), "API base URL; default $WT_API_URL")
 	fs.StringVar(&o.key, "key", os.Getenv("WT_API_KEY"), "org API key with access to both projects; default $WT_API_KEY")
 	fs.StringVar(&o.from, "from", "", "source project id")
 	fs.StringVar(&o.to, "to", "", "target project id")

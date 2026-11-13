@@ -78,6 +78,27 @@ func NewOrg(api, key, org string, hc *http.Client) (*Client, error) {
 	return c, nil
 }
 
+// NewOrgFromKey is NewOrg for a caller that has no org id: it asks the API which org the key
+// belongs to (`GET /v1/auth/key`, which needs no scope) unless org is given.
+func NewOrgFromKey(ctx context.Context, api, key, org string, hc *http.Client) (*Client, error) {
+	if org == "" {
+		c, err := New(api, key, "-", hc)
+		if err != nil {
+			return nil, err
+		}
+		var who struct {
+			OrgID string `json:"org_id"`
+		}
+		if err := c.do(ctx, http.MethodGet, "/v1/auth/key", nil, &who); err != nil {
+			return nil, fmt.Errorf("find the org of the key: %w", err)
+		}
+		if org = who.OrgID; org == "" {
+			return nil, errors.New("the credential belongs to no org: pass --org")
+		}
+	}
+	return NewOrg(api, key, org, hc)
+}
+
 func (c *Client) do(ctx context.Context, method, rel string, body, out any) error {
 	return c.Do(ctx, method, rel, nil, body, out)
 }

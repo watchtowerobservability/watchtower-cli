@@ -34,7 +34,7 @@ type artifactOpts struct {
 }
 
 func (o *artifactOpts) flags(fs *flag.FlagSet) {
-	fs.StringVar(&o.api, "api", os.Getenv("WT_API"), "API base URL; default $WT_API")
+	fs.StringVar(&o.api, "api", apiEnv(), "API base URL; default $WT_API_URL")
 	fs.StringVar(&o.key, "key", os.Getenv("WT_API_KEY"), "API key (project admin); default $WT_API_KEY")
 	fs.StringVar(&o.project, "project", os.Getenv("WT_PROJECT"), "project id; default $WT_PROJECT")
 	fs.StringVar(&o.release, "release", "", "release version (created if missing, see --create-release)")
@@ -170,7 +170,10 @@ func sourcemapsUpload(ctx context.Context, o artifactOpts, dir string, out io.Wr
 }
 
 func sourcemapsMain(ctx context.Context, args []string, out io.Writer) error {
-	const usage = "usage: wtctl sourcemaps upload <dir> --api <url> --key <key> --project <prj_...> [--release <version>] [--create-release=false] [--dist <dist>]  (--api and --project default to $WT_API, $WT_PROJECT)"
+	const usage = "usage: wtctl sourcemaps upload <dir> --api <url> --key <key> --project <prj_...> [--release <version>] [--create-release=false] [--dist <dist>]\n       wtctl sourcemaps verify --release <v> --url <script-url> --line <n> --column <c>  (--api and --project default to $WT_API_URL, $WT_PROJECT)"
+	if len(args) > 0 && args[0] == "verify" {
+		return sourcemapsVerify(ctx, args[1:], out)
+	}
 	if len(args) < 2 || args[0] != "upload" || strings.HasPrefix(args[1], "-") {
 		return errors.New(usage)
 	}

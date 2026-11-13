@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -103,6 +105,9 @@ func (c *Client) Plan(ctx context.Context, docs []Doc, prune bool) ([]Change, er
 				return nil, fmt.Errorf("%s/%s: %w", k.Name, d.Metadata.Name, err)
 			}
 			ch.Fields = subsetDiff(withoutSecrets(k, cmp), it.Body, "")
+			if k.Name == "Routing" {
+				ch.Fields = withRouteReceivers(ch.Fields, d.Spec)
+			}
 			ch.Op = OpNoop
 			if len(ch.Fields) > 0 {
 				ch.Op = OpUpdate
@@ -331,4 +336,37 @@ func Summary(plan []Change) string {
 	}
 	fmt.Fprintf(&sb, "%d change(s)\n", Count(plan))
 	return sb.String()
+}
+
+var routePrefix = regexp.MustCompile(`^(?:routes\[(\d+)\]\.?)+`)
+var routeIdx = regexp.MustCompile(`routes\[(\d+)\]`)
+
+// withRouteReceivers appends the receiver of the route a field line belongs to, so
+// "routes[1].match.severity: ..." says which receiver it delivers to.
+func withRouteReceivers(fields []string, spec map[string]any) []string {
+	out := make([]string, len(fields))
+	for i, f := range fields {
+		out[i] = f
+		pre := routePrefix.FindString(f)
+		if pre == "" {
+			continue
+		}
+		node := spec
+		for _, m := range routeIdx.FindAllStringSubmatch(pre, -1) {
+			n, _ := strconv.Atoi(m[1])
+			list, _ := node["routes"].([]any)
+			if n >= len(list) {
+				node = nil
+				break
+			}
+			node, _ = list[n].(map[string]any)
+			if node == nil {
+				break
+			}
+		}
+		if r, _ := node["receiver"].(string); r != "" {
+			out[i] = f + "  [receiver " + r + "]"
+		}
+	}
+	return out
 }

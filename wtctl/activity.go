@@ -55,7 +55,7 @@ func activityMain(ctx context.Context, args []string, out io.Writer) error {
 type activityOpts struct{ api, key, project string }
 
 func (o *activityOpts) bind(fs *flag.FlagSet) {
-	fs.StringVar(&o.api, "api", os.Getenv("WT_API_URL"), "API base URL; default $WT_API_URL")
+	fs.StringVar(&o.api, "api", apiEnv(), "API base URL; default $WT_API_URL")
 	fs.StringVar(&o.key, "key", os.Getenv("WT_API_KEY"), "API key; default $WT_API_KEY")
 	fs.StringVar(&o.project, "project", "", "project id")
 }

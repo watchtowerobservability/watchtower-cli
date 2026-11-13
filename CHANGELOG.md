@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2
+
+- `wtctl login`: sign in from the browser with a device code; no key to paste. `--scope bootstrap` gets a token that can create projects and keys but cannot read telemetry, for provisioning from CI. The token is saved owner-only (0600) in the wtctl config.
+- `wtctl logout` removes the context and revokes its token when the server allows it.
+- `apply` takes `Project` (created by slug when missing) and `ShapingRule` documents.
+
 ## 0.3.1
 
 - As code converges: `apply` followed by `diff` reports `0 change(s)`; `write_token_to` works for every token kind (written 0600); `ServiceAccount` and the newer kinds apply.

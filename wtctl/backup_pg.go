@@ -46,6 +46,11 @@ func pgRowCounts(ctx context.Context, c *pgx.Conn) (map[string]int64, error) {
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	return countRows(ctx, tx)
+}
+
+// countRows counts every public table's rows inside tx (one snapshot).
+func countRows(ctx context.Context, tx pgx.Tx) (map[string]int64, error) {
 	rows, err := tx.Query(ctx, "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY 1")
 	if err != nil {
 		return nil, err
@@ -101,8 +106,9 @@ func runCmd(ctx context.Context, name string, args ...string) ([]byte, error) {
 	return out, nil
 }
 
-// pgDump runs pg_dump --format=custom into a temp file and returns its bytes.
-func pgDump(ctx context.Context, pgURL string) ([]byte, error) {
+// pgDump runs pg_dump --format=custom into a temp file and returns its bytes. snapshot, when set, is an
+// exported snapshot (pg_export_snapshot) the dump reads, so it matches row counts taken in that snapshot.
+func pgDump(ctx context.Context, pgURL, snapshot string) ([]byte, error) {
 	f, err := os.CreateTemp("", "wt-pgdump-*")
 	if err != nil {
 		return nil, err
@@ -110,7 +116,12 @@ func pgDump(ctx context.Context, pgURL string) ([]byte, error) {
 	name := f.Name()
 	_ = f.Close()
 	defer os.Remove(name)
-	if _, err := runCmd(ctx, pgDumpBin(), "--format=custom", "--no-owner", "--file="+name, "--dbname="+pgURL); err != nil {
+	// A lock wait timeout: a migration queued behind our snapshot would otherwise wait on pg_dump forever.
+	args := []string{"--format=custom", "--no-owner", "--lock-wait-timeout=60s", "--file=" + name, "--dbname=" + pgURL}
+	if snapshot != "" {
+		args = append(args, "--snapshot="+snapshot)
+	}
+	if _, err := runCmd(ctx, pgDumpBin(), args...); err != nil {
 		return nil, err
 	}
 	return os.ReadFile(name)
@@ -183,18 +194,33 @@ func createBackup(ctx context.Context, d Dest, secret string, incremental, wait 
 	defer c.Close(ctx)
 	now := time.Now().UTC()
 	m := Manifest{ID: newBackupID(now), CreatedAt: now, Version: 1, SchemaVersions: map[string]string{"pg": pgSchemaVersion(ctx, c)}}
-	dump, err := pgDump(ctx, pgURL)
+	// The dump and the row counts read one exported snapshot; counted separately, busy tables drift and verify fails.
+	tx, err := c.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
 	if err != nil {
 		return m, err
 	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	// Give up rather than hold locks a migration is waiting for; the next scheduled run retries.
+	if _, err := tx.Exec(ctx, "SET LOCAL lock_timeout = '60s'"); err != nil {
+		return m, err
+	}
+	var snap string
+	if err := tx.QueryRow(ctx, "SELECT pg_export_snapshot()").Scan(&snap); err != nil {
+		return m, err
+	}
+	if m.PGRows, err = countRows(ctx, tx); err != nil {
+		return m, err
+	}
+	dump, err := pgDump(ctx, pgURL, snap)
+	if err != nil {
+		return m, err
+	}
+	_ = tx.Rollback(ctx)
 	obj, err := putObject(ctx, d, m.ID, secret, "postgres.dump.enc", dump)
 	if err != nil {
 		return m, err
 	}
 	m.Objects = append(m.Objects, obj)
-	if m.PGRows, err = pgRowCounts(ctx, c); err != nil {
-		return m, err
-	}
 	m.LedgerHash = ledgerHash(ctx, c)
 	m.Kafka = kafkaOffsets(ctx)
 	if os.Getenv("WT_CH_URL") != "" {

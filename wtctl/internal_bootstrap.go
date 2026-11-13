@@ -33,7 +33,7 @@ func internalMain(ctx context.Context, args []string, out io.Writer) error {
 	}
 	var o internalOpts
 	fs := flag.NewFlagSet("internal bootstrap", flag.ContinueOnError)
-	fs.StringVar(&o.api, "api", os.Getenv("WT_API"), "API base URL")
+	fs.StringVar(&o.api, "api", apiEnv(), "API base URL")
 	fs.StringVar(&o.key, "key", os.Getenv("WT_API_KEY"), "API key")
 	fs.StringVar(&o.dashboards, "dashboards", "infra/dashboards/internal", "dashboard JSON directory")
 	fs.StringVar(&o.alerts, "alerts", "infra/alerts/internal", "alert rule manifest directory")

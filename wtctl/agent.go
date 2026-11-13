@@ -157,7 +157,7 @@ func agentInspect(ctx context.Context, args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("agent inspect", flag.ContinueOnError)
 	var api, key, project, text string
 	var limit int
-	fs.StringVar(&api, "api", os.Getenv("WT_API_URL"), "API base URL")
+	fs.StringVar(&api, "api", apiEnv(), "API base URL")
 	fs.StringVar(&key, "key", os.Getenv("WT_API_KEY"), "API key")
 	fs.StringVar(&project, "project", os.Getenv("WT_PROJECT_ID"), "project id")
 	fs.StringVar(&text, "text", "", "log text filter")

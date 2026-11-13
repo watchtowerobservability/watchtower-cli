@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 // Named contexts (PLT-021), like kubeconfig: `wtctl login` stores an API URL, key and project
@@ -19,7 +20,9 @@ import (
 // $WT_API_KEY and $WT_PROJECT, which every command already defaults its flags from, so explicit
 // flags and variables still win.
 
-const contextUsage = `usage: wtctl login --context <name> --api <url> --project <prj> [--key <key> | $WT_API_KEY]
+const contextUsage = `usage: wtctl login --api <url> [--scope bootstrap] [--context <name>] [--project <prj>]   (opens a device login; approve it in the web app)
+       wtctl login --context <name> --api <url> --project <prj> --key <key>   (or $WT_API_KEY)
+       wtctl logout [--context <name>]
        wtctl context list|current|use <name>|delete <name>
        wtctl <command> --context <name> ...   (or $WT_CONTEXT)`
 
@@ -27,7 +30,16 @@ type wtContext struct {
 	API     string `json:"api"`
 	Key     string `json:"key"`
 	Project string `json:"project"`
+	// TokenID and Expires are set by a device login: the token is a PAT that expires.
+	TokenID string `json:"token_id,omitempty"`
+	Expires string `json:"expires_at,omitempty"`
 }
+
+// ctxName and ctxFilled record which context applyContext used and which variables it set, for `wtctl env`.
+var (
+	ctxName   string
+	ctxFilled = map[string]bool{}
+)
 
 type wtConfig struct {
 	Current  string               `json:"current"`
@@ -100,9 +112,9 @@ func applyContext(args []string) ([]string, error) {
 			rest = append(rest, a)
 		}
 	}
-	if len(rest) > 0 && (rest[0] == "login" || rest[0] == "context") {
-		if explicit && rest[0] == "login" {
-			rest = append(rest, "--context", name) // login names the context it writes
+	if len(rest) > 0 && (rest[0] == "login" || rest[0] == "logout" || rest[0] == "context") {
+		if explicit && (rest[0] == "login" || rest[0] == "logout") {
+			rest = append(rest, "--context", name) // login names the context it writes, logout the one it removes
 		}
 		return rest, nil
 	}
@@ -123,9 +135,11 @@ func applyContext(args []string) ([]string, error) {
 		}
 		return rest, nil
 	}
+	ctxName = name
 	for _, kv := range [][2]string{{"WT_API", sel.API}, {"WT_API_URL", sel.API}, {"WT_API_KEY", sel.Key}, {"WT_PROJECT", sel.Project}} {
 		if os.Getenv(kv[0]) == "" && kv[1] != "" {
 			_ = os.Setenv(kv[0], kv[1])
+			ctxFilled[kv[0]] = true
 		}
 	}
 	return rest, nil
@@ -134,18 +148,27 @@ func applyContext(args []string) ([]string, error) {
 func loginMain(ctx context.Context, args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("login", flag.ContinueOnError)
 	name := fs.String("context", "default", "context name")
-	api := fs.String("api", os.Getenv("WT_API"), "API base URL")
+	api := fs.String("api", apiEnv(), "API base URL")
 	key := fs.String("key", os.Getenv("WT_API_KEY"), "API key; prefer $WT_API_KEY over the flag (shell history)")
 	project := fs.String("project", os.Getenv("WT_PROJECT"), "default project id")
 	verify := fs.Bool("verify", true, "check the key against GET /v1/me first")
+	scope := fs.String("scope", "", "device login: the scope to ask for, e.g. bootstrap (create projects and keys, read no telemetry)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if *api == "" || *key == "" {
+	if *api == "" {
 		return errors.New(contextUsage)
 	}
 	if !strings.HasPrefix(*api, "https://") && !strings.HasPrefix(*api, "http://") {
 		return errors.New("--api must be an http(s) URL")
+	}
+	var dev devicePoll
+	if *key == "" { // no key given: sign in through the browser
+		var err error
+		if dev, err = deviceLogin(ctx, *api, *scope, out, time.Sleep); err != nil {
+			return err
+		}
+		*key, *verify = dev.Token, false
 	}
 	if *verify {
 		if err := call(ctx, "GET", strings.TrimRight(*api, "/")+"/v1/me", *key, nil, nil); err != nil {
@@ -156,12 +179,15 @@ func loginMain(ctx context.Context, args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	c.Contexts[*name] = wtContext{API: strings.TrimRight(*api, "/"), Key: *key, Project: *project}
+	c.Contexts[*name] = wtContext{API: strings.TrimRight(*api, "/"), Key: *key, Project: *project, TokenID: dev.TokenID, Expires: dev.ExpiresAt}
 	c.Current = *name
 	if err := saveConfig(c, p); err != nil {
 		return err
 	}
 	fmt.Fprintf(out, "context %q saved to %s and selected\n", *name, p)
+	if dev.ExpiresAt != "" {
+		fmt.Fprintf(out, "the token expires at %s; scopes: %s\n", dev.ExpiresAt, strings.Join(dev.Scopes, ", "))
+	}
 	return nil
 }
 
