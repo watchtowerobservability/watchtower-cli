@@ -1,6 +1,6 @@
 {
   "name": "@watchtowerobservability/cli",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Watchtower command line client (downloads and verifies the release binary)",
   "license": "Apache-2.0",
   "repository": "github:watchtowerobservability/watchtower-cli",

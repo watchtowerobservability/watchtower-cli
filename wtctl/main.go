@@ -24,6 +24,9 @@ func main() {
 	if len(os.Args) >= 3 && os.Args[1] == "release" && os.Args[2] == "gate" {
 		// --wait can outlast the 60 s of the other release commands; the flag bounds it.
 		code, err := gateMain(context.Background(), os.Args[3:], os.Stdout)
+		if helpExit(err, os.Args[3:]) {
+			return
+		}
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "release gate failed:", err)
 		}
@@ -32,7 +35,7 @@ func main() {
 	if len(os.Args) >= 2 && os.Args[1] == "release" {
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
-		if err := releaseMain(ctx, os.Args[2:], os.Stdout); err != nil {
+		if err := releaseMain(ctx, os.Args[2:], os.Stdout); err != nil && !helpExit(err, os.Args[2:]) {
 			fmt.Fprintln(os.Stderr, "release failed:", err)
 			os.Exit(1)
 		}
@@ -120,7 +123,7 @@ func main() {
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), limit)
 			defer cancel()
-			if err := run(ctx, os.Args[2:], os.Stdout); err != nil {
+			if err := run(ctx, os.Args[2:], os.Stdout); err != nil && !helpExit(err, os.Args[2:]) {
 				var ec exitCode
 				if errors.As(err, &ec) {
 					os.Exit(int(ec)) // `checks run` reports its own exit code (0, 1 or 2)
@@ -192,4 +195,24 @@ func main() {
 		fmt.Fprintln(os.Stderr, "send-test failed:", err)
 		os.Exit(1)
 	}
+}
+
+// helpExit reports whether a command failed only because -h/--help was asked for: the flag
+// package has printed the usage, so the exit is 0, not a failure.
+func helpExit(err error, args []string) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, flag.ErrHelp) {
+		return true
+	}
+	for _, a := range args {
+		switch a {
+		case "--":
+			return false
+		case "-h", "--h", "-help", "--help":
+			return true
+		}
+	}
+	return false
 }

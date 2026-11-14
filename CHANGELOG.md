@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.3
+
+- `-h` and `--help` print usage and exit 0 on every subcommand (they exited 1 with "flag: help requested").
+- npm install: `WTCTL_DOWNLOAD_BASE` points the postinstall download at a mirror of the release assets, for runners that only reach the npm registry. Without it, the binary comes from `github.com` (redirected to `objects.githubusercontent.com`).
+
 ## 0.3.2
 
 - `wtctl login`: sign in from the browser with a device code; no key to paste. `--scope bootstrap` gets a token that can create projects and keys but cannot read telemetry, for provisioning from CI. The token is saved owner-only (0600) in the wtctl config.
