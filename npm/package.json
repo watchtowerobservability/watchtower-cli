@@ -6,7 +6,7 @@
   "repository": "github:watchtowerobservability/watchtower-cli",
   "bin": { "wtctl": "bin/wtctl.js" },
   "scripts": { "postinstall": "node install.js", "test": "node --test test.js" },
-  "files": ["bin", "install.js", "lib.js"],
+  "files": ["bin", "install.js", "lib.js", "checksums.json", "LICENSE", "README.md"],
   "publishConfig": { "registry": "https://registry.npmjs.org/", "access": "public" },
   "engines": { "node": ">=20" }
 }

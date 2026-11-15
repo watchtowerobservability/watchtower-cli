@@ -34,6 +34,10 @@ type Client struct {
 	Org     string // set for org-scoped kinds (NewOrg)
 	// ManagedBy goes with every request as X-WT-Managed-By: the API locks what it manages (A31).
 	ManagedBy string
+	// PruneUnmanaged lets Plan's prune delete live resources whose read DTO does not say they
+	// are managed by wtctl; otherwise those are left alone and listed in Unmanaged.
+	PruneUnmanaged bool
+	Unmanaged      []string // "Kind/name" kept by the last prune because no marker proved wtctl owns it
 
 	ids map[string]string // "Kind/name" -> id, filled by Plan and Apply for by-name references (B4)
 }

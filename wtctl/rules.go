@@ -18,6 +18,7 @@ import (
 
 const rulesUsage = "usage: wtctl rules import <rules.yaml> --api <url> --key <key> --project <id>\n" +
 	"       wtctl rules test <tests.yaml> --api <url> --key <key> --project <id>\n" +
+	"       wtctl routing test --labels k=v,... [--api <url> --key <key> --project <id>]\n" +
 	"       wtctl routing import-alertmanager <alertmanager.yaml> --api <url> --key <key> --project <id> [--apply]"
 
 type rulesOpts struct {
@@ -102,6 +103,9 @@ func ruleGroups(src []byte) ([]map[string]any, error) {
 
 // routingMain is `wtctl routing import-alertmanager <file>`: a preview unless --apply.
 func routingMain(ctx context.Context, args []string, out io.Writer) error {
+	if len(args) >= 1 && args[0] == "test" {
+		return routingTest(ctx, args[1:], out)
+	}
 	if len(args) < 1 || args[0] != "import-alertmanager" {
 		return errors.New(rulesUsage)
 	}

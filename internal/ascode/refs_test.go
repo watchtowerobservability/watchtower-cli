@@ -245,6 +245,7 @@ kind: Monitor
 metadata: {name: readyz}
 spec: {env: staging, kind: http}
 `))
+	c.PruneUnmanaged = true // environments carry no marker
 	plan, err := c.Plan(ctx, want, true)
 	if err != nil {
 		t.Fatal(err)

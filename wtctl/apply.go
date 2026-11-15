@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/watchtowerobservability/watchtower-cli/internal/ascode"
 )
 
-const asCodeUsage = "usage: wtctl apply -f <dir|file> --project <id> (or --org <id> for org-only manifests) [--dry-run] [--prune] [--watch] [--interval 5s] [--api <url>] [--key <key>]\n" +
+const asCodeUsage = "usage: wtctl plan [--detailed-exitcode] [-f watchtower.yaml] [--prune] (like diff; exit 2 with --detailed-exitcode when changes are planned)\n" +
+	"       wtctl apply -f <dir|file> --project <id> (or --org <id> for org-only manifests) [--dry-run] [--prune] [--watch] [--interval 5s] [--api <url>] [--key <key>]\n" +
 	"       wtctl diff -f <dir|file> --project <id> [--prune]\n" +
 	"       wtctl export --project <id> [--kinds AlertRule,Monitor] [--out <dir>]"
 
@@ -21,7 +23,7 @@ var secretOut io.Writer = os.Stderr
 
 type asCodeOpts struct {
 	api, key, project, org, file, kinds, outDir string
-	dryRun, prune                               bool
+	dryRun, prune, pruneUnmanaged               bool
 }
 
 func (o *asCodeOpts) flags(name string) *flag.FlagSet {
@@ -30,8 +32,13 @@ func (o *asCodeOpts) flags(name string) *flag.FlagSet {
 	fs.StringVar(&o.key, "key", os.Getenv("WT_API_KEY"), "API key; default $WT_API_KEY")
 	fs.StringVar(&o.project, "project", os.Getenv("WT_PROJECT"), "project id; default $WT_PROJECT")
 	fs.StringVar(&o.org, "org", os.Getenv("WT_ORG"), "org id for org-only manifests (Project, ApiKey, ...) applied without --project; default $WT_ORG, else the key's org")
-	fs.StringVar(&o.file, "f", "", "manifest file or directory")
+	dflt := ""
+	if _, err := os.Stat("watchtower.yaml"); err == nil {
+		dflt = "watchtower.yaml"
+	}
+	fs.StringVar(&o.file, "f", dflt, "manifest file or directory, or a watchtower.yaml bundle (default ./watchtower.yaml)")
 	fs.BoolVar(&o.prune, "prune", false, "also delete live resources of the manifests' kinds that no manifest names")
+	fs.BoolVar(&o.pruneUnmanaged, "prune-unmanaged", false, "with --prune, also delete resources not marked managed-by wtctl (made in the console)")
 	return fs
 }
 
@@ -72,7 +79,14 @@ func (o *asCodeOpts) plan(ctx context.Context, c *ascode.Client) ([]ascode.Chang
 	if err != nil {
 		return nil, err
 	}
-	return c.Plan(ctx, docs, o.prune)
+	c.PruneUnmanaged = o.pruneUnmanaged
+	ch, err := c.Plan(ctx, docs, o.prune)
+	if o.prune && o.pruneUnmanaged && err == nil {
+		fmt.Fprintln(os.Stderr, "warning: --prune-unmanaged deletes resources not marked managed by wtctl")
+	} else if len(c.Unmanaged) > 0 {
+		fmt.Fprintf(os.Stderr, "warning: --prune kept %d resource(s) not marked managed by wtctl (pass --prune-unmanaged to delete): %s\n", len(c.Unmanaged), strings.Join(c.Unmanaged, ", "))
+	}
+	return ch, err
 }
 
 // applyMain is `wtctl apply`: create or update every manifest, delete extras only with --prune.

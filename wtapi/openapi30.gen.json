@@ -11615,7 +11615,8 @@
       "type": "string"
      },
      "purpose": {
-      "type": "string"
+      "$ref": "#/components/schemas/KeyPurposeDoc",
+      "description": "What the key is for; see [`KeyPurposeDoc`]."
      },
      "read_only": {
       "type": "boolean"
@@ -13099,6 +13100,28 @@
     ],
     "type": "object"
    },
+   "AssertionResultDto": {
+    "description": "One assertion of a run and whether it held.",
+    "properties": {
+     "actual": {
+      "description": "What was measured, for example `200`.",
+      "type": "string"
+     },
+     "assertion": {
+      "description": "The condition, for example `[STATUS] == 200`.",
+      "type": "string"
+     },
+     "ok": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "assertion",
+     "ok",
+     "actual"
+    ],
+    "type": "object"
+   },
    "AttachmentDto": {
     "properties": {
      "download_url": {
@@ -13646,6 +13669,30 @@
      "objective",
      "window_days"
     ],
+    "type": "object"
+   },
+   "AutoSloBody": {
+    "additionalProperties": false,
+    "description": "Optional JSON body of the auto-SLO; the query parameters work too and the body wins.",
+    "properties": {
+     "name": {
+      "description": "SLO name (default `\u003cmonitor name\u003e availability`), at most 200 characters.",
+      "nullable": true,
+      "type": "string"
+     },
+     "target": {
+      "description": "The objective, 0.9 to 0.99999 or as a percent (`99.9`); default 99.9 %.",
+      "format": "double",
+      "nullable": true,
+      "type": "number"
+     },
+     "window_days": {
+      "description": "1 to 90 (default 7).",
+      "format": "int32",
+      "nullable": true,
+      "type": "integer"
+     }
+    },
     "type": "object"
    },
    "AvailabilityDto": {
@@ -14203,6 +14250,26 @@
     ],
     "type": "string"
    },
+   "BatchItem": {
+    "properties": {
+     "error": {
+      "nullable": true,
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "status": {
+      "description": "`uploaded`, `skipped` (same bytes already stored) or `failed`.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "status"
+    ],
+    "type": "object"
+   },
    "BatchRequest": {
     "additionalProperties": false,
     "properties": {
@@ -14240,6 +14307,20 @@
      "dataset_id",
      "persona",
      "target"
+    ],
+    "type": "object"
+   },
+   "BatchResult": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/BatchItem"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
     ],
     "type": "object"
    },
@@ -17115,7 +17196,7 @@
       "type": "string"
      },
      "owner_team": {
-      "description": "Slug of an existing team of this project; omit for unowned.",
+      "description": "Slug of a catalog team of this project (`POST .../catalog/teams` or the YAML import), or the slug or id (`tea_...`) of a team of\nthe project's org (`/v1/orgs/{org}/teams`); omit for unowned.",
       "nullable": true,
       "type": "string"
      },
@@ -17193,6 +17274,44 @@
     },
     "required": [
      "data"
+    ],
+    "type": "object"
+   },
+   "CatalogTeamDto": {
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "slug": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "slug",
+     "name"
+    ],
+    "type": "object"
+   },
+   "CatalogTeamRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "chat_channel": {
+      "description": "Chat channel the team's notifications go to (at most 200 characters).",
+      "nullable": true,
+      "type": "string"
+     },
+     "name": {
+      "description": "Display name; defaults to the slug.",
+      "nullable": true,
+      "type": "string"
+     },
+     "slug": {
+      "description": "Lowercase slug, the value of a service's `owner_team`.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "slug"
     ],
     "type": "object"
    },
@@ -17733,12 +17852,29 @@
    },
    "CheckResultDto": {
     "properties": {
+     "assertion_results": {
+      "description": "The outcome of every assertion of the run, passed or failed, in the monitor's order:\n`{assertion, ok, actual}` where `actual` is the measured value (empty when nothing was\nmeasured). A green result lists the assertions that held; empty only for results stored\nbefore this field existed and for kinds without assertions.",
+      "items": {
+       "$ref": "#/components/schemas/AssertionResultDto"
+      },
+      "type": "array"
+     },
      "assertions": {
       "description": "The failed assertions' explanations (empty when every assertion passed). Stored as JSON\ntext in `ClickHouse`; served as an array (W12).",
       "items": {
        "type": "string"
       },
       "type": "array"
+     },
+     "assertions_evaluated": {
+      "description": "How many assertions the run evaluated (the length of `assertion_results`). 0 means \"not\nrecorded\" for results stored before `assertion_results` existed, and for kinds without\nassertions.",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "canary": {
+      "description": "True for a canary burst round (the extra 10 s runs a monitor with `deploy_canary` does\nafter a deploy marker). A canary result is a real check: it alerts like any other and is\nnever `maintenance`; uptime leaves it out so the burst does not skew it. Listings leave\ncanary rounds out unless `include_canary=true`.",
+      "type": "boolean"
      },
      "connect_ms": {
       "format": "float",
@@ -17762,6 +17898,7 @@
       "type": "string"
      },
      "maintenance": {
+      "description": "True when the result fell in a maintenance window of mode `mark_checks`: such a result is\nrecorded but never alerts and is left out of uptime.",
       "type": "boolean"
      },
      "ok": {
@@ -17800,6 +17937,7 @@
      "ok",
      "degraded",
      "maintenance",
+     "canary",
      "dns_ms",
      "connect_ms",
      "tls_ms",
@@ -17808,6 +17946,8 @@
      "status_code",
      "error",
      "assertions",
+     "assertion_results",
+     "assertions_evaluated",
      "trace_id",
      "details"
     ],
@@ -21632,6 +21772,7 @@
      {
       "properties": {
        "token": {
+        "description": "The secret, shown once, here only: it is stored as a SHA-256 hash and no later call\nreturns it. Send it as `Authorization: Bearer \u003ctoken\u003e`. Save it now; lose it and you rotate or mint a new one.",
         "type": "string"
        }
       },
@@ -22983,11 +23124,18 @@
      },
      "range": {
       "type": "string"
+     },
+     "sdk_dropped_db_spans_24h": {
+      "description": "DB spans the Node SDK dropped in the last 24 h (its counter `wt.sdk.db.dropped_spans`),\nwhatever `range` is. Non-zero means the SDK sheds DB spans: raise its span limit.",
+      "format": "int64",
+      "minimum": 0,
+      "type": "integer"
      }
     },
     "required": [
      "range",
-     "data"
+     "data",
+     "sdk_dropped_db_spans_24h"
     ],
     "type": "object"
    },
@@ -24362,7 +24510,7 @@
    "DbExplainFinding": {
     "properties": {
      "evidence": {
-      "description": "N+1: `trace_id`, `parent_span_id`, `count`, `total_ms`. Wait state: `spans`, `wait_ms`, `events`.",
+      "description": "N+1: `trace_id`, `parent_span_id`, `count`, `total_ms`, and `code: {file, line, function,\nrepo_url}` when the spans carry `code.*` attributes. Wait state: `spans`, `wait_ms`, `events`.",
       "type": "object"
      },
      "first_seen": {
@@ -25436,6 +25584,10 @@
      "id": {
       "type": "string"
      },
+     "impact_url": {
+      "description": "What changed after this deploy, before vs after (30 min each; `?window_min=` 5 to 240).",
+      "type": "string"
+     },
      "project_id": {
       "type": "string"
      },
@@ -25480,7 +25632,8 @@
      "started_at",
      "status",
      "source",
-     "service"
+     "service",
+     "impact_url"
     ],
     "type": "object"
    },
@@ -25530,6 +25683,10 @@
       "$ref": "#/components/schemas/Delta",
       "nullable": true
      },
+     "new_issues": {
+      "$ref": "#/components/schemas/NewIssues",
+      "description": "Issues first seen in the after-window with this release as first release."
+     },
      "p95_ms": {
       "$ref": "#/components/schemas/Delta",
       "nullable": true
@@ -25550,6 +25707,7 @@
      "env_id",
      "version",
      "signals",
+     "new_issues",
      "card"
     ],
     "type": "object"
@@ -27851,6 +28009,7 @@
    "EntitlementsDto": {
     "properties": {
      "check_min_interval_s": {
+      "description": "Fastest allowed check interval in seconds; a faster check answers 422 `limit_reached` with metric `check_min_interval_s`. 300 on `free`, 60 on `team`, 30 on `business` and `scale` and on a self-hosted install without a license.",
       "format": "int32",
       "minimum": 0,
       "type": "integer"
@@ -27887,6 +28046,7 @@
       "type": "integer"
      },
      "metric": {
+      "description": "One of `oncall_seats`, `escalation_paths`, `checks`, `check_runs_month`, `monitored_hosts`, `fleet_agents`, `private_locations`; the same names are the `metric` of a 422 `limit_reached`.",
       "type": "string"
      }
     },
@@ -31317,7 +31477,7 @@
     "description": "One invalid input field, as listed in a problem's `errors`.",
     "properties": {
      "in": {
-      "description": "`body` or `query`.",
+      "description": "`body`, `query`, or `request` when the check spans several inputs (`name` is then `$`).",
       "type": "string"
      },
      "name": {
@@ -33958,24 +34118,26 @@
       "type": "boolean"
      },
      "max_error_rate": {
-      "description": "0..1, errors over requests.",
+      "description": "A rate, 0..1 (0.02 = 2 %): errors over requests. See `max_error_rate_pct` for percent.",
       "format": "double",
       "nullable": true,
       "type": "number"
      },
      "max_new_issues": {
+      "description": "A count of issues first seen in the window.",
       "format": "int32",
       "minimum": 0,
       "nullable": true,
       "type": "integer"
      },
      "max_p95_ms": {
+      "description": "Milliseconds.",
       "format": "double",
       "nullable": true,
       "type": "number"
      },
      "min_crash_free_sessions": {
-      "description": "0..1.",
+      "description": "A rate, 0..1 (0.99 = 99 %). See `min_crash_free_sessions_pct` for percent.",
       "format": "double",
       "nullable": true,
       "type": "number"
@@ -38041,6 +38203,79 @@
     ],
     "type": "object"
    },
+   "IngestGap": {
+    "properties": {
+     "data_may_be_lost": {
+      "description": "`true` when data this project sent in the window for the listed signals may not have been\nstored. Re-send it if you can: delivery is at-least-once and the pipeline de-duplicates.",
+      "type": "boolean"
+     },
+     "from": {
+      "description": "Start of the overlap of the incident with the query range (RFC 3339).",
+      "type": "string"
+     },
+     "incident_id": {
+      "type": "string"
+     },
+     "loss_risk": {
+      "description": "`likely` while the state is `down` (writes were refused or dropped), `possible` while `degraded`.",
+      "type": "string"
+     },
+     "ongoing": {
+      "description": "`true` while the incident is still open.",
+      "type": "boolean"
+     },
+     "reason": {
+      "description": "Customer-facing reason, for example `ingest broker disk is 100% full`.",
+      "type": "string"
+     },
+     "signals": {
+      "description": "Affected signals: `traces`, `logs`, `metrics`, `rum`.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "state": {
+      "description": "`degraded` or `down`.",
+      "type": "string"
+     },
+     "to": {
+      "description": "End of the overlap; the end of the range while the incident is open.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "incident_id",
+     "from",
+     "to",
+     "state",
+     "signals",
+     "reason",
+     "data_may_be_lost",
+     "loss_risk",
+     "ongoing"
+    ],
+    "type": "object"
+   },
+   "IngestGaps": {
+    "properties": {
+     "data": {
+      "description": "Incident windows overlapping the range, oldest first.",
+      "items": {
+       "$ref": "#/components/schemas/IngestGap"
+      },
+      "type": "array"
+     },
+     "range": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "range",
+     "data"
+    ],
+    "type": "object"
+   },
    "IngestIncidentDto": {
     "properties": {
      "ended_at": {
@@ -39322,6 +39557,33 @@
     ],
     "type": "object"
    },
+   "IssueCodeLocation": {
+    "description": "Where a performance finding's spans ran (`code.*` span attributes) and the service's repository.",
+    "properties": {
+     "file": {
+      "type": "string"
+     },
+     "function": {
+      "nullable": true,
+      "type": "string"
+     },
+     "line": {
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "repo_url": {
+      "description": "The service's repository page (its repo link); null without one.",
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "file"
+    ],
+    "type": "object"
+   },
    "IssueDetail": {
     "allOf": [
      {
@@ -39329,6 +39591,11 @@
      },
      {
       "properties": {
+       "code": {
+        "$ref": "#/components/schemas/IssueCodeLocation",
+        "description": "Performance issues (N+1, consecutive calls): the source location from the spans' `code.*`\nattributes with the service's `repo_url`; absent when the spans carried none.",
+        "nullable": true
+       },
        "replays": {
         "description": "Up to 20 sessions of the issue's error events, newest first, with replay links from\n`settings/product-analytics` (url null without that setting).",
         "items": {
@@ -39361,6 +39628,11 @@
       "type": "string"
      },
      "culprit": {
+      "type": "string"
+     },
+     "environment": {
+      "description": "Environment name of the issue's first event (same fill rules as `service`).",
+      "nullable": true,
       "type": "string"
      },
      "escalated_at": {
@@ -39418,6 +39690,11 @@
       "type": "string"
      },
      "resolved_in_release_id": {
+      "nullable": true,
+      "type": "string"
+     },
+     "service": {
+      "description": "Service of the issue's first event. Null only for an old issue whose events are gone or\nnot yet seen again; `GET` of one issue fills it from its first event.",
       "nullable": true,
       "type": "string"
      },
@@ -41003,6 +41280,16 @@
     ],
     "type": "object"
    },
+   "KeyPurposeDoc": {
+    "description": "What an API key is for. Only `general` and `mcp` can be requested.",
+    "enum": [
+     "general",
+     "mcp",
+     "investigation",
+     "eval"
+    ],
+    "type": "string"
+   },
    "KeyState": {
     "properties": {
      "project_id": {
@@ -41146,8 +41433,24 @@
       },
       "type": "array"
      },
+     "previewable": {
+      "description": "Whether `POST /v1/projects/{prj}/alert-rules:preview` can evaluate this kind. When\n`false`, create the rule with `enabled: false`, watch\n`GET /v1/projects/{prj}/alert-rules/{rule}/evaluations`, then enable it.",
+      "type": "boolean"
+     },
+     "project_wide": {
+      "description": "The opposite of `supports_env`: the rule covers the whole project and `env_id` is refused\n(422).",
+      "type": "boolean"
+     },
+     "query_key": {
+      "description": "The key of the `query` object for this kind. It is the kind's name except for `log`\n(`log_count`), `metric` (`promql`) and `check` (`check_failed`).",
+      "type": "string"
+     },
      "summary": {
       "type": "string"
+     },
+     "supports_env": {
+      "description": "Whether the rule's `env_id` may be set: `false` for the kinds that read the control plane\n(`audit_event`, `quota_usage`, `ai_spend`, `profile_function`, `cardinality`), where a\nrule with an `env_id` is refused with 422. Every other kind, issue kinds included,\naccepts it.",
+      "type": "boolean"
      },
      "value": {
       "description": "What the rule's value is (what the condition compares).",
@@ -41607,6 +41910,41 @@
     "required": [
      "id",
      "title"
+    ],
+    "type": "object"
+   },
+   "LastResult": {
+    "description": "The newest check result of a monitor (any location).",
+    "properties": {
+     "at_ms": {
+      "description": "Unix milliseconds.",
+      "format": "int64",
+      "type": "integer"
+     },
+     "canary": {
+      "description": "The result came from a canary run.",
+      "type": "boolean"
+     },
+     "maintenance": {
+      "description": "The result fell in a maintenance window.",
+      "type": "boolean"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "status_code": {
+      "description": "HTTP status; 0 when the check did not get one (non-HTTP kinds, connection failure).",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "ok",
+     "status_code",
+     "at_ms",
+     "maintenance",
+     "canary"
     ],
     "type": "object"
    },
@@ -45867,6 +46205,7 @@
     "type": "object"
    },
    "MatchOp": {
+    "description": "Matcher operator: `eq`, `ne`, `re` or `nre` (aliases `=`, `!=`, `=~`, `!~`).",
     "enum": [
      "eq",
      "ne",
@@ -45876,15 +46215,17 @@
     "type": "string"
    },
    "Matcher": {
-    "additionalProperties": false,
+    "description": "A label matcher `{name, op, value}`; `label` is accepted for `name`, and `op` is one of `eq`,\n`ne`, `re`, `nre` or the aliases `=`, `!=`, `=~`, `!~`. Also accepted on input: Alertmanager's\n`{name, value, isRegex, isEqual}` (`isEqual: false` with `isRegex: true` is `nre`) and an\nAlertmanager string such as `severity=~\"crit|page\"`. Output is always `{name, op, value}`.\nA missing label matches as the empty string; regexes are anchored.",
     "properties": {
      "name": {
+      "description": "Label name.",
       "type": "string"
      },
      "op": {
       "$ref": "#/components/schemas/MatchOp"
      },
      "value": {
+      "description": "Label value, or a regular expression with `re` and `nre`.",
       "type": "string"
      }
     },
@@ -48244,6 +48585,63 @@
     ],
     "type": "object"
    },
+   "MonitorConfigDoc": {
+    "description": "What `config` holds, by `kind`. Kinds without a schema here (udp, icmp, smtp, ...) take the\nfields of their probe driver; a wrong key is a 422 that lists the accepted ones.",
+    "oneOf": [
+     {
+      "$ref": "#/components/schemas/MonitorHttpConfig"
+     },
+     {
+      "$ref": "#/components/schemas/MonitorTcpConfig"
+     },
+     {
+      "$ref": "#/components/schemas/MonitorDnsConfig"
+     },
+     {
+      "$ref": "#/components/schemas/MonitorTlsConfig"
+     },
+     {
+      "$ref": "#/components/schemas/MonitorHeartbeatConfig"
+     }
+    ]
+   },
+   "MonitorDnsConfig": {
+    "additionalProperties": false,
+    "description": "`kind: dns`.",
+    "properties": {
+     "dnssec": {
+      "description": "Ask for DNSSEC validation and report the AD flag.",
+      "nullable": true,
+      "type": "boolean"
+     },
+     "expect": {
+      "description": "Answers that must all be present.",
+      "items": {
+       "type": "string"
+      },
+      "nullable": true,
+      "type": "array"
+     },
+     "name": {
+      "description": "The name to resolve.",
+      "type": "string"
+     },
+     "resolver": {
+      "description": "Resolver IP, optionally `ip:port`.",
+      "nullable": true,
+      "type": "string"
+     },
+     "type": {
+      "description": "Record type, default `A`.",
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "type": "object"
+   },
    "MonitorDto": {
     "allOf": [
      {
@@ -48251,9 +48649,19 @@
      },
      {
       "properties": {
+       "alert_readiness": {
+        "$ref": "#/components/schemas/AlertingReadiness",
+        "description": "Can an alert about this monitor reach someone: `ready`, and in `missing` what lacks (no\nroute, no deliverable target, `alert=false`). Same content as the deprecated `alerting`.\nNot whether the monitor is firing: that is `status`. Set on reads.",
+        "nullable": true
+       },
        "alerting": {
         "$ref": "#/components/schemas/AlertingReadiness",
-        "description": "Whether a page about this monitor can be delivered; set on reads.",
+        "description": "Whether a page about this monitor can be delivered: `{ready, missing[]}`. Despite the name\nit does not say the monitor is firing; it means \"can alert\". Deprecated alias of\n`alert_readiness`, kept for existing clients. Set on reads.",
+        "nullable": true
+       },
+       "canary": {
+        "$ref": "#/components/schemas/OpenCanaryDto",
+        "description": "The canary running now (a deploy marker opened it for a monitor with `deploy_canary`, or\n`POST .../canary` did); null when none. Set on reads.",
         "nullable": true
        },
        "config_error": {
@@ -48267,6 +48675,11 @@
        "id": {
         "type": "string"
        },
+       "last_result": {
+        "$ref": "#/components/schemas/LastResult",
+        "description": "The newest check result (any location); null when there is none in the last 7 days. Set\non reads.",
+        "nullable": true
+       },
        "last_run_at": {
         "description": "When the newest check result arrived (RFC 3339); null when there is none in the last 7\ndays. Set on reads.",
         "nullable": true,
@@ -48278,6 +48691,10 @@
        "rule_id": {
         "description": "The managed alert rule, when `alert` is set.",
         "nullable": true,
+        "type": "string"
+       },
+       "status": {
+        "description": "`paused` (disabled), `up` or `down` by the newest result, `unknown` without one. Set on\nreads.",
         "type": "string"
        },
        "updated_at": {
@@ -48294,6 +48711,7 @@
       "required": [
        "id",
        "project_id",
+       "status",
        "created_at",
        "updated_at"
       ],
@@ -48358,6 +48776,137 @@
      "replays",
      "canaries",
      "missing"
+    ],
+    "type": "object"
+   },
+   "MonitorHeartbeatConfig": {
+    "additionalProperties": false,
+    "description": "`kind: heartbeat`: a push monitor that waits for check-ins (`POST /v1/checkins/{slug}`).\n`interval_s` on the monitor is ignored; the schedule decides.",
+    "properties": {
+     "failure_threshold": {
+      "description": "Failed runs in a row before the monitor is down, 1 to 100.",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "grace_s": {
+      "description": "Seconds a check-in may be late before the monitor is down, 0 to 86400.",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "max_runtime_s": {
+      "description": "A started run that does not finish within this is a failure, 1 to 86400 (null: no limit).",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "recovery_threshold": {
+      "description": "Good runs in a row before it recovers, 1 to 100.",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "schedule": {
+      "$ref": "#/components/schemas/MonitorHeartbeatSchedule"
+     },
+     "slug": {
+      "description": "1 to 64 characters of letters, digits, `-`, `_` and `.`; the check-in URL names it.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "slug",
+     "schedule"
+    ],
+    "type": "object"
+   },
+   "MonitorHeartbeatSchedule": {
+    "additionalProperties": false,
+    "description": "Exactly one of `interval_s` and `crontab`.",
+    "properties": {
+     "crontab": {
+      "description": "Five fields (or six with a leading `0`, or `@daily` and the like).",
+      "nullable": true,
+      "type": "string"
+     },
+     "interval_s": {
+      "description": "A check-in is due every this many seconds, 10 to 2678400.",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "tz": {
+      "description": "IANA time zone of `crontab` (default UTC); not with `interval_s`.",
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "MonitorHttpConfig": {
+    "additionalProperties": false,
+    "description": "`kind: http`. Credentials never go here: use `auth` with `password_ref` / `token_ref`.",
+    "properties": {
+     "auth": {
+      "description": "`{type: basic|bearer|negotiate, username, password_ref, token_ref, realm, kdc, spn}`.",
+      "nullable": true,
+      "type": "object"
+     },
+     "body": {
+      "description": "Request body, at most 1 MiB.",
+      "nullable": true,
+      "type": "string"
+     },
+     "cache_bypass": {
+      "description": "Add a cache-busting query parameter to each request.",
+      "nullable": true,
+      "type": "boolean"
+     },
+     "client_cert_secret": {
+      "description": "`{{secret.NAME}}`: a PEM client certificate and key.",
+      "nullable": true,
+      "type": "string"
+     },
+     "headers": {
+      "description": "Header values are write-only: `***` or null keeps the stored value. No `Authorization`,\n`Proxy-Authorization` or `Cookie` here.",
+      "nullable": true,
+      "type": "object"
+     },
+     "ip_version": {
+      "description": "`4` or `6`.",
+      "nullable": true,
+      "type": "string"
+     },
+     "max_redirects": {
+      "description": "0 to 10.",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "method": {
+      "description": "`GET` (default), `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` or `OPTIONS`.",
+      "nullable": true,
+      "type": "string"
+     },
+     "tls_verify": {
+      "description": "Verify the certificate (default true).",
+      "nullable": true,
+      "type": "boolean"
+     },
+     "url": {
+      "description": "`http://` or `https://`, at most 2048 bytes, no credentials in it.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "url"
     ],
     "type": "object"
    },
@@ -48430,7 +48979,8 @@
         "type": "array"
        },
        "config": {
-        "description": "Driver config. `http`: `url`, `method`, `headers`, `body`, `max_redirects` (0 to 10),\n`tls_verify`, `ip_version` (`4` or `6`), `auth` `{type, username, password_ref|token_ref}`.\nCredentials never go here."
+        "$ref": "#/components/schemas/MonitorConfigDoc",
+        "description": "Driver config, by `kind`: `MonitorHttpConfig`, `MonitorTcpConfig`, `MonitorDnsConfig`,\n`MonitorTlsConfig` or `MonitorHeartbeatConfig` (the other kinds take their driver's\nfields). `http` for example: `url`, `method`, `headers`, `body`, `max_redirects` (0 to\n10), `tls_verify`, `ip_version` (`4` or `6`), `auth`. An unknown key is a 422 that lists\nthe accepted ones. Credentials never go here."
        },
        "degraded_ms": {
         "description": "A passing check slower than this is degraded, not down.",
@@ -48438,6 +48988,10 @@
         "minimum": 0,
         "nullable": true,
         "type": "integer"
+       },
+       "deploy_canary": {
+        "description": "Opt in to the deploy canary (default false): after a deploy marker (`change_events` kind\n`deploy`) lands, the monitor runs every 10 s for 5 minutes (below the plan's\n`check_min_interval_s` on purpose, so use it on monitors that tolerate the load). The\nresults are flagged `canary` and still alert; uptime leaves them out. The running canary\nshows as `canary` on the monitor.",
+        "type": "boolean"
        },
        "enabled": {
         "type": "boolean"
@@ -48452,7 +49006,7 @@
         "type": "integer"
        },
        "kind": {
-        "description": "One of the check kinds, `heartbeat` included (see `monitor_heartbeat` for its config).",
+        "description": "One of the check kinds, `heartbeat` included (see the `MonitorHeartbeatConfig` schema for\nits config).",
         "type": "string"
        },
        "locations": {
@@ -48569,6 +49123,71 @@
     ],
     "type": "object"
    },
+   "MonitorTcpConfig": {
+    "additionalProperties": false,
+    "description": "`kind: tcp`.",
+    "properties": {
+     "expect": {
+      "description": "Substring the first bytes from the target must contain.",
+      "nullable": true,
+      "type": "string"
+     },
+     "host": {
+      "type": "string"
+     },
+     "port": {
+      "description": "1 to 65535.",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "send": {
+      "description": "Bytes sent after connecting.",
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "host",
+     "port"
+    ],
+    "type": "object"
+   },
+   "MonitorTlsConfig": {
+    "additionalProperties": false,
+    "description": "`kind: tls`.",
+    "properties": {
+     "host": {
+      "type": "string"
+     },
+     "min_version": {
+      "description": "`1.2` (default) or `1.3`.",
+      "nullable": true,
+      "type": "string"
+     },
+     "port": {
+      "description": "Default 443.",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "server_name": {
+      "description": "SNI and certificate name, default `host`.",
+      "nullable": true,
+      "type": "string"
+     },
+     "tls_verify": {
+      "description": "Verify the chain (default true).",
+      "nullable": true,
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "host"
+    ],
+    "type": "object"
+   },
    "MonitorTriggersTriggerDto": {
     "properties": {
      "created_at": {
@@ -48625,6 +49244,23 @@
    },
    "MonitorUptime": {
     "properties": {
+     "coverage_24h": {
+      "description": "How much of the window the uptime figure covers, 0 to 1: the time from the first counted\nround in the window to now, over the window's length. A monitor created 58 minutes ago has\n0.04 for 24 h. Approximate: gaps after the first round are not subtracted. 0 without data.",
+      "format": "double",
+      "type": "number"
+     },
+     "coverage_30d": {
+      "format": "double",
+      "type": "number"
+     },
+     "coverage_7d": {
+      "format": "double",
+      "type": "number"
+     },
+     "insufficient_data": {
+      "description": "True when the 30 d window holds fewer than 100 counted rounds (the SLO budget route's\nrule: fewer than 100 events), so the percentages are not meaningful yet.",
+      "type": "boolean"
+     },
      "locations": {
       "description": "The newest result of each location (last 24 hours).",
       "items": {
@@ -48636,7 +49272,7 @@
       "type": "string"
      },
      "uptime_24h": {
-      "description": "Fractions 0 to 1; null without any non-maintenance round in the window.",
+      "description": "Fractions 0 to 1: up rounds over rounds that are neither maintenance nor canary. Null\nwhen the window holds no such round (never 1.0 for \"no data\").",
       "format": "double",
       "nullable": true,
       "type": "number"
@@ -48654,6 +49290,10 @@
     },
     "required": [
      "monitor_id",
+     "coverage_24h",
+     "coverage_7d",
+     "coverage_30d",
+     "insufficient_data",
      "locations"
     ],
     "type": "object"
@@ -49289,9 +49929,9 @@
       "type": "string"
      },
      "purpose": {
-      "description": "`general` (default) or `mcp`; investigation and eval keys are minted internally.",
-      "nullable": true,
-      "type": "string"
+      "$ref": "#/components/schemas/KeyPurposeDoc",
+      "description": "`general` (default) or `mcp`; investigation and eval keys are minted internally and answer\n422 here.",
+      "nullable": true
      },
      "read_only": {
       "description": "A read-only key answers 403 `read_only_key` to anything but GET and HEAD.",
@@ -50312,6 +50952,47 @@
     ],
     "type": "object"
    },
+   "NewIssueRef": {
+    "properties": {
+     "events": {
+      "format": "int64",
+      "type": "integer"
+     },
+     "id": {
+      "type": "string"
+     },
+     "title": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "events"
+    ],
+    "type": "object"
+   },
+   "NewIssues": {
+    "properties": {
+     "count": {
+      "description": "Issues first seen after the deploy, inside the after-window, with this release as first release.",
+      "format": "int64",
+      "type": "integer"
+     },
+     "top": {
+      "description": "The five with the most events.",
+      "items": {
+       "$ref": "#/components/schemas/NewIssueRef"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "count",
+     "top"
+    ],
+    "type": "object"
+   },
    "NewItemRequest": {
     "additionalProperties": false,
     "properties": {
@@ -51321,7 +52002,7 @@
     "additionalProperties": false,
     "properties": {
      "env_id": {
-      "description": "Ingest environment (`env_`) of that project.",
+      "description": "Limits the key to one environment (`env_`) of that project; needs `project_id`. Required\nwith an `ingest:*` scope.",
       "nullable": true,
       "type": "string"
      },
@@ -51341,12 +52022,12 @@
       "type": "string"
      },
      "project_id": {
-      "description": "Ingest target (`prj_`), required with an `ingest:*` scope; must be a project of the account.",
+      "description": "Limits the key to this project (`prj_`, all its environments unless `env_id` is given); must\nbe a project of the account. Required with an `ingest:*` scope.",
       "nullable": true,
       "type": "string"
      },
      "scopes": {
-      "description": "Any of `ingest:logs|traces|metrics|errors|alerts|checkins`, `query:read`, `query:sql`,\n`admin:read`, `admin:write`. Omit when `preset` is given.",
+      "description": "Any of `ingest:logs|traces|metrics|errors|alerts|checkins`, `query:read`, `query:sql`,\n`admin:read`, `admin:write`, `ci:write` (releases, deployments, test runs, artifacts),\n`events:write` (post events), `monitors:write` (monitors, maintenance windows, triggers),\n`slos:write` (SLOs) and `bootstrap` (create projects and keys). Omit when `preset` is given.",
       "items": {
        "type": "string"
       },
@@ -51787,6 +52468,11 @@
     "additionalProperties": false,
     "properties": {
      "name": {
+      "type": "string"
+     },
+     "slug": {
+      "description": "Derived from the name when omitted (lower-cased, other characters become '-'; a clash\ngets a `-2`, `-3`... suffix). 409 when given and taken.",
+      "nullable": true,
       "type": "string"
      }
     },
@@ -52930,6 +53616,25 @@
     ],
     "type": "string"
    },
+   "OpenCanaryDto": {
+    "description": "A canary in progress: the monitor runs every 10 s until `until_ms`, results flagged `canary`.",
+    "properties": {
+     "deploy_event_id": {
+      "description": "The deploy marker that opened it; null for a manual canary without one.",
+      "nullable": true,
+      "type": "string"
+     },
+     "until_ms": {
+      "description": "Unix milliseconds the burst ends.",
+      "format": "int64",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "until_ms"
+    ],
+    "type": "object"
+   },
    "OpenIncidentDto": {
     "properties": {
      "id": {
@@ -53411,11 +54116,16 @@
      "updated_at": {
       "nullable": true,
       "type": "string"
+     },
+     "usage_alerts": {
+      "description": "Email the org admins once at 80 % and once at 100 % of a plan limit per period (default true).",
+      "type": "boolean"
      }
     },
     "required": [
      "ip_allowlist",
      "allowed_email_domains",
+     "usage_alerts",
      "caller_ip_allowed"
     ],
     "type": "object"
@@ -53459,6 +54169,11 @@
      "smtp": {
       "$ref": "#/components/schemas/SmtpIn",
       "nullable": true
+     },
+     "usage_alerts": {
+      "description": "`false` turns the 80 % and 100 % plan-limit emails off.",
+      "nullable": true,
+      "type": "boolean"
      }
     },
     "type": "object"
@@ -53840,7 +54555,7 @@
     "additionalProperties": false,
     "properties": {
      "text": {
-      "description": "The whole rules text, at most 64 KiB. A bad line is refused with its line number.",
+      "description": "The whole rules text, at most 64 KiB. A bad line is refused with its line number. One rule\nper line: `\u003ctype\u003e:\u003cglob\u003e \u003cowner\u003e [\u003cowner\u003e...]` with type `path`, `module`, `url` or\n`tag` (`tag:\u003ckey\u003e=\u003cglob\u003e`). An owner is `#team-slug` (a team of the project's org or a\ncatalog team) or a user email such as `alice@example.com`; a bare `@user` handle is not\naccepted. Example: `path:src/billing/* #payments alice@example.com`.",
       "type": "string"
      }
     },
@@ -55126,6 +55841,19 @@
       "type": "string"
      }
     },
+    "type": "object"
+   },
+   "PatchTeamRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "slug": {
+      "description": "New slug: 2 to 40 chars of a-z, 0-9 and '-'; 409 when taken in the org.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "slug"
+    ],
     "type": "object"
    },
    "PatchTemplateRequest": {
@@ -61378,7 +62106,7 @@
       "type": "string"
      },
      "key": {
-      "description": "The whole `wtp_` key. Public by design; protected by the origin allowlist.",
+      "description": "The whole `wtp_` key; use this one. Public by design (it ships in browser code and is\nreturned by every GET), protected by the origin allowlist.",
       "type": "string"
      },
      "name": {
@@ -61420,7 +62148,8 @@
       "type": "string"
      },
      "token": {
-      "description": "The same value as `key`, under the name credentials and API keys use (B14).",
+      "deprecated": true,
+      "description": "Deprecated alias: the same value as `key`, kept so clients written for credentials\n(whose secret field is `token`) keep working. New code reads `key`.",
       "type": "string"
      }
     },
@@ -63994,17 +64723,24 @@
       "$ref": "#/components/schemas/ReadinessDelivery"
      },
      "maturity_score": {
-      "description": "0 to 100: 60 % paging readiness, 40 % of the last 30 days' pages acknowledged.",
+      "description": "0 to 100, `null` with no users: 60 % the share of users `ready_for_paging`, plus 40 % the\nshare of the last 30 days' pages that were acknowledged (100 % when there were none). A\npage still waiting inside its first 15 minutes counts for neither, so a delivered page does\nnot lower the score until it has gone unacknowledged that long. Not affected by whether a\ndelivery succeeded: only by acknowledgements and by user readiness.",
       "format": "int32",
       "minimum": 0,
       "nullable": true,
       "type": "integer"
      },
      "ready": {
+      "description": "Deprecated: same value as `ready_for_paging`; kept for compatibility.",
+      "format": "int64",
+      "type": "integer"
+     },
+     "ready_for_paging": {
+      "description": "How many of the `total` users can be reliably paged now: a verified contact method, an\naudible rule (verified sms, voice or push) firing within 5 minutes, and a channel the\nplatform can deliver.",
       "format": "int64",
       "type": "integer"
      },
      "total": {
+      "description": "On-call users counted.",
       "format": "int64",
       "type": "integer"
      },
@@ -64019,6 +64755,7 @@
      "delivery",
      "total",
      "ready",
+     "ready_for_paging",
      "users"
     ],
     "type": "object"
@@ -64052,6 +64789,13 @@
       },
       "type": "array"
      },
+     "missing": {
+      "description": "What the user still lacks, one actionable sentence each: a verified contact method, a push\nsubscription, an SMS number, a place in a schedule. Empty when none is missing.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
      "ready": {
       "type": "boolean"
      },
@@ -64063,7 +64807,8 @@
      "user_id",
      "ready",
      "flags",
-     "contact_kinds"
+     "contact_kinds",
+     "missing"
     ],
     "type": "object"
    },
@@ -64151,6 +64896,13 @@
      "config": {
       "type": "object"
      },
+     "config_warnings": {
+      "description": "Read-only. One entry per credential-shaped key found in the public `config` (a receiver\nsaved before this was refused); empty when clean. Move the value to `secrets`.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
      "created_at": {
       "type": "string"
      },
@@ -64200,9 +64952,62 @@
      "has_secrets",
      "enabled",
      "created_by",
-     "created_at"
+     "created_at",
+     "config_warnings"
     ],
     "type": "object"
+   },
+   "ReceiverKind": {
+    "description": "Channel kind. What goes where, per kind (`secrets` are write-only; `config` is returned as given):\n\n- `webhook`: `secrets.url` (http or https) and an optional signing `secret` (16 to 256 bytes; generated and shown once when omitted); `config` takes custom headers, auth and `body_template`.\n- `escalation_policy`: `config.policy_id` (`esc_...`); no secrets. Pages whoever is on call.\n- `slack_webhook`, `teams_webhook`, `discord`, `google_chat`, `rocketchat`, `dingding`, `wecom`, `squadcast`: `secrets.url` of the incoming webhook.\n- `mattermost`: `secrets.url`, optional `channel`.\n- `slack_app`, `teams_app`: the connected app (`config`); no webhook URL.\n- `telegram`: `secrets.bot_token`, `chat_id`.\n- `zulip`: `secrets.site`, `email`, `api_key`, `stream`.\n- `webex`: `secrets.bot_token`, `room_id`.\n- `matrix`: `secrets.homeserver`, `access_token`, `room_id`.\n- `email`: your own SMTP in `secrets` (`host`, `from`, `to`; optional `port`, `username`, `password`) or a `provider`.\n- `sms`, `voice`: `secrets.providers` (one or two Twilio or Vonage accounts) and `to`.\n- `pagerduty`: `secrets.routing_key`. `opsgenie`: `secrets.api_key`. `splunk_oncall`: `secrets.api_key`, `routing_key`.\n- `zenduty`, `ilert`: `secrets.integration_key`. `incidentio`: `secrets.url`, `token`.\n- `ntfy`: `secrets.topic`. `gotify`: `secrets.server`, `app_token`. `apprise`: `secrets.server`, `key`.\n- `pushover`: `secrets.app_token`, `user_key`. `signal`: `secrets.server`, `number`, `recipient`.\n- `whatsapp`: `secrets.phone_number_id`, `access_token`, `to`.\n- `wechat`: `secrets.corp_id`, `secret`, `agent_id`. `line`: `secrets.channel_token`, `to`. `threema`: `secrets.gateway_id`, `secret`, `recipient_id`.\n- `sensugo`: `secrets.url`, `api_key`. `alertmanager`: `secrets.url`. `posthog`: `secrets.url`, `api_key`.\n- `kafka_rest`: `secrets.url`, `topic`. `sns`: AWS `access_key`, `secret_key`, `region` and a target. `s3`: `bucket`, `region`, `access_key`, `secret_key`. `mqtt`: `broker_url`, `topic`.\n- `status_page`, `site_banner`: `secrets.provider` and its fields (see the channel catalog).\n- `jira`: ticket settings in `config`, token in `secrets`. `gatus_push`: `config.base_url` (https) and `endpoint_key`, `secrets.token`.\n\nA `credentials_ref` can supply `secrets` from an external store instead.",
+    "enum": [
+     "webhook",
+     "escalation_policy",
+     "slack_webhook",
+     "teams_webhook",
+     "discord",
+     "google_chat",
+     "rocketchat",
+     "dingding",
+     "wecom",
+     "squadcast",
+     "mattermost",
+     "slack_app",
+     "teams_app",
+     "telegram",
+     "zulip",
+     "webex",
+     "matrix",
+     "email",
+     "sms",
+     "voice",
+     "pagerduty",
+     "opsgenie",
+     "splunk_oncall",
+     "zenduty",
+     "ilert",
+     "incidentio",
+     "ntfy",
+     "gotify",
+     "apprise",
+     "pushover",
+     "signal",
+     "whatsapp",
+     "wechat",
+     "line",
+     "threema",
+     "sensugo",
+     "alertmanager",
+     "posthog",
+     "kafka_rest",
+     "sns",
+     "s3",
+     "mqtt",
+     "status_page",
+     "site_banner",
+     "jira",
+     "gatus_push"
+    ],
+    "type": "string"
    },
    "ReceiverPage": {
     "properties": {
@@ -64240,8 +65045,8 @@
       "type": "boolean"
      },
      "kind": {
-      "description": "Channel kind, e.g. `webhook` (`^[a-z][a-z0-9_]{0,39}$`).",
-      "type": "string"
+      "$ref": "#/components/schemas/ReceiverKind",
+      "description": "Channel kind (`^[a-z][a-z0-9_]{0,39}$`); the schema lists the kinds the notifier delivers."
      },
      "name": {
       "type": "string"
@@ -65514,6 +66319,24 @@
      "query_id"
     ],
     "type": "object"
+   },
+   "ReleaseImpact": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/ImpactCard"
+     },
+     {
+      "properties": {
+       "new_issues": {
+        "$ref": "#/components/schemas/NewIssues"
+       }
+      },
+      "required": [
+       "new_issues"
+      ],
+      "type": "object"
+     }
+    ]
    },
    "ReleaseImpactFinding": {
     "properties": {
@@ -66879,19 +67702,79 @@
     ],
     "type": "object"
    },
+   "ResolveAnswer": {
+    "description": "A single position gives the position object; `frames` gives `{results}`.",
+    "oneOf": [
+     {
+      "$ref": "#/components/schemas/ResolveResponse"
+     },
+     {
+      "properties": {
+       "results": {
+        "items": {
+         "$ref": "#/components/schemas/ResolveResponse"
+        },
+        "type": "array"
+       }
+      },
+      "required": [
+       "results"
+      ],
+      "type": "object"
+     }
+    ]
+   },
+   "ResolveFrame": {
+    "description": "One minified position, Sentry stack-frame style. Other frame keys (`function`, `abs_path`,\n...) are ignored so a Sentry frame can be sent as is.",
+    "properties": {
+     "colno": {
+      "description": "One-based column.",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "filename": {
+      "description": "The minified script's URL or path; only its last path segment is used.",
+      "type": "string"
+     },
+     "lineno": {
+      "description": "One-based line.",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "filename",
+     "lineno",
+     "colno"
+    ],
+    "type": "object"
+   },
    "ResolveRequest": {
     "additionalProperties": false,
+    "description": "Either one position (`url`, `line`, `column`) or a list of frames (`frames`), not both.",
     "properties": {
      "column": {
       "description": "One-based column in the minified script.",
       "format": "int32",
       "minimum": 0,
+      "nullable": true,
       "type": "integer"
+     },
+     "frames": {
+      "description": "Sentry-style frames (`{filename, lineno, colno}`), 1 to 100. The answer is\n`{\"results\": [...]}` with one entry per frame, in order.",
+      "items": {
+       "$ref": "#/components/schemas/ResolveFrame"
+      },
+      "nullable": true,
+      "type": "array"
      },
      "line": {
       "description": "One-based line in the minified script.",
       "format": "int32",
       "minimum": 0,
+      "nullable": true,
       "type": "integer"
      },
      "release": {
@@ -66899,15 +67782,13 @@
       "type": "string"
      },
      "url": {
-      "description": "The minified script's URL or path; only its last path segment is used.",
+      "description": "The minified script's URL or path; only its last path segment is used. Needs `line` and\n`column`.",
+      "nullable": true,
       "type": "string"
      }
     },
     "required": [
-     "release",
-     "url",
-     "line",
-     "column"
+     "release"
     ],
     "type": "object"
    },
@@ -69420,11 +70301,17 @@
       "type": "object"
      },
      {
-      "description": "1 when the signal (of `service`) sent nothing in the last `stale_s` seconds, else 0.",
+      "description": "1 when the signal (of `service`) sent nothing in the last `stale_s` seconds, else 0.\n`also` lists more signals (`logs`, `metrics`) that count as signs of life: the rule is 1\nonly when none of them sent anything.",
       "properties": {
        "freshness": {
-        "description": "1 when the signal (of `service`) sent nothing in the last `stale_s` seconds, else 0.",
+        "description": "1 when the signal (of `service`) sent nothing in the last `stale_s` seconds, else 0.\n`also` lists more signals (`logs`, `metrics`) that count as signs of life: the rule is 1\nonly when none of them sent anything.",
         "properties": {
+         "also": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
          "service": {
           "nullable": true,
           "type": "string"
@@ -70110,7 +70997,8 @@
         "$ref": "#/components/schemas/Annotations"
        },
        "condition": {
-        "$ref": "#/components/schemas/Condition"
+        "$ref": "#/components/schemas/Condition",
+        "description": "What breaches, for example `{\"threshold\": {\"op\": \"gt\", \"value\": 5}}` (ops `gt`, `ge`,\n`lt`, `le`, `eq`, `ne`; optional `recovery`, `warn`, `warn_recovery`), or an `anomaly`\nor `forecast` condition."
        },
        "delay_s": {
         "description": "Seconds the window lags the tick, for late data; 0 to 86400 (default 60).",
@@ -70156,7 +71044,8 @@
         "type": "boolean"
        },
        "kind": {
-        "$ref": "#/components/schemas/RuleKind"
+        "$ref": "#/components/schemas/RuleKind",
+        "description": "The rule kind; it must match the key of `query`. `GET /v1/rule-kinds` lists them."
        },
        "labels": {
         "additionalProperties": {
@@ -70174,6 +71063,7 @@
         "type": "integer"
        },
        "name": {
+        "description": "Display name, 1 to 256 bytes.",
         "type": "string"
        },
        "no_data": {
@@ -70186,7 +71076,8 @@
         "type": "integer"
        },
        "query": {
-        "$ref": "#/components/schemas/RuleQuery"
+        "$ref": "#/components/schemas/RuleQuery",
+        "description": "The query object, keyed by the kind's `query_key`, for example\n`{\"log_count\": {\"filter\": {\"severities\": [\"ERROR\"]}}}`. The `example` field of each entry\nof `GET /v1/rule-kinds` is exactly a valid value for this field."
        },
        "recover_after": {
         "description": "Consecutive non-breaching evaluations before a firing group resolves (default 1).",
@@ -71023,6 +71914,39 @@
     ],
     "type": "object"
    },
+   "RunRequested": {
+    "description": "What `:run-now` returns: the request was queued, the result comes later.",
+    "properties": {
+     "monitor_id": {
+      "type": "string"
+     },
+     "requested_at": {
+      "description": "When the request was made (RFC 3339).",
+      "type": "string"
+     },
+     "requested_ms": {
+      "description": "`requested_at` in Unix milliseconds. The engine cannot carry a run id, so the run's own\nresult is the first one of this monitor with `ts_ms \u003e= requested_ms`.",
+      "format": "int64",
+      "type": "integer"
+     },
+     "results_url": {
+      "description": "Where the result appears, newest first; already limited to results since the request.",
+      "type": "string"
+     },
+     "status": {
+      "description": "`queued`: the engine runs the monitor within about 10 seconds, at every location.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "monitor_id",
+     "status",
+     "requested_at",
+     "results_url",
+     "requested_ms"
+    ],
+    "type": "object"
+   },
    "RunResponse": {
     "allOf": [
      {
@@ -71666,6 +72590,7 @@
      {
       "properties": {
        "token": {
+        "description": "The secret, shown once, here only: it is stored as a SHA-256 hash and no later call\nreturns it. Send it as `Authorization: Bearer \u003ctoken\u003e`. Save it now; lose it and you rotate or mint a new one.",
         "type": "string"
        }
       },
@@ -74968,7 +75893,8 @@
      "app",
      "infra",
      "job",
-     "ci"
+     "ci",
+     "browser"
     ],
     "type": "string"
    },
@@ -75179,6 +76105,34 @@
      "service",
      "cost_usd",
      "requests"
+    ],
+    "type": "object"
+   },
+   "ServiceUsage": {
+    "properties": {
+     "bytes_est": {
+      "format": "int64",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "records": {
+      "format": "int64",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "service": {
+      "description": "Empty for metrics (samples carry no service) and unattributed rows.",
+      "type": "string"
+     },
+     "signal": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "signal",
+     "service",
+     "records",
+     "bytes_est"
     ],
     "type": "object"
    },
@@ -75710,6 +76664,7 @@
     "type": "object"
    },
    "Severity": {
+    "description": "`critical`, `high`, `warning` or `info`, on rules and on monitors alike. `medium` is read as\n`warning` (it is always answered as `warning`).",
     "enum": [
      "critical",
      "high",
@@ -75932,15 +76887,30 @@
    },
    "ShapingImpactRequest": {
     "additionalProperties": false,
-    "description": "Optional `POST …/impact` body: evaluate these instead of the stored rule's values.",
+    "description": "Optional `POST …/impact` body: evaluate these instead of the stored rule's values. Takes the\ncreate body unchanged (`signal`, `kind`, `match`, `params`, `mode`); `mode` does not change\nthe estimate.",
     "properties": {
+     "kind": {
+      "description": "Rule kind instead of the stored one (`drop_attrs` reads the attribute rollup).",
+      "nullable": true,
+      "type": "string"
+     },
      "match": {
       "description": "Boolean pipeline expression to evaluate instead of the stored `match`.",
       "nullable": true,
       "type": "string"
      },
+     "mode": {
+      "description": "Accepted so the create body passes unchanged; ignored by the estimate.",
+      "nullable": true,
+      "type": "string"
+     },
      "params": {
       "description": "`drop_attrs` keys to evaluate instead of the stored `params`."
+     },
+     "signal": {
+      "description": "`logs`, `traces` or `metrics` instead of the stored signal.",
+      "nullable": true,
+      "type": "string"
      }
     },
     "type": "object"
@@ -76887,7 +77857,7 @@
       "type": "string"
      },
      "matchers": {
-      "description": "Alerts whose labels match all of these are silenced (at least one, at most 20).",
+      "description": "Alerts whose labels match all of these are silenced (at least one, at most 20). Each is\n`{name, op, value}` with `op` one of `eq`, `ne`, `re`, `nre` (or `=`, `!=`, `=~`, `!~`),\nor Alertmanager's `{name, value, isRegex, isEqual}`. `/alertmanager/api/v2/silences` is the\nAlertmanager-compatible mirror of this resource, for tools that speak that API.",
       "items": {
        "$ref": "#/components/schemas/Matcher"
       },
@@ -78081,6 +79051,11 @@
       "description": "Target good ratio, 0.5 to 0.99999.",
       "format": "double",
       "type": "number"
+     },
+     "runbook_url": {
+      "description": "Where on-call finds what to do when this SLO burns (`http(s)` URL, at most 2000\ncharacters). It is copied onto the two managed burn-rate rules, so their alerts and\nnotifications carry it; changing it here updates both rules.",
+      "nullable": true,
+      "type": "string"
      },
      "service": {
       "description": "Catalog service the SLO belongs to.",
@@ -81838,12 +82813,32 @@
      },
      "name": {
       "type": "string"
+     },
+     "slug": {
+      "description": "Unique per org, 2 to 40 chars of a-z, 0-9 and '-'. A catalog service's `owner_team` takes\nthis slug or the team id.",
+      "type": "string"
      }
     },
     "required": [
      "id",
      "name",
+     "slug",
      "created_at"
+    ],
+    "type": "object"
+   },
+   "TeamMembersDto": {
+    "properties": {
+     "user_ids": {
+      "description": "Member user ids (`usr_...`), sorted.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "user_ids"
     ],
     "type": "object"
    },
@@ -85994,6 +86989,33 @@
     ],
     "type": "object"
    },
+   "UsageByService": {
+    "properties": {
+     "bytes_note": {
+      "type": "string"
+     },
+     "data": {
+      "description": "One row per signal and service; metrics carry no service and have the empty one.",
+      "items": {
+       "$ref": "#/components/schemas/ServiceUsage"
+      },
+      "type": "array"
+     },
+     "from": {
+      "type": "string"
+     },
+     "to": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "from",
+     "to",
+     "bytes_note",
+     "data"
+    ],
+    "type": "object"
+   },
    "UsageDto": {
     "properties": {
      "bytes": {
@@ -86309,11 +87331,16 @@
    },
    "UserResponse": {
     "properties": {
+     "id": {
+      "description": "Alias of `user.id`.",
+      "type": "string"
+     },
      "user": {
       "$ref": "#/components/schemas/UserDto"
      }
     },
     "required": [
+     "id",
      "user"
     ],
     "type": "object"
@@ -86461,6 +87488,18 @@
      "ok",
      "errors",
      "warnings"
+    ],
+    "type": "object"
+   },
+   "ValidateResult": {
+    "description": "The `?validate=1` answer: every check passed, nothing was written.",
+    "properties": {
+     "valid": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "valid"
     ],
     "type": "object"
    },
@@ -87175,7 +88214,7 @@
    "WindowDto": {
     "properties": {
      "active": {
-      "description": "Running now.",
+      "description": "Same as `in_effect`, kept for compatibility. It is not an on/off switch: a window has no\nenabled flag, it exists until deleted.",
       "type": "boolean"
      },
      "created_by": {
@@ -87188,6 +88227,10 @@
      },
      "id": {
       "type": "string"
+     },
+     "in_effect": {
+      "description": "An occurrence of the window (from `rrule`, `tz` and `duration_s`) is running at this moment.",
+      "type": "boolean"
      },
      "mode": {
       "$ref": "#/components/schemas/WindowMode"
@@ -87214,6 +88257,7 @@
      "scope",
      "mode",
      "active",
+     "in_effect",
      "created_by"
     ],
     "type": "object"
@@ -87265,7 +88309,7 @@
      },
      "mode": {
       "$ref": "#/components/schemas/WindowMode",
-      "description": "`mute` (default), `skip_checks` or `mark_checks`.",
+      "description": "What the window does while it runs (default `mute`). `mute`: results are recorded as\nusual and alerts whose labels match `scope.matchers` are muted. `skip_checks`: the engine\ndoes not run the monitors in `scope.monitors`, so they record no results and raise no\nalert. `mark_checks`: the monitors in `scope.monitors` run and their results are flagged\n`maintenance`: they never alert, never change the monitor's state and are excluded from\nuptime.",
       "nullable": true
      },
      "name": {
@@ -87276,7 +88320,8 @@
       "type": "string"
      },
      "scope": {
-      "$ref": "#/components/schemas/WindowScope"
+      "$ref": "#/components/schemas/WindowScope",
+      "description": "What the window covers. `scope.monitors` takes `mon_` ids (a bare UUID is accepted too)."
      },
      "tz": {
       "description": "IANA zone the rule is evaluated in (default `UTC`).",
@@ -87305,7 +88350,7 @@
      },
      "matchers": {
       "default": [],
-      "description": "Alerts whose labels match all of these are muted (mode `mute`).",
+      "description": "Mode `mute` only: an alert is muted when every matcher matches its labels (AND). An empty\nlist matches no alert (it never means \"everything\"), and mode `mute` rejects it; in the\nother modes the matchers are ignored.",
       "items": {
        "$ref": "#/components/schemas/Matcher"
       },
@@ -87313,7 +88358,7 @@
      },
      "monitors": {
       "default": [],
-      "description": "Monitor ids (UUIDs).",
+      "description": "The monitors that `skip_checks` and `mark_checks` act on. Input takes `mon_` ids or bare\nUUIDs; responses show `mon_` ids.",
       "items": {
        "type": "string"
       },
@@ -87790,12 +88835,12 @@
     "type": "http"
    },
    "browserKey": {
-    "description": "Browser key (`wtp_`), safe to embed in pages. Valid only on browser telemetry endpoints; management routes answer 403.",
+    "description": "Browser key (`wtp_`), safe to embed in pages. Valid only on browser telemetry endpoints and on `GET /v1/auth/key` (self-introspection); management routes answer 403.",
     "scheme": "bearer",
     "type": "http"
    },
    "ingestKey": {
-    "description": "Ingestion key (`wti_`). Valid only on the ingest endpoints of the edge; management routes answer 403.",
+    "description": "Ingestion key (`wti_`). Accepted on the ingest endpoints of the edge and on `GET /v1/auth/key` (the key reads its own record: no secret, its scopes and project). Management routes answer 403.",
     "scheme": "bearer",
     "type": "http"
    },
@@ -87808,6 +88853,7 @@
   }
  },
  "info": {
+  "description": "The management API (`/v1/...` on the console host). The ingest gateway, edge and MCP routes (OTLP, `/v1/sampling`, `/v1/rum/*`, replay, check-ins, intake, `/mcp`) are described in a separate spec: https://watchtowerops.net/v1/openapi/ingest.json. Errors: https://watchtowerops.net/docs/errors.",
   "title": "Watchtower control-plane API",
   "version": "0.0.0"
  },
@@ -88246,15 +89292,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -88264,6 +89301,15 @@
        }
       },
       "description": "Missing or invalid credentials"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
      },
      "429": {
       "content": {
@@ -88319,15 +89365,6 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/AgentConfigDto"
-        }
-       }
-      }
-     },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
         }
        }
       }
@@ -88650,15 +89687,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -88670,6 +89698,15 @@
       "description": "Missing or invalid credentials"
      },
      "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
+     },
+     "422": {
       "content": {
        "application/json": {
         "schema": {
@@ -88748,15 +89785,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -88766,6 +89794,15 @@
        }
       },
       "description": "Missing or invalid credentials"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
      },
      "429": {
       "content": {
@@ -88821,15 +89858,6 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/RuleDto"
-        }
-       }
-      }
-     },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
         }
        }
       }
@@ -89083,15 +90111,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -89103,6 +90122,15 @@
       "description": "Missing or invalid credentials"
      },
      "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
+     },
+     "422": {
       "content": {
        "application/json": {
         "schema": {
@@ -89179,15 +90207,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -89197,6 +90216,15 @@
        }
       },
       "description": "Missing or invalid credentials"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
      },
      "429": {
       "content": {
@@ -89225,6 +90253,74 @@
    }
   },
   "/v1/projects/{prj}/catalog/services/{s}": {
+   "delete": {
+    "operationId": "delete_v1_projects_prj_catalog_services_s",
+    "parameters": [
+     {
+      "description": "Project id",
+      "in": "path",
+      "name": "prj",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "description": "Service name",
+      "in": "path",
+      "name": "s",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {},
+     "401": {
+      "content": {
+       "application/problem+json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      },
+      "description": "Missing or invalid credentials"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
+     },
+     "429": {
+      "content": {
+       "application/problem+json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      },
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
+     }
+    },
+    "summary": "Remove a service from the catalog listing: same as `DELETE /v1/projects/{prj}/services/{s}`.\nIt stays hidden until telemetry newer than the deletion arrives; stored telemetry is\nuntouched and its automatic \"stopped reporting\" rule is deleted.",
+    "tags": [
+     "catalog"
+    ]
+   },
    "get": {
     "operationId": "get_v1_projects_prj_catalog_services_s",
     "parameters": [
@@ -89343,15 +90439,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -89391,7 +90478,7 @@
       }
      }
     },
-    "summary": "Create or replace one service's catalog entry. An unknown owner team is 422.",
+    "summary": "Create or replace one service's catalog entry. `owner_team` is a catalog team slug or an org\nteam's slug or id (a catalog team with the same slug wins); unknown is 422.",
     "tags": [
      "catalog"
     ]
@@ -89588,15 +90675,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -89772,15 +90850,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -89792,6 +90861,15 @@
       "description": "Missing or invalid credentials"
      },
      "403": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
+     },
+     "422": {
       "content": {
        "application/json": {
         "schema": {
@@ -90129,15 +91207,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -90147,6 +91216,15 @@
        }
       },
       "description": "Missing or invalid credentials"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
      },
      "429": {
       "content": {
@@ -90201,15 +91279,6 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/PolicyDto"
-        }
-       }
-      }
-     },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
         }
        }
       }
@@ -90636,15 +91705,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -90813,15 +91873,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -90831,6 +91882,15 @@
        }
       },
       "description": "Missing or invalid credentials"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
      },
      "429": {
       "content": {
@@ -90889,15 +91949,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -90909,6 +91960,15 @@
       "description": "Missing or invalid credentials"
      },
      "409": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
+     },
+     "422": {
       "content": {
        "application/json": {
         "schema": {
@@ -91137,15 +92197,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -91166,6 +92217,15 @@
       }
      },
      "409": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
+     },
+     "422": {
       "content": {
        "application/json": {
         "schema": {
@@ -91243,15 +92303,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -91261,6 +92312,15 @@
        }
       },
       "description": "Missing or invalid credentials"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
      },
      "429": {
       "content": {
@@ -91315,15 +92375,6 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/WindowDto"
-        }
-       }
-      }
-     },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
         }
        }
       }
@@ -91566,15 +92617,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -91681,15 +92723,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -91699,6 +92732,15 @@
        }
       },
       "description": "Missing or invalid credentials"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
      },
      "429": {
       "content": {
@@ -91736,6 +92778,15 @@
       "schema": {
        "type": "string"
       }
+     },
+     {
+      "description": "`1` or `true`: dry run; answers 200 `{\"valid\": true}` or the 422 a real write would.",
+      "in": "query",
+      "name": "validate",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
      }
     ],
     "requestBody": {
@@ -91749,20 +92800,21 @@
      "required": true
     },
     "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ValidateResult"
+        }
+       }
+      },
+      "description": "`?validate=1`: `{\"valid\": true}`, nothing written"
+     },
      "201": {
       "content": {
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/MonitorDto"
-        }
-       }
-      }
-     },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
         }
        }
       }
@@ -91994,6 +93046,15 @@
       "schema": {
        "type": "string"
       }
+     },
+     {
+      "description": "`1` or `true`: dry run; answers 200 `{\"valid\": true}` or the 422 a real write would.",
+      "in": "query",
+      "name": "validate",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
      }
     ],
     "requestBody": {
@@ -92013,15 +93074,6 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/MonitorDto"
-        }
-       }
-      }
-     },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
         }
        }
       }
@@ -92108,10 +93160,37 @@
       "schema": {
        "type": "string"
       }
+     },
+     {
+      "description": "`true`: wait up to 30 seconds for the run's first result and answer 200 with it (same\nshape as a `/results` row); on timeout answer 202 as without it.",
+      "in": "query",
+      "name": "wait",
+      "required": false,
+      "schema": {
+       "type": "boolean"
+      }
      }
     ],
     "responses": {
-     "202": {},
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CheckResultDto"
+        }
+       }
+      },
+      "description": "`?wait=true`: the run's first result"
+     },
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RunRequested"
+        }
+       }
+      }
+     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -92151,7 +93230,7 @@
       }
      }
     },
-    "summary": "Run the monitor once, as soon as the engine sees the request. The path segment is\n`{monitor}:run-now`, for example `POST /v1/projects/{prj}/monitors/mon_...:run-now`.",
+    "summary": "Run the monitor once, as soon as the engine sees the request (within about 10 seconds; the run\nis asynchronous, so the response says where the result will be, not what it is). The path\nsegment is `{monitor}:run-now` (or `:run`), for example\n`POST /v1/projects/{prj}/monitors/mon_...:run-now`. Answers 202 with the request time and the\n`results_url` to poll. Requires the `ManageMonitors` permission (project role engineer or\nhigher); a read-only key gets 403. With `?wait=true` it waits up to 30 seconds and answers 200\nwith the run's first result row; the run's id is its time: the first result of the monitor with\n`ts_ms \u003e= requested_ms` is the run's.",
     "tags": [
      "monitors"
     ]
@@ -92176,6 +93255,15 @@
       "schema": {
        "type": "string"
       }
+     },
+     {
+      "description": "`1` or `true`: dry run; answers 200 `{\"valid\": true}` or the 422 a real write would.",
+      "in": "query",
+      "name": "validate",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
      }
     ],
     "requestBody": {
@@ -92196,16 +93284,8 @@
          "$ref": "#/components/schemas/MonitorDto"
         }
        }
-      }
-     },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
+      },
+      "description": "With `?validate=1`: `{\"valid\": true}`, nothing written"
      },
      "401": {
       "content": {
@@ -92305,15 +93385,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -92323,6 +93394,15 @@
        }
       },
       "description": "Missing or invalid credentials"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
      },
      "429": {
       "content": {
@@ -92377,15 +93457,6 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/ScheduleDto"
-        }
-       }
-      }
-     },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
         }
        }
       }
@@ -92638,15 +93709,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -92745,15 +93807,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -92763,6 +93816,15 @@
        }
       },
       "description": "Missing or invalid credentials"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
      },
      "429": {
       "content": {
@@ -92817,15 +93879,6 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/ReceiverDto"
-        }
-       }
-      }
-     },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
         }
        }
       }
@@ -93153,15 +94206,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -93343,15 +94387,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -93409,7 +94444,7 @@
       }
      }
     },
-    "summary": "Save a new version of the tree. `If-Match` must carry the current version (0 before the\nfirst save): 428 without it, 409 when it is stale. Keep route ids stable across versions:\ngroups (and their timers) belong to a route id; a root sent without an `id` keeps the current\nroot's. A tree with no receiver and no child routes routes nothing, so it needs `?confirm=true`\n(422 otherwise).",
+    "summary": "Save a new version of the tree. `If-Match` must carry the current version (0 before the\nfirst save): 428 without it, 409 when it is stale. Keep route ids stable across versions:\ngroups (and their timers) belong to a route id; a root sent without an `id` keeps the current\nroot's. A tree with no receiver and no child routes routes nothing, so it needs `?confirm=true`\n(422 otherwise). The body is the tree, or the `GET` response as it is: `tree` is used and\n`version`, `created_by`, `created_at` and `not_delivering` are ignored.",
     "tags": [
      "routing"
     ]
@@ -93526,15 +94561,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -93642,15 +94668,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -93660,6 +94677,15 @@
        }
       },
       "description": "Missing or invalid credentials"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
      },
      "429": {
       "content": {
@@ -93714,15 +94740,6 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/SilenceDto"
-        }
-       }
-      }
-     },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
         }
        }
       }
@@ -93957,15 +94974,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -94064,15 +95072,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -94082,6 +95081,15 @@
        }
       },
       "description": "Missing or invalid credentials"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
      },
      "429": {
       "content": {
@@ -94137,15 +95145,6 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/SloDto"
-        }
-       }
-      }
-     },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
         }
        }
       }
@@ -94399,15 +95398,6 @@
        }
       }
      },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
-        }
-       }
-      }
-     },
      "401": {
       "content": {
        "application/problem+json": {
@@ -94570,15 +95560,6 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/TemplateDto"
-        }
-       }
-      }
-     },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
         }
        }
       }
@@ -94829,15 +95810,6 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/TemplateDto"
-        }
-       }
-      }
-     },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Problem"
         }
        }
       }

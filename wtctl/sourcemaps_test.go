@@ -159,7 +159,7 @@ func TestSourcemapsUploadReadsEnvAndCreatesTheRelease(t *testing.T) {
 	t.Setenv("WT_PROJECT", "prj_1")
 	dir := t.TempDir()
 	write(t, filepath.Join(dir, "a.js.map"), []byte(`{"version":3}`))
-	if err := sourcemapsMain(context.Background(), []string{"upload", dir, "--release", "1.0.0"}, io.Discard); err != nil {
+	if err := sourcemapsMain(context.Background(), []string{"upload", dir, "--release", "1.0.0", "--bundle=false"}, io.Discard); err != nil {
 		t.Fatal(err)
 	}
 	if len(paths) != 2 || paths[0] != "POST /v1/projects/prj_1/releases" || paths[1] != "POST /v1/projects/prj_1/artifacts" {

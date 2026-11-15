@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- npm install: the expected SHA-256 of each binary is pinned inside the package (`checksums.json`, written at release by `npm/scripts/pin-checksums.mjs`) and checked instead of a `SHA256SUMS` fetched from the same place; without a pin for the version, the downloaded `SHA256SUMS` is used with a warning.
+- npm install: `WTCTL_DOWNLOAD_BASE` must be https (http only for localhost/127.0.0.1) and prints a warning when set.
+- The npm package now ships LICENSE and README.
+
 ## 0.3.3
 
 - `-h` and `--help` print usage and exit 0 on every subcommand (they exited 1 with "flag: help requested").

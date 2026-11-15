@@ -173,8 +173,12 @@ func TestPruneOnlyWithFlag(t *testing.T) {
 		t.Fatal(err)
 	}
 	mon := func(name string) string {
+		lbl := ""
+		if name == "other" { // the read DTO of this one says wtctl manages it
+			lbl = ", labels: {managed-by: wtctl}"
+		}
 		return "apiVersion: watchtower.dev/v1\nkind: Monitor\nmetadata: {name: " + name + "}\n" +
-			"spec: {env_id: env_1, kind: http, interval_s: 60, config: {url: \"https://example.com/health\"}}\n"
+			"spec: {env_id: env_1, kind: http, interval_s: 60, config: {url: \"https://example.com/health\"}" + lbl + "}\n"
 	}
 	write := func(name string) string {
 		d := t.TempDir()
@@ -204,6 +208,22 @@ func TestPruneOnlyWithFlag(t *testing.T) {
 	}
 	if srv.Count("Monitor") != 1 || srv.Count("Template") != 1 {
 		t.Fatalf("prune deletes the unnamed monitor only (monitors=%d templates=%d)", srv.Count("Monitor"), srv.Count("Template"))
+	}
+	// Made in the console: no marker, so --prune keeps it and --prune-unmanaged removes it.
+	if err := applyMain(context.Background(), append([]string{"-f", write("console")}, conn...), &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := applyMain(context.Background(), append([]string{"-f", only, "--prune"}, conn...), &out); err != nil {
+		t.Fatal(err)
+	}
+	if srv.Count("Monitor") != 2 {
+		t.Fatalf("--prune must keep the unmarked monitor (monitors=%d)", srv.Count("Monitor"))
+	}
+	if err := applyMain(context.Background(), append([]string{"-f", only, "--prune", "--prune-unmanaged"}, conn...), &out); err != nil {
+		t.Fatal(err)
+	}
+	if srv.Count("Monitor") != 1 {
+		t.Fatalf("--prune-unmanaged must delete it (monitors=%d)", srv.Count("Monitor"))
 	}
 }
 

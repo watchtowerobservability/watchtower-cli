@@ -108,6 +108,8 @@ var Kinds = []*Kind{
 		{From: "sli.availability.monitor", Kind: "Monitor"},
 		{From: "sli.monitor_state.rule", Kind: "AlertRule"},
 	}},
+	// The API has no update: change a gate by deleting it (--prune) and applying again.
+	{Name: "QualityGate", Path: "quality-gates", CreateOnly: true, Refs: []Ref{{From: "env", To: "env_id", Kind: "Environment"}}},
 	{Name: "CheckSecret", Path: "check-secrets", ByName: true, CreateOnly: true, SecretFields: []string{"value"}},
 	{Name: "IncidentType", Path: "incident-types"},
 	{Name: "Workflow", Path: "workflows"},

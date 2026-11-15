@@ -16,6 +16,7 @@ var serverFields = []string{
 	"has_secrets", "generated_secret", "token", "prefix", "last_used_at", "revoked_at", "active",
 	"observed", "first_seen_ns", "last_seen_ns", "alerting", // alerting: the read-only delivery readiness on rules and monitors
 	"next_eval_at", "groups_truncated", "warnings", // alert rules: scheduler state and create-time notes
+	"managed_by",                                 // set by the API from X-WT-Managed-By
 	"muted_until", "rebuilt_at", "rebuild_error", // monitors (mute state) and schedules (rebuild state)
 }
 

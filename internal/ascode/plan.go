@@ -116,6 +116,7 @@ func (c *Client) Plan(ctx context.Context, docs []Doc, prune bool) ([]Change, er
 		out = append(out, ch)
 	}
 	if prune {
+		c.Unmanaged = nil
 		for _, k := range Kinds {
 			items, ok := live[k.Name]
 			if !ok || k.NoPrune || !inManifests[k.Name] { // kinds listed only to resolve references are never pruned
@@ -128,6 +129,10 @@ func (c *Client) Plan(ctx context.Context, docs []Doc, prune bool) ([]Change, er
 			sort.Strings(names)
 			for _, n := range names {
 				if !want[k.Name+"/"+n] && !referenced[k.Name+"/"+n] {
+					if !c.PruneUnmanaged && !managedByWtctl(items[n].Body) {
+						c.Unmanaged = append(c.Unmanaged, k.Name+"/"+n)
+						continue
+					}
 					out = append(out, Change{Op: OpDelete, Kind: k.Name, Name: n, live: items[n]})
 				}
 			}
@@ -370,3 +375,17 @@ func withRouteReceivers(fields []string, spec map[string]any) []string {
 	}
 	return out
 }
+
+// managedByWtctl reports whether a read DTO carries the marker `managed_by: wtctl` (or the
+// `managed-by` label). Kinds whose DTO has neither never qualify.
+func managedByWtctl(b map[string]any) bool {
+	if v, _ := b["managed_by"].(string); v == ManagedBy0 {
+		return true
+	}
+	l, _ := b["labels"].(map[string]any)
+	v, _ := l[ManagedByKey].(string)
+	return v == ManagedBy0
+}
+
+// ManagedBy0 is the manager name wtctl sends in X-WT-Managed-By.
+const ManagedBy0 = "wtctl"

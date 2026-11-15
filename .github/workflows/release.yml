@@ -115,21 +115,28 @@ jobs:
   npm:
     needs: release
     runs-on: ubuntu-latest
+    # id-token: npm trusted publishing (OIDC) + provenance; NPM_TOKEN stays an optional fallback
     permissions:
       contents: read
-      packages: write
+      id-token: write
     steps:
       - name: Refuse stage versions
         run: case "${GITHUB_REF_NAME#v}" in 0.0.0|0.0.0-*) echo "refusing to release $GITHUB_REF_NAME"; exit 1;; esac
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@watchtowerobservability'
-      - run: node --test npm/test.js
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm install -g npm@^11.5.1 --no-audit --no-fund >/dev/null
       - run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
         working-directory: npm
+      - name: Pin the release's binary checksums inside the package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$GITHUB_REF_NAME" --pattern SHA256SUMS --dir "$RUNNER_TEMP"
+          node npm/scripts/pin-checksums.mjs "$RUNNER_TEMP/SHA256SUMS"
+      - run: node --test npm/test.js
       - name: Pack, install the tarball into a clean project (real postinstall download), run wtctl
         run: |
           tmp="$(mktemp -d)"
@@ -137,7 +144,12 @@ jobs:
           mkdir "$tmp/app" && cd "$tmp/app" && npm init -y >/dev/null
           npm install --no-audit --no-fund "$tmp"/*.tgz
           [ "$(npx --no-install wtctl version | cut -d' ' -f2)" = "${GITHUB_REF_NAME#v}" ]
-      - run: npm publish
+      - name: npm publish (provenance)
         working-directory: npm
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          id="$(node -p 'const p=require("./package.json"); p.name+"@"+p.version')"
+          if npm view "$id" version >/dev/null 2>&1; then echo "$id already on npm"; exit 0; fi
+          [ -n "$NODE_AUTH_TOKEN" ] || unset NODE_AUTH_TOKEN
+          npm publish --provenance --access public

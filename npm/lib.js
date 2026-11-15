@@ -19,10 +19,26 @@ function expectedSum(sums, name) {
 }
 
 function verify(buf, sums, name) {
-  const want = expectedSum(sums, name);
+  checkSum(buf, expectedSum(sums, name), name);
+}
+
+function checkSum(buf, want, name) {
   if (!want) throw new Error(`no checksum for ${name}`);
   const got = crypto.createHash('sha256').update(buf).digest('hex');
   if (got !== want) throw new Error(`checksum mismatch for ${name}`);
 }
 
-module.exports = { assetName, expectedSum, verify };
+// The pinned SHA256 for name from a parsed checksums.json ({version, assets}) for this package version, or null.
+function pinnedSum(pins, version, name) {
+  return pins && pins.version === version && pins.assets && pins.assets[name] ? String(pins.assets[name]).toLowerCase() : null;
+}
+
+// Throws unless the download base is https (plain http only for loopback, for tests).
+function checkBase(root) {
+  let u;
+  try { u = new URL(root); } catch { throw new Error(`WTCTL_DOWNLOAD_BASE is not a URL: ${root}`); }
+  const loopback = u.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname);
+  if (u.protocol !== 'https:' && !loopback) throw new Error('WTCTL_DOWNLOAD_BASE must be an https URL');
+}
+
+module.exports = { assetName, expectedSum, verify, checkSum, pinnedSum, checkBase };

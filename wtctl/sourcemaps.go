@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -31,6 +32,9 @@ var artifactClient = sync.OnceValue(func() *http.Client { return guardedClient(0
 // artifactOpts is where and as whom files are uploaded.
 type artifactOpts struct {
 	api, key, project, release, dist string
+	concurrency                      int  // parallel uploads; 0 = 4
+	bundle                           bool // try POST /artifacts/bundle first (one tar.gz for every map)
+	del                              bool // delete each .map from disk once it is stored
 }
 
 func (o *artifactOpts) flags(fs *flag.FlagSet) {
@@ -75,14 +79,16 @@ func uploadArtifact(ctx context.Context, o artifactOpts, kind, name string, data
 	if err := zw.Close(); err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"?"+q.Encode(), &z)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Bearer "+o.key)
-	req.Header.Set("Content-Type", "application/octet-stream")
-	req.Header.Set("Content-Encoding", "gzip")
-	return doArtifact(req, name)
+	return withRetry(ctx, name, func() (*http.Request, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"?"+q.Encode(), bytes.NewReader(z.Bytes()))
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+o.key)
+		req.Header.Set("Content-Type", "application/octet-stream")
+		req.Header.Set("Content-Encoding", "gzip")
+		return req, nil
+	})
 }
 
 // doArtifact sends req and turns a non-2xx answer into an error naming the file.
@@ -147,7 +153,9 @@ func findFiles(root string, keep func(name string) bool) ([]string, error) {
 	return out, err
 }
 
-// sourcemapsUpload uploads every *.map under dir as a source map named by its relative path.
+// sourcemapsUpload uploads every *.map under dir as a source map named by its relative path:
+// as one bundle when o.bundle and the server has the endpoint, else file by file in parallel.
+// It reports a count and fails when any file failed.
 func sourcemapsUpload(ctx context.Context, o artifactOpts, dir string, out io.Writer) error {
 	names, err := findFiles(dir, func(n string) bool { return strings.HasSuffix(n, ".map") })
 	if err != nil {
@@ -156,21 +164,76 @@ func sourcemapsUpload(ctx context.Context, o artifactOpts, dir string, out io.Wr
 	if len(names) == 0 {
 		return errors.New("no .map files under " + dir)
 	}
-	for _, n := range names {
-		data, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(n)))
-		if err != nil {
+	ok := map[string]bool{}
+	var failed []string
+	if o.bundle {
+		if res, err := uploadBundle(ctx, o, dir, names); err == nil {
+			fmt.Fprintf(out, "bundle: %d uploaded, %d unchanged, %d failed\n", res.Uploaded, res.Skipped, res.Failed)
+			for _, e := range res.Errors {
+				fmt.Fprintln(out, "failed:", e)
+			}
+			if res.Failed > 0 {
+				return fmt.Errorf("%d of %d source maps failed", res.Failed, len(names))
+			}
+			for _, n := range names {
+				ok[n] = true
+			}
+			return o.removeLocal(dir, ok)
+		} else if !errors.Is(err, errNoBundle) {
 			return err
 		}
-		if err := uploadArtifact(ctx, o, "sourcemap", n, data); err != nil {
+	}
+	n := o.concurrency
+	if n <= 0 {
+		n = 4
+	}
+	var mu sync.Mutex
+	sem := make(chan struct{}, n)
+	var wg sync.WaitGroup
+	for _, name := range names {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+			data, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(name)))
+			if err == nil {
+				err = uploadArtifact(ctx, o, "sourcemap", name, data)
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				failed = append(failed, err.Error())
+				return
+			}
+			ok[name] = true
+			fmt.Fprintf(out, "uploaded %s\n", name)
+		}()
+	}
+	wg.Wait()
+	if len(failed) > 0 {
+		sort.Strings(failed)
+		fmt.Fprintf(out, "%d uploaded, %d failed\n", len(ok), len(failed))
+		return fmt.Errorf("%d of %d source maps failed: %s", len(failed), len(names), strings.Join(failed, "; "))
+	}
+	fmt.Fprintf(out, "%d uploaded, 0 failed\n", len(ok))
+	return o.removeLocal(dir, ok)
+}
+
+func (o artifactOpts) removeLocal(dir string, names map[string]bool) error {
+	if !o.del {
+		return nil
+	}
+	for n := range names {
+		if err := os.Remove(filepath.Join(dir, filepath.FromSlash(n))); err != nil {
 			return err
 		}
-		fmt.Fprintf(out, "uploaded %s\n", n)
 	}
 	return nil
 }
 
 func sourcemapsMain(ctx context.Context, args []string, out io.Writer) error {
-	const usage = "usage: wtctl sourcemaps upload <dir> --api <url> --key <key> --project <prj_...> [--release <version>] [--create-release=false] [--dist <dist>]\n       wtctl sourcemaps verify --release <v> --url <script-url> --line <n> --column <c>  (--api and --project default to $WT_API_URL, $WT_PROJECT)"
+	const usage = "usage: wtctl sourcemaps upload <dir> --api <url> --key <key> --project <prj_...> [--release <version>] [--create-release=false] [--dist <dist>] [--concurrency 4] [--delete]\n       wtctl sourcemaps verify --release <v> --url <script-url> --line <n> --column <c>  (--api and --project default to $WT_API_URL, $WT_PROJECT)"
 	if len(args) > 0 && args[0] == "verify" {
 		return sourcemapsVerify(ctx, args[1:], out)
 	}
@@ -180,6 +243,9 @@ func sourcemapsMain(ctx context.Context, args []string, out io.Writer) error {
 	var o artifactOpts
 	fs := flag.NewFlagSet("sourcemaps upload", flag.ContinueOnError)
 	o.flags(fs)
+	fs.IntVar(&o.concurrency, "concurrency", 4, "parallel uploads when not bundling")
+	fs.BoolVar(&o.bundle, "bundle", true, "send every map as one tar.gz to /artifacts/bundle when the server has it")
+	fs.BoolVar(&o.del, "delete", false, "delete each .map from disk after it is stored")
 	create := fs.Bool("create-release", true, "create --release first (idempotent) so it need not exist; =false to require it")
 	if err := fs.Parse(args[2:]); err != nil {
 		return err
