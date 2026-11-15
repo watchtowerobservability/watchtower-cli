@@ -86,6 +86,9 @@ func TestPlanDetailedExitcodeAndNoSecretOutput(t *testing.T) {
 
 func TestExampleFileParses(t *testing.T) {
 	b, err := os.ReadFile("../../docs/product/examples/watchtower.yaml")
+	if os.IsNotExist(err) {
+		t.Skip("docs are not in this tree (the public CLI mirror)")
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
