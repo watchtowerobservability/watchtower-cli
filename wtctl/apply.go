@@ -13,7 +13,7 @@ import (
 	"github.com/watchtowerobservability/watchtower-cli/internal/ascode"
 )
 
-const asCodeUsage = "usage: wtctl plan [--detailed-exitcode] [-f watchtower.yaml] [--prune] (like diff; exit 2 with --detailed-exitcode when changes are planned)\n" +
+const asCodeUsage = "usage: wtctl plan [--detailed-exitcode|--exit-code] [-f watchtower.yaml] [--prune] (like diff; exit 2 with --detailed-exitcode when changes are planned)\n" +
 	"       wtctl apply -f <dir|file> --project <id> (or --org <id> for org-only manifests) [--dry-run] [--prune] [--watch] [--interval 5s] [--api <url>] [--key <key>]\n" +
 	"       wtctl diff -f <dir|file> --project <id> [--prune]\n" +
 	"       wtctl export --project <id> [--kinds AlertRule,Monitor] [--out <dir>]"
@@ -93,7 +93,7 @@ func (o *asCodeOpts) plan(ctx context.Context, c *ascode.Client) ([]ascode.Chang
 func applyMain(ctx context.Context, args []string, out io.Writer) error {
 	var o asCodeOpts
 	fs := o.flags("apply")
-	fs.BoolVar(&o.dryRun, "dry-run", false, "show what would change and write nothing")
+	fs.BoolVar(&o.dryRun, "dry-run", false, "show what would change and write nothing (a failed apply rolls back what it wrote)")
 	watch := fs.Bool("watch", false, "keep running and apply again whenever the files change")
 	every := fs.Duration("interval", 5*time.Second, "how often --watch looks at the files")
 	c, err := o.client(fs, args)

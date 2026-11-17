@@ -52,6 +52,7 @@ func (c *Client) Export(ctx context.Context, kinds []string) ([]Doc, error) {
 		sort.Strings(order)
 		for _, n := range order {
 			d := ExportDoc(k, n, items[n].Body)
+			c.dropReadOnly(ctx, k, &d)
 			if err := c.nameRefs(ctx, k, d.Spec, names); err != nil {
 				return nil, err
 			}

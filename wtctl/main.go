@@ -112,6 +112,8 @@ func main() {
 		"self-update":  selfUpdateMain,
 		"tests":        testsMain,
 		"doctor":       doctorMain,
+		"health":       healthMain,
+		"whoami":       whoamiMain,
 		"env":          envMain,
 		"version":      versionMain,
 		"--version":    versionMain,
@@ -161,6 +163,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "       "+migrateUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       "+shadowUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       "+completionUsage[len("usage: "):])
+		fmt.Fprintln(os.Stderr, "       wtctl doctor [--json] | health [--json] [--fail-on error|warning|never] | whoami [--json]")
 		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(datasetsUsage[len("usage: "):], "\n       ", "\n       "))
 		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(evalsUsage[len("usage: "):], "\n", "\n       "))
 		fmt.Fprintln(os.Stderr, "       "+promptsUsage[len("usage: "):])

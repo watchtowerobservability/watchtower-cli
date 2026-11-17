@@ -39,6 +39,9 @@ type Client struct {
 	PruneUnmanaged bool
 	Unmanaged      []string // "Kind/name" kept by the last prune because no marker proved wtctl owns it
 
+	openapi      map[string]any // the API's OpenAPI document, fetched once per client for Plan's schema check
+	openapiTried bool
+
 	ids map[string]string // "Kind/name" -> id, filled by Plan and Apply for by-name references (B4)
 }
 

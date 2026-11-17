@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -63,17 +64,38 @@ var keyKinds = map[string]string{
 type doctor struct {
 	out  io.Writer
 	http *http.Client
-	bad  int
+	bad  int // checks with status "error"
+	// checks is every check in run order; `--json` prints it.
+	checks []check
 }
 
-func (d *doctor) line(ok bool, what, fix string) {
-	mark := "ok  "
+// check is one machine-readable result: status is ok, warning or error.
+type check struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+	Detail string `json:"detail"`
+	Remedy string `json:"remedy"`
+}
+
+func (d *doctor) line(id string, ok bool, what, fix string) {
+	st := "ok"
 	if !ok {
-		mark = "FAIL"
+		st = "error"
+	}
+	d.add(id, st, what, fix)
+}
+
+func (d *doctor) add(id, status, what, fix string) {
+	mark := map[string]string{"ok": "ok  ", "warning": "warn", "error": "FAIL"}[status]
+	if status == "error" {
 		d.bad++
 	}
+	if status == "ok" {
+		fix = ""
+	}
+	d.checks = append(d.checks, check{id, status, what, fix})
 	fmt.Fprintf(d.out, "[%s] %s\n", mark, what)
-	if !ok && fix != "" {
+	if fix != "" {
 		fmt.Fprintf(d.out, "       fix: %s\n", fix)
 	}
 }
@@ -97,31 +119,71 @@ func (d *doctor) get(ctx context.Context, url, key string) (*http.Response, []by
 
 // doctorMain is `wtctl doctor`: is the API reachable, does the key work and what can it do, do the
 // ingest and edge hosts answer, is the clock right. Every failure prints the concrete fix.
-func doctorMain(ctx context.Context, _ []string, out io.Writer) error {
+func doctorMain(ctx context.Context, args []string, out io.Writer) error {
+	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
+	asJSON := fs.Bool("json", false, "print {\"checks\":[...],\"ok\":bool} instead of text")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	return runDiagnostics(ctx, out, *asJSON, "error", false)
+}
+
+// runDiagnostics runs the doctor checks (plus the project-state checks for `health`), prints text or
+// JSON, and exits 1 when a check at or above failOn exists.
+func runDiagnostics(ctx context.Context, out io.Writer, asJSON bool, failOn string, project bool) error {
 	d := &doctor{out: out, http: guardedClient(10 * time.Second)}
+	if asJSON {
+		d.out = io.Discard
+	}
+	d.run(ctx, project)
+	hit := false
+	for _, c := range d.checks {
+		hit = hit || c.Status == "error" && failOn != "never" || c.Status == "warning" && failOn == "warning"
+	}
+	if asJSON {
+		if d.checks == nil {
+			d.checks = []check{}
+		}
+		b, _ := json.Marshal(struct {
+			Checks []check `json:"checks"`
+			OK     bool    `json:"ok"`
+		}{d.checks, !hit})
+		fmt.Fprintln(out, string(b))
+	} else if !hit {
+		fmt.Fprintln(out, "all checks passed")
+	}
+	if hit {
+		return exitCode(1)
+	}
+	return nil
+}
+
+func (d *doctor) run(ctx context.Context, project bool) {
 	api := strings.TrimRight(firstEnv("WT_API", "WT_API_URL"), "/")
 	key, prj := os.Getenv("WT_API_KEY"), os.Getenv("WT_PROJECT")
 	if api == "" {
-		d.line(false, "no API URL", "export WT_API=https://<your-console-host> (see `wtctl env`; hosted: https://watchtowerops.net) or run `wtctl login --api <url> --key <key> --project <prj>`")
-		return doctorResult(d)
+		d.line("api.url", false, "no API URL", "export WT_API=https://<your-console-host> (see `wtctl env`; hosted: https://watchtowerops.net) or run `wtctl login --api <url> --key <key> --project <prj>`")
+		return
 	}
 	resp, _, err := d.get(ctx, api+"/healthz", "")
 	if err != nil || resp.StatusCode != http.StatusOK {
-		d.line(false, "API "+api+" is not reachable: "+errOrStatus(err, resp), "check the URL is the console/API host (not ingest. or edge.), your network and proxy settings")
-		return doctorResult(d)
+		d.line("api.reachable", false, "API "+api+" is not reachable: "+errOrStatus(err, resp), "check the URL is the console/API host (not ingest. or edge.), your network and proxy settings")
+		return
 	}
-	d.line(true, "API "+api+" answers /healthz", "")
+	d.line("api.reachable", true, "API "+api+" answers /healthz", "")
 	if t, err := http.ParseTime(resp.Header.Get("Date")); err == nil {
 		skew := time.Since(t).Round(time.Second)
-		d.line(skew < 2*time.Minute && skew > -2*time.Minute, fmt.Sprintf("clock skew against the API: %s", skew), "sync this machine's clock (NTP); signed requests and token expiry break past a few minutes of skew")
+		d.line("clock.skew", skew < 2*time.Minute && skew > -2*time.Minute, fmt.Sprintf("clock skew against the API: %s", skew), "sync this machine's clock (NTP); signed requests and token expiry break past a few minutes of skew")
 	}
 	if key == "" {
-		d.line(false, "no API key", "export WT_API_KEY=<key>; create one under Settings > API keys (wtk_/wta_) or POST /v1/me/tokens (wtu_)")
+		d.line("key.present", false, "no API key", "export WT_API_KEY=<key>; create one under Settings > API keys (wtk_/wta_) or POST /v1/me/tokens (wtu_)")
 	} else {
 		d.keyChecks(ctx, api, key, prj)
 	}
 	d.hosts(ctx, api)
-	return doctorResult(d)
+	if project && key != "" && prj != "" {
+		d.projectState(ctx, api, key, prj)
+	}
 }
 
 func (d *doctor) keyChecks(ctx context.Context, api, key, prj string) {
@@ -133,31 +195,31 @@ func (d *doctor) keyChecks(ctx context.Context, api, key, prj string) {
 		fmt.Fprintf(d.out, "       key %s: %s (guessed from the prefix; this server has no GET /v1/auth/key)\n", keyPrefix(key), kind)
 	}
 	if strings.HasPrefix(key, "wti_") || strings.HasPrefix(key, "wtp_") {
-		d.line(false, "this key only sends telemetry and cannot call the API", "for wtctl use an org API key (wtk_) or a service account key (wta_) with admin:read/admin:write; keep the ingest key for SDKs and the agent")
+		d.line("key.api-capable", false, "this key only sends telemetry and cannot call the API", "for wtctl use an org API key (wtk_) or a service account key (wta_) with admin:read/admin:write; keep the ingest key for SDKs and the agent")
 		return
 	}
 	resp, _, err := d.get(ctx, api+"/v1/orgs", key)
 	switch {
 	case err != nil:
-		d.line(false, "key check failed: "+err.Error(), "")
+		d.line("key.authenticates", false, "key check failed: "+err.Error(), "")
 	case resp.StatusCode == http.StatusUnauthorized:
-		d.line(false, "the API rejects this key (401)", "the key is wrong, revoked or expired: create a new one and export WT_API_KEY")
+		d.line("key.authenticates", false, "the API rejects this key (401)", "the key is wrong, revoked or expired: create a new one and export WT_API_KEY")
 	default:
-		d.line(resp.StatusCode == http.StatusOK, fmt.Sprintf("key authenticates (GET /v1/orgs -> %d)", resp.StatusCode), "the key authenticates but lacks read access: give it admin:read or a role on the org")
+		d.line("key.authenticates", resp.StatusCode == http.StatusOK, fmt.Sprintf("key authenticates (GET /v1/orgs -> %d)", resp.StatusCode), "the key authenticates but lacks read access: give it admin:read or a role on the org")
 	}
 	if prj == "" {
-		d.line(false, "no project set", "export WT_PROJECT=<project id> (Settings > Project)")
+		d.line("project.set", false, "no project set", "export WT_PROJECT=<project id> (Settings > Project)")
 		return
 	}
 	for _, p := range []struct{ path, needs string }{{"environments", "project read (admin:read or a role)"}, {"credentials", "admin:read"}} {
 		resp, _, err := d.get(ctx, api+"/v1/projects/"+prj+"/"+p.path, key)
 		switch {
 		case err != nil:
-			d.line(false, "GET "+p.path+": "+err.Error(), "")
+			d.line("project."+p.path, false, "GET "+p.path+": "+err.Error(), "")
 		case resp.StatusCode == http.StatusNotFound:
-			d.line(false, "GET /v1/projects/"+prj+"/"+p.path+" -> 404", "the project id is wrong or this key cannot see the project (inaccessible projects answer 404, not 403)")
+			d.line("project."+p.path, false, "GET /v1/projects/"+prj+"/"+p.path+" -> 404", "the project id is wrong or this key cannot see the project (inaccessible projects answer 404, not 403)")
 		default:
-			d.line(resp.StatusCode == http.StatusOK, fmt.Sprintf("GET %s -> %d (needs %s)", p.path, resp.StatusCode, p.needs), "grant the scope or a role that includes it")
+			d.line("project."+p.path, resp.StatusCode == http.StatusOK, fmt.Sprintf("GET %s -> %d (needs %s)", p.path, resp.StatusCode, p.needs), "grant the scope or a role that includes it")
 		}
 	}
 	d.receipt(ctx, api, key, prj)
@@ -234,16 +296,16 @@ func (d *doctor) hosts(ctx context.Context, api string) {
 		Edge   string `json:"edge_url"`
 	}
 	if err != nil || json.Unmarshal(b, &cfg) != nil {
-		d.line(false, "could not read /v1/platforms/config, so ingest and edge were not checked", "check the API host is the console host")
+		d.add("hosts.config", "warning", "could not read /v1/platforms/config, so ingest and edge were not checked", "check the API host is the console host")
 		return
 	}
-	for _, h := range []struct{ name, url, use string }{{"ingest (gateway)", cfg.Ingest, "OTLP from SDKs and the agent endpoint"}, {"edge", cfg.Edge, "agent fleet_endpoint, browser SDK, CI webhooks"}} {
+	for _, h := range []struct{ id, name, url, use string }{{"ingest", "ingest (gateway)", cfg.Ingest, "OTLP from SDKs and the agent endpoint"}, {"edge", "edge", cfg.Edge, "agent fleet_endpoint, browser SDK, CI webhooks"}} {
 		if h.url == "" {
-			d.line(false, h.name+" URL is not advertised by this install", "set WT_INGEST_URL / WT_EDGE_URL on the API (self-hosted)")
+			d.add("hosts."+h.id, "warning", h.name+" URL is not advertised by this install", "set WT_INGEST_URL / WT_EDGE_URL on the API (self-hosted)")
 			continue
 		}
 		resp, _, err := d.get(ctx, strings.TrimRight(h.url, "/")+"/healthz", "")
-		d.line(err == nil && resp.StatusCode == http.StatusOK, fmt.Sprintf("%s %s answers /healthz (%s)", h.name, h.url, h.use), "check DNS/firewall for "+h.url+": "+errOrStatus(err, resp))
+		d.line("hosts."+h.id, err == nil && resp.StatusCode == http.StatusOK, fmt.Sprintf("%s %s answers /healthz (%s)", h.name, h.url, h.use), "check DNS/firewall for "+h.url+": "+errOrStatus(err, resp))
 	}
 }
 
@@ -261,12 +323,4 @@ func errOrStatus(err error, r *http.Response) string {
 		return err.Error()
 	}
 	return r.Status
-}
-
-func doctorResult(d *doctor) error {
-	if d.bad > 0 {
-		return exitCode(1)
-	}
-	fmt.Fprintln(d.out, "all checks passed")
-	return nil
 }

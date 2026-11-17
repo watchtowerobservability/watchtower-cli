@@ -115,6 +115,9 @@ func (c *Client) Plan(ctx context.Context, docs []Doc, prune bool) ([]Change, er
 		}
 		out = append(out, ch)
 	}
+	if err := c.checkSchemas(ctx, out); err != nil {
+		return nil, err
+	}
 	if prune {
 		c.Unmanaged = nil
 		for _, k := range Kinds {
@@ -153,6 +156,68 @@ func kindRank(name string) int {
 // Apply executes a plan. Secrets the API shows once (health token, generated webhook secret) go to
 // secrets. With dry set nothing is written. It returns the plan with RuleGroup steps resolved.
 func (c *Client) Apply(ctx context.Context, plan []Change, dry bool, secrets io.Writer) ([]Change, error) {
+	var j journal
+	res, err := c.apply(ctx, plan, dry, secrets, &j)
+	if err != nil && !dry {
+		err = fmt.Errorf("%w\n%s", err, c.rollback(ctx, &j))
+	}
+	return res, err
+}
+
+// step is one write of this run, kept so a failure can undo it.
+type step struct {
+	ch     Change
+	id     string // created resource
+	secret bool   // a one-time secret was shown or written
+}
+
+type journal struct {
+	steps []step
+	stuck []string // writes that cannot be undone (deletes, rule groups)
+}
+
+// rollback undoes the journal in reverse and reports what it did.
+func (c *Client) rollback(ctx context.Context, j *journal) string {
+	ctx = context.WithoutCancel(ctx)
+	n := 0
+	var failed []string
+	stuck := j.stuck
+	for i := len(j.steps) - 1; i >= 0; i-- {
+		s := j.steps[i]
+		k := ByKind(s.ch.Kind)
+		var err error
+		switch {
+		case s.ch.Op == OpCreate && k.NoDelete:
+			stuck = append(stuck, "create "+s.ch.Kind+"/"+s.ch.Name)
+			continue
+		case s.ch.Op == OpCreate:
+			err = c.Delete(ctx, k, Item{Ref: s.id, Name: s.ch.Name})
+		default: // update: put the previous values back (fresh read: the version moved)
+			var cur Item
+			if cur, err = c.Get(ctx, k, s.ch.Name); err == nil {
+				_, err = c.Update(ctx, k, cur, s.ch.Name, Project(s.ch.doc.Spec, s.ch.live.Body))
+			}
+		}
+		if err != nil {
+			failed = append(failed, fmt.Sprintf("undo %s %s/%s: %v", s.ch.Op, s.ch.Kind, s.ch.Name, err))
+			continue
+		}
+		n++
+		if s.secret {
+			failed = append(failed, fmt.Sprintf("note: %s/%s was deleted, so the one-time secret already shown or written for it is void", s.ch.Kind, s.ch.Name))
+		}
+	}
+	msg := fmt.Sprintf("rolled back %d change(s)", n)
+	if len(stuck) > 0 {
+		msg += "; could not be undone: " + strings.Join(stuck, ", ")
+	}
+	if len(failed) > 0 {
+		msg += "\n  " + strings.Join(failed, "\n  ")
+	}
+	return msg
+}
+
+func (c *Client) apply(ctx context.Context, plan []Change, dry bool, secrets io.Writer, j *journal) ([]Change, error) {
 	res := make([]Change, 0, len(plan))
 	for _, ch := range plan {
 		k := ByKind(ch.Kind)
@@ -182,6 +247,7 @@ func (c *Client) Apply(ctx context.Context, plan []Change, dry bool, secrets io.
 		if err != nil {
 			return res, fmt.Errorf("%s %s/%s: %w", ch.Op, ch.Kind, ch.Name, err)
 		}
+		wasApply := ch.Op == OpApply
 		if ch.Op == OpApply {
 			if u, _ := out["unchanged"].(bool); u {
 				ch.Op = OpNoop
@@ -190,8 +256,14 @@ func (c *Client) Apply(ctx context.Context, plan []Change, dry bool, secrets io.
 			}
 		}
 		if ch.Op == OpDelete {
+			j.stuck = append(j.stuck, "delete "+ch.Kind+"/"+ch.Name)
 			res = append(res, ch)
 			continue
+		}
+		if wasApply {
+			if ch.Op == OpUpdate {
+				j.stuck = append(j.stuck, "apply "+ch.Kind+"/"+ch.Name)
+			}
 		}
 		id, _ := out["id"].(string)
 		if id == "" {
@@ -201,6 +273,16 @@ func (c *Client) Apply(ctx context.Context, plan []Change, dry bool, secrets io.
 			id = ch.Name
 		}
 		c.remember(ch.Kind, ch.Name, id)
+		if !wasApply {
+			p, _ := ch.doc.Spec["write_token_to"].(string)
+			sec := p != ""
+			for _, f := range []string{"token", "generated_secret"} {
+				if s, _ := out[f].(string); s != "" {
+					sec = true
+				}
+			}
+			j.steps = append(j.steps, step{ch: ch, id: id, secret: sec && ch.Op == OpCreate})
+		}
 		// the one-time token goes to its file first, so a later failure cannot lose it
 		if p, _ := ch.doc.Spec["write_token_to"].(string); p != "" && ch.Op == OpCreate {
 			if err := saveToken(k, ch.Name, ch.doc.Spec, out); err != nil {

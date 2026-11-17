@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
+
+- `plan` and `diff` check every resource against the API's OpenAPI schema (unknown fields, missing required fields, bad enum values) before anything is written; a failed `apply` rolls back what it wrote and says `rolled back N change(s)`.
+- `export` leaves out every top-level field the API's create body refuses (an SLO's `kind`, rule ids, receiver warnings, ...), so an export applies as written. Manifests exported by older versions may carry them: `plan` names each one.
+- New `wtctl whoami [--json]` (what the key is and can reach, prefix only) and `wtctl health [--json] [--fail-on error|warning|never]` (the doctor checks plus telemetry, integrations and monitors of `WT_PROJECT`); `doctor --json`. Each check is `{id, status, detail, remedy}`.
+- `plan --exit-code` is an alias of `--detailed-exitcode`.
+- `--prune` deletes wtctl-managed catalog services.
 
 - npm install: the expected SHA-256 of each binary is pinned inside the package (`checksums.json`, written at release by `npm/scripts/pin-checksums.mjs`) and checked instead of a `SHA256SUMS` fetched from the same place; without a pin for the version, the downloaded `SHA256SUMS` is used with a warning.
 - npm install: `WTCTL_DOWNLOAD_BASE` must be https (http only for localhost/127.0.0.1) and prints a warning when set.
