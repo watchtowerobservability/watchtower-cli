@@ -1,10 +1,10 @@
 {
   "name": "@watchtowerobservability/cli",
-  "version": "0.3.3",
+  "version": "0.5.0",
   "description": "Watchtower command line client (downloads and verifies the release binary)",
   "license": "Apache-2.0",
   "repository": "github:watchtowerobservability/watchtower-cli",
-  "bin": { "wtctl": "bin/wtctl.js" },
+  "bin": { "wtctl": "bin/wtctl.js", "wt": "bin/wtctl.js", "cli": "bin/wtctl.js" },
   "scripts": { "postinstall": "node install.js", "test": "node --test test.js" },
   "files": ["bin", "install.js", "lib.js", "checksums.json", "LICENSE", "README.md"],
   "publishConfig": { "registry": "https://registry.npmjs.org/", "access": "public" },

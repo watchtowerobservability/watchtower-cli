@@ -245,6 +245,11 @@ func verifyBackup(ctx context.Context, d Dest, secret string, m Manifest) error 
 	if err != nil {
 		return err
 	}
+	if os.Getenv("WT_VERIFY_LOCAL") == "1" {
+		// The restore (index builds, WAL, a forced checkpoint on CREATE DATABASE) must not compete with the
+		// API for wt-postgres's one CPU; a private cluster inside this container takes that load instead.
+		return withScratchPG(ctx, func(u string) error { return restoreAndCompare(ctx, dump, u, m) })
+	}
 	pgURL := os.Getenv("WT_PG_URL")
 	admin, err := pgConnect(ctx, pgURL)
 	if err != nil {
@@ -261,6 +266,10 @@ func verifyBackup(ctx context.Context, d Dest, secret string, m Manifest) error 
 	if err != nil {
 		return err
 	}
+	return restoreAndCompare(ctx, dump, scratchURL, m)
+}
+
+func restoreAndCompare(ctx context.Context, dump []byte, scratchURL string, m Manifest) error {
 	if err := pgRestoreInto(ctx, dump, scratchURL, false); err != nil {
 		return err
 	}

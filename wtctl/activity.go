@@ -22,7 +22,8 @@ const activityUsage = `usage: wtctl activity tail --project <prj> --api <url> --
        wtctl activity copy-config --from <prj> --to <prj> --api <url> --key <org API key> [--dry-run]
        wtctl activity templates [--import soc2|iso27001|hipaa|pci|ai_act --project <prj> --api <url> --key <key>]
        wtctl activity get <event id> --project <prj> --api <url> --key <key>
-       wtctl activity batch <batch id> --api <url> --key <wti_...>` + "\n" + activityMonitorUsage + "\n" + activityWitnessUsage
+       wtctl activity batch <batch id> --api <url> --key <wti_...>
+       wtctl activity config plan|apply|get -f activity.json --project <prj> --api <url> --key <key>   (plan --detailed-exitcode: 0 equal, 2 drift, 1 error)` + "\n" + activityMonitorUsage + "\n" + activityWitnessUsage
 
 // activityMain dispatches `wtctl activity ...` (B-5, B-6, B-8, B-9).
 func activityMain(ctx context.Context, args []string, out io.Writer) error {
@@ -44,6 +45,8 @@ func activityMain(ctx context.Context, args []string, out io.Writer) error {
 		return activityTemplatesMain(ctx, args[1:], out)
 	case "get", "batch":
 		return activityGetMain(ctx, args[0], args[1:], out)
+	case "config":
+		return activityConfigMain(ctx, args[1:], out)
 	case "monitor":
 		return activityMonitorMain(ctx, args[1:], out)
 	case "witness":

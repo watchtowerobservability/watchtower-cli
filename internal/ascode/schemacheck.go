@@ -63,7 +63,7 @@ func route(k *Kind, op string) (method, tmpl string) {
 	case op == OpCreate && k.ByName:
 		method, tmpl = http.MethodPut, k.Path+"/{name}"
 	case k.Singleton:
-		method = http.MethodPut
+		method = k.updateMethod()
 	case op == OpUpdate:
 		method, tmpl = k.updateMethod(), k.Path+"/{id}"
 	}

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+
+- New `wtctl activity config plan|apply|get --file activity.json` (`-f` works too): the whole Activity project config (schemas, theme, policy, retention, alert rules, hooks, `secret_ref` names) as code. `plan --detailed-exitcode` (alias `--exit-code`) exits 0 when nothing changes, 2 on drift, 1 on an error; without the flag drift exits 0, like `wtctl plan`. `--json` prints exactly the server's plan document (the same as `config.plan()` in the Activity SDK). Runs with a project-scoped service-account key holding the scope `config:activity`.
+- `activity config plan` prints the `retention` section and, for a theme change, one line per key (`theme  showMetadata: true → absent`, from the plan's `key_changes`; keys without a scalar value say `changed`), sorted, and every warning with its `code` (`warning [metadata_hidden]: ...`), so a CI log shows them. `--json` is still the server's document untouched.
+- npm: the version of the package is the version of the binary it downloads: `npm/package.json`, the top entry of this file and the release tag must agree (a test and the release workflow check it).
+- npm: the package installs the binary under two names, `wtctl` and `wt` (`wt activity config plan ...`), plus `cli` so that `npx` still finds its executable now that there are several. `npx @watchtowerobservability/cli activity config plan ...` passes every argument and the exit code through.
+
 ## 0.4.0
 
 - `plan` and `diff` check every resource against the API's OpenAPI schema (unknown fields, missing required fields, bad enum values) before anything is written; a failed `apply` rolls back what it wrote and says `rolled back N change(s)`.

@@ -634,6 +634,13 @@
       "minimum": 0,
       "type": "integer"
      },
+     "attachments": {
+      "description": "Events that stored hidden metadata or a `detail_blob` cold: `{index, attachment?, detail_ref?}`.",
+      "items": {
+       "$ref": "#/components/schemas/ActivityAttachmentNote"
+      },
+      "type": "array"
+     },
      "batch_id": {
       "description": "With `async=true`: the queued batch.",
       "nullable": true,
@@ -700,6 +707,86 @@
     ],
     "type": "object"
    },
+   "ActivityAccountGroup": {
+    "properties": {
+     "accounts": {
+      "description": "Member accounts.",
+      "format": "int64",
+      "type": "integer"
+     },
+     "name": {
+      "type": "string"
+     },
+     "retention_days": {
+      "description": "Inherited by member accounts without their own override; null = the project's retention.",
+      "format": "int32",
+      "nullable": true,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "name",
+     "accounts"
+    ],
+    "type": "object"
+   },
+   "ActivityAccountGroupMembership": {
+    "properties": {
+     "account_id": {
+      "type": "string"
+     },
+     "group": {
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "account_id"
+    ],
+    "type": "object"
+   },
+   "ActivityAccountGroupMove": {
+    "additionalProperties": false,
+    "properties": {
+     "group": {
+      "description": "The group to join; null takes the account out of any group.",
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "ActivityAccountGroupPage": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/ActivityAccountGroup"
+      },
+      "type": "array"
+     },
+     "next_cursor": {
+      "description": "Always null: a project holds at most 500 groups, all returned.",
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "type": "object"
+   },
+   "ActivityAccountGroupRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "retention_days": {
+      "description": "30 to 3650, within the plan's `retention_days_max`; null = members keep the project's.",
+      "format": "int32",
+      "nullable": true,
+      "type": "integer"
+     }
+    },
+    "type": "object"
+   },
    "ActivityAccountPage": {
     "properties": {
      "data": {
@@ -721,16 +808,21 @@
    "ActivityAccountSettings": {
     "properties": {
      "effective_retention_days": {
-      "description": "What the janitor applies.",
+      "description": "What the janitor applies: the override, else its group's, else the project's.",
       "format": "int32",
       "type": "integer"
+     },
+     "group": {
+      "description": "The account group it belongs to (see `account-groups`); null = none.",
+      "nullable": true,
+      "type": "string"
      },
      "legal_hold": {
       "description": "An active legal hold covers the account (nothing is pruned).",
       "type": "boolean"
      },
      "retention_days": {
-      "description": "The account's override in days; null = the project's retention.",
+      "description": "The account's own override in days; null = its group's, else the project's retention.",
       "format": "int32",
       "nullable": true,
       "type": "integer"
@@ -920,14 +1012,43 @@
    },
    "ActivityActionTemplate": {
     "additionalProperties": false,
-    "description": "How one action is shown, e.g. `invoice.paid` -\u003e \"{actor.name} paid invoice {target.name}\".\nThe label is rendered as text, never as HTML.",
+    "description": "How one action is shown, e.g. `invoice.paid` -\u003e \"{actor.name} paid invoice {target.name}\".\nText is rendered as text, never as HTML. Every text of a template (`label`, `label_failure`,\n`label_denied`, `subtitle`, each field's `label` and `value`, and the same keys inside\n`locales`) is at most 256 characters without control characters (longer is a 422 naming the\nfield). An unknown placeholder, unknown formatter or unknown `icon` does not fail a save: the\ntheme is stored and the response lists each one in `warnings` as `{path, message}`; send\n`?strict=true` to make any of them a 422 with the same paths.\n\n# Placeholders\n`{path}` reads the event as the API returns it (a missing value, null or object renders as an\nempty string):\n- `{actor.id}`, `{actor.name}`, `{actor.type}`, `{actor.email}`, `{actor.url}`,\n  `{actor.privileged}`, `{actor.metadata.\u003cpath\u003e}`;\n- `{target.type|id|name|url|thumbnail}` and `{target.metadata.\u003cpath\u003e}` for the first target;\n  `{targets.N.\u003csame keys\u003e}` for target N (counting from 0);\n- `{metadata.\u003cpath\u003e}` and `{labels.\u003cpath\u003e}`: dot-separated keys, array indexes allowed;\n- `{changes.\u003cfield\u003e.old}` and `{changes.\u003cfield\u003e.new}` for the change with that `field`, and\n  `{changes.count}`;\n- `{on_behalf_of.id|name}`, `{credential.type|id|fingerprint}` and\n  `{context.ip|user_agent|request_id|session_id|device_id|country|region|asn|auth_method|mfa|time_source}`;\n- `{account_id}`, `{action}`, `{outcome}`, `{severity}`, `{operation}`, `{occurred_at}`,\n  `{received_at}`, `{id}`, `{ip}`, `{trace_id}`, `{span_id}`, `{code}`.\n\n# Formatters\n`{path|formatter}`, chained left to right (`{metadata.n|count|money:USD}`): `money:CUR`\n(major units, `1234.5` -\u003e `$1,234.50` for USD, EUR, GBP, JPY; other codes `1,234.50 CHF`;\nnon-numbers pass through), `count` (`12345` -\u003e `12,345`), `date` (`2026-11-24`) and `datetime`\n(`2026-11-24 10:15`; the ISO 8601 text as written, no zone conversion).\n\n# Rendering rules\nA path that is valid but has no value in this event renders as an empty string. A\nplaceholder outside this list (`{actor.nam}`) renders the same way, as an empty string, and\nis reported as a warning at save. A formatter outside the list leaves the value as it is\n(`{metadata.x|bogus}` renders the value of `metadata.x`). A `{...}` that is not a placeholder\n(`{ actor.name }`, `{}`) is left in the text as written. Output is plain text: a value is substituted once (a\nvalue holding `{x}` is not expanded again), control characters become spaces and a value is\ncut at 200 characters. There is no escape for a literal `{...}`. A sink that shows the text as\nmarkup must escape it.\n\n# Outcome variants and locales\n`label_failure` replaces `label` when the event's `outcome` is `failure`, `label_denied` when\nit is `denied`; success or no outcome uses `label`. Without a label the title is\n\"actor action target\". `locales` (up to 20 tags such as `de` or `pt-BR`) holds the same text\nkeys; `pt-BR` is tried, then `pt`, then the template's own keys. A locale's plain `label` wins\nover the default's outcome variant, so give the locale its own variants. A locale changes the\ntext only.",
     "properties": {
+     "fields": {
+      "description": "Label/value rows of the rendered `display`, up to 10; `label` and `value` are at most 256\ncharacters each and take placeholders.",
+      "items": {
+       "$ref": "#/components/schemas/ActivityDisplayField"
+      },
+      "nullable": true,
+      "type": "array"
+     },
      "icon": {
-      "description": "Name of a built-in icon (`[a-z0-9-]`, up to 32).",
+      "description": "Name of a built-in Lucide icon the hosted feed shows beside the event; the list is\n`GET /v1/activity/icons` (names and aliases). Any other name is saved but reported in\n`warnings`, and the feed shows no icon for it; `?strict=true` makes it a 422.",
       "nullable": true,
       "type": "string"
      },
      "label": {
+      "description": "The title; at most 256 characters; takes placeholders.",
+      "nullable": true,
+      "type": "string"
+     },
+     "label_denied": {
+      "description": "Used instead of `label` when the event's outcome is `denied`.",
+      "nullable": true,
+      "type": "string"
+     },
+     "label_failure": {
+      "description": "Used instead of `label` when the event's outcome is `failure`.",
+      "nullable": true,
+      "type": "string"
+     },
+     "locales": {
+      "$ref": "#/components/schemas/BTreeMap",
+      "description": "Copy per locale tag (`de`, `pt-BR`; up to 20): the same keys as above.",
+      "nullable": true
+     },
+     "subtitle": {
+      "description": "Second line of the rendered `display`; at most 256 characters.",
       "nullable": true,
       "type": "string"
      },
@@ -1286,6 +1407,60 @@
       "type": "string"
      }
     },
+    "type": "object"
+   },
+   "ActivityAttachment": {
+    "description": "One cold attachment of an event.",
+    "properties": {
+     "body": {
+      "type": "object"
+     },
+     "bytes": {
+      "format": "int32",
+      "type": "integer"
+     },
+     "id": {
+      "type": "string"
+     },
+     "kind": {
+      "description": "`hidden` (the metadata values moved out of the event, `{\"\u003cpath below metadata\u003e\": value}`)\nor `detail` (the event's `detail_blob`).",
+      "type": "string"
+     },
+     "sha256": {
+      "description": "SHA-256 (hex) of `body` as canonical JSON: keys sorted at every level, no whitespace.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "kind",
+     "bytes",
+     "sha256",
+     "body"
+    ],
+    "type": "object"
+   },
+   "ActivityAttachmentNote": {
+    "description": "What a batch stored cold for one event, by index (a result of `partial=true` and of the\nplain batch alike).",
+    "properties": {
+     "attachment": {
+      "description": "`{bytes, keys}`: hidden metadata moved out of the event.",
+      "nullable": true,
+      "type": "object"
+     },
+     "detail_ref": {
+      "description": "`{id, bytes, sha256}`: the event's `detail_blob`.",
+      "nullable": true,
+      "type": "object"
+     },
+     "index": {
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "index"
+    ],
     "type": "object"
    },
    "ActivityAuditorEvidenceRequest": {
@@ -2165,6 +2340,373 @@
     ],
     "type": "object"
    },
+   "ActivityConfig": {
+    "additionalProperties": false,
+    "description": "The desired config. A section left out is not touched; a section given is the complete\ndesired state of that part.",
+    "properties": {
+     "account_groups": {
+      "additionalProperties": {
+       "$ref": "#/components/schemas/ActivityConfigGroup"
+      },
+      "description": "Account groups by name: groups not listed are deleted (their accounts fall back to the\nproject's retention). Membership is set per account with\n`PUT .../accounts/{account_id}/group`.",
+      "nullable": true,
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "activity_rules": {
+      "additionalProperties": {
+       "$ref": "#/components/schemas/ActivityConfigRule"
+      },
+      "description": "Alert rules by name. The document owns the rules it names: they are created, updated in\nplace or (when a later document stops naming them) deleted; rules made through the rules\nAPI are never deleted by an apply (naming one adopts it). A rule's webhook channel takes\n`secret` or `secrets: [new, old]` (the notifier signs with the first; receivers verify\nagainst either during a rotation); without one a secret is generated and returned once in\n`issued_secrets`.",
+      "nullable": true,
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "hooks": {
+      "additionalProperties": {
+       "$ref": "#/components/schemas/ActivityConfigHook"
+      },
+      "description": "Hooks by kind (`digest`, `target_labels`); kinds not named stay as they are.",
+      "nullable": true,
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "policy": {
+      "$ref": "#/components/schemas/ActivityPolicy",
+      "description": "The ingest policy (same as `PUT .../activity/policy`).",
+      "nullable": true
+     },
+     "retention": {
+      "$ref": "#/components/schemas/ActivityRetention",
+      "description": "The project's retention (same as `PUT .../activity/retention`: `{days}`, 30 to 3650). A\nretention lock, floor or dual-control rule that forbids the change is the same typed 409\nas on that endpoint, in a plan too.",
+      "nullable": true
+     },
+     "samples": {
+      "description": "One sample event per action, used only by `?mode=plan\u0026validate=samples` (never stored).",
+      "nullable": true,
+      "type": "object"
+     },
+     "schemas": {
+      "additionalProperties": {
+       "$ref": "#/components/schemas/ActivitySchemaIn"
+      },
+      "description": "Action schemas by action: created, or a new version when different from the newest.\nSchemas are never deleted (events refer to them); actions not listed stay.",
+      "nullable": true,
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "templates": {
+      "description": "Compliance starter sets (`soc2`, `iso27001`, `hipaa`, `pci`, `ai_act`): schemas for the\nactions that have none (explicit `schemas` win; existing schemas stay).",
+      "items": {
+       "type": "string"
+      },
+      "nullable": true,
+      "type": "array"
+     },
+     "theme": {
+      "$ref": "#/components/schemas/ActivityConfigTheme",
+      "nullable": true
+     }
+    },
+    "type": "object"
+   },
+   "ActivityConfigChange": {
+    "properties": {
+     "changed_keys": {
+      "description": "Theme: the top-level theme keys that differ from the stored draft (for example\n`[\"showMetadata\"]`). Empty for a change that only publishes the stored draft.",
+      "items": {
+       "type": "string"
+      },
+      "nullable": true,
+      "type": "array"
+     },
+     "fields": {
+      "description": "Rules and hooks: which parts differ (`match`, `threshold`, `enabled`, `channel`,\n`secret`, `url`, `adopted`); never a value.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "key_changes": {
+      "description": "Theme: what changed per key; boolean, number and string keys carry `previous` and `next`.",
+      "items": {
+       "$ref": "#/components/schemas/ActivityThemeKeyChange"
+      },
+      "nullable": true,
+      "type": "array"
+     },
+     "kind": {
+      "description": "`schema`, `theme`, `policy`, `retention`, `account_group`, `activity_rule` or `hook`.",
+      "type": "string"
+     },
+     "name": {
+      "description": "The action, group name, `project` (theme), `ingest` (policy), rule name or hook kind.",
+      "type": "string"
+     },
+     "op": {
+      "description": "`create`, `update` or `delete`.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "name",
+     "op"
+    ],
+    "type": "object"
+   },
+   "ActivityConfigDocument": {
+    "description": "The stored config of a project in the document shape of `PUT` (see `GET`).",
+    "properties": {
+     "account_groups": {
+      "type": "object"
+     },
+     "activity_rules": {
+      "type": "object"
+     },
+     "hooks": {
+      "type": "object"
+     },
+     "policy": {
+      "type": "object"
+     },
+     "retention": {
+      "description": "`{days}`, as `PUT .../activity/retention`.",
+      "type": "object"
+     },
+     "schemas": {
+      "type": "object"
+     },
+     "theme": {
+      "nullable": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "schemas",
+     "policy",
+     "retention",
+     "account_groups",
+     "activity_rules",
+     "hooks"
+    ],
+    "type": "object"
+   },
+   "ActivityConfigGroup": {
+    "additionalProperties": false,
+    "properties": {
+     "retention_days": {
+      "description": "30 to 3650, within the plan's `retention_days_max`; null = the project's retention.",
+      "format": "int32",
+      "nullable": true,
+      "type": "integer"
+     }
+    },
+    "type": "object"
+   },
+   "ActivityConfigHook": {
+    "additionalProperties": false,
+    "description": "A project hook (`digest`, `target_labels`) of the document.",
+    "properties": {
+     "secret": {
+      "description": "The signing secret (default: generated and returned once on create).",
+      "nullable": true,
+      "type": "string"
+     },
+     "secrets": {
+      "description": "`[new, old]` during a rotation: signs with the first.",
+      "items": {
+       "type": "string"
+      },
+      "nullable": true,
+      "type": "array"
+     },
+     "url": {
+      "description": "The `https` endpoint.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "url"
+    ],
+    "type": "object"
+   },
+   "ActivityConfigIssuedSecret": {
+    "description": "A secret generated for something the document created: shown once.",
+    "properties": {
+     "kind": {
+      "description": "`activity_rule` or `hook`.",
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "signing_secret": {
+      "description": "The HMAC signing secret of `X-Watchtower-Signature`. Not shown again.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "name",
+     "signing_secret"
+    ],
+    "type": "object"
+   },
+   "ActivityConfigResult": {
+    "properties": {
+     "applied": {
+      "description": "The changes were written (false for a plan; an apply with no changes is true).",
+      "type": "boolean"
+     },
+     "changed": {
+      "description": "Whether the stored config differs from the document (false: `changes` is empty).",
+      "type": "boolean"
+     },
+     "changes": {
+      "description": "Every item that differs from the stored config; empty when it already matches.",
+      "items": {
+       "$ref": "#/components/schemas/ActivityConfigChange"
+      },
+      "type": "array"
+     },
+     "issued_secrets": {
+      "description": "Webhook signing secrets generated for rules and hooks this apply created. Shown once.",
+      "items": {
+       "$ref": "#/components/schemas/ActivityConfigIssuedSecret"
+      },
+      "type": "array"
+     },
+     "mode": {
+      "description": "`plan` or `apply`.",
+      "type": "string"
+     },
+     "summary": {
+      "$ref": "#/components/schemas/ActivityConfigSummary"
+     },
+     "validation": {
+      "description": "`?mode=plan\u0026validate=samples`: the verdict on each sample (`missing_template`, schema\nwarnings, why an event would be refused). Omitted otherwise.",
+      "items": {
+       "$ref": "#/components/schemas/ActivityConfigSampleResult"
+      },
+      "nullable": true,
+      "type": "array"
+     },
+     "warnings": {
+      "description": "Unknown placeholders, formatters and icons in the theme's action templates, each\n`{path, message}`. They never block (plan or apply) unless `?strict=true`, which makes them\na 422 with the same paths. Empty when there are none.",
+      "items": {
+       "$ref": "#/components/schemas/ActivityThemeWarning"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "mode",
+     "applied",
+     "changed",
+     "changes",
+     "summary",
+     "warnings"
+    ],
+    "type": "object"
+   },
+   "ActivityConfigRule": {
+    "additionalProperties": false,
+    "description": "One alert rule of the document (the key is its name, 1 to 100 characters).",
+    "properties": {
+     "account_id": {
+      "description": "A rule over one account's events (default: every account).",
+      "nullable": true,
+      "type": "string"
+     },
+     "channel": {
+      "description": "`{kind: email, to}`, `{kind: slack, url}` or\n`{kind: webhook, url, secret?, secrets?, secret_ref?}`. `secrets: [new, old]` signs with\n`new` and keeps `old` valid during a rotation. The CLI replaces `${NAME}` in\n`secret`/`secrets` with that environment variable. `secret_ref` names a project secret\n(`PUT .../activity/secrets/{name}`); give it instead of `secret`/`secrets`, and the\nrule takes the stored values (an unknown name is a 422).",
+      "type": "object"
+     },
+     "enabled": {
+      "description": "Default true.",
+      "nullable": true,
+      "type": "boolean"
+     },
+     "match": {
+      "description": "As on `POST .../activity/rules`: `{actions, outcome?, severity?, q?, group_by?}`.",
+      "type": "object"
+     },
+     "threshold": {
+      "description": "As on the rules API, including `window`, `bucket`, `min_buckets` and `renotify_after`.",
+      "nullable": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "match",
+     "channel"
+    ],
+    "type": "object"
+   },
+   "ActivityConfigSampleResult": {
+    "description": "The verdict on the sample of one action (`result` is the shape of `POST .../events/validate`).",
+    "properties": {
+     "action": {
+      "type": "string"
+     },
+     "result": {
+      "$ref": "#/components/schemas/ActivityValidation"
+     }
+    },
+    "required": [
+     "action",
+     "result"
+    ],
+    "type": "object"
+   },
+   "ActivityConfigSummary": {
+    "properties": {
+     "create": {
+      "minimum": 0,
+      "type": "integer"
+     },
+     "delete": {
+      "minimum": 0,
+      "type": "integer"
+     },
+     "update": {
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "create",
+     "update",
+     "delete"
+    ],
+    "type": "object"
+   },
+   "ActivityConfigTheme": {
+    "additionalProperties": false,
+    "properties": {
+     "draft": {
+      "$ref": "#/components/schemas/ActivityTheme",
+      "description": "The project override theme (same as `PUT .../activity/theme`)."
+     },
+     "publish": {
+      "description": "Also publish it (default false: draft only).",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "draft"
+    ],
+    "type": "object"
+   },
    "ActivityConsistencyProof": {
     "properties": {
      "from_root": {
@@ -2703,6 +3245,70 @@
     ],
     "type": "object"
    },
+   "ActivityDisplay": {
+    "description": "An event rendered by its action template. Plain text.",
+    "properties": {
+     "failure_reason": {
+      "$ref": "#/components/schemas/ActivityDisplayFailureReason",
+      "description": "Advice for the event's failure code (`failureReasons` of the theme); only on a failure.",
+      "nullable": true
+     },
+     "fields": {
+      "items": {
+       "$ref": "#/components/schemas/ActivityDisplayField"
+      },
+      "type": "array"
+     },
+     "subtitle": {
+      "nullable": true,
+      "type": "string"
+     },
+     "title": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "title"
+    ],
+    "type": "object"
+   },
+   "ActivityDisplayFailureReason": {
+    "description": "`display.failure_reason`: the matched `code` and the rendered advice.",
+    "properties": {
+     "action": {
+      "$ref": "#/components/schemas/ActivityReasonAction",
+      "nullable": true
+     },
+     "code": {
+      "type": "string"
+     },
+     "text": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "code",
+     "text"
+    ],
+    "type": "object"
+   },
+   "ActivityDisplayField": {
+    "additionalProperties": false,
+    "description": "One label/value row of a [`Display`], or of a template (`value` holds placeholders there).",
+    "properties": {
+     "label": {
+      "type": "string"
+     },
+     "value": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "label",
+     "value"
+    ],
+    "type": "object"
+   },
    "ActivityDomain": {
     "properties": {
      "activated_at": {
@@ -3048,6 +3654,10 @@
    "ActivityEvent": {
     "description": "One recorded event (v2).",
     "properties": {
+     "abandoned": {
+      "description": "The event was open past its `pending_ttl` and finalized itself as `failure`.\n\n`true` only on an event that stayed `pending` past its `pending_ttl` (the request's `pending_ttl`, else the action schema's `x-pending-ttl`, else 24 hours; 1 minute to 30 days) and was finalized by the server. Its `outcome` is `failure`. Absent on every other event.",
+      "type": "boolean"
+     },
      "account_id": {
       "type": "string"
      },
@@ -3057,6 +3667,16 @@
      "actor": {
       "$ref": "#/components/schemas/ActivityActor"
      },
+     "attachment": {
+      "description": "Project path only: hidden metadata moved out of an over-budget event into a cold\nattachment, `{bytes, keys}`. Never on a viewer path.",
+      "nullable": true,
+      "type": "object"
+     },
+     "attachments": {
+      "description": "Project path only, with `?include=attachment` or `include_attachments=true`: the attachment\nbodies, `[{id, kind, bytes, sha256, body}]` (`kind` is `hidden` or `detail`).",
+      "nullable": true,
+      "type": "object"
+     },
      "changes": {
       "items": {
        "$ref": "#/components/schemas/ActivityChange"
@@ -3065,7 +3685,7 @@
       "type": "array"
      },
      "coalesced": {
-      "description": "A coalescing summary: `{of, key, count, first_at, last_at}` (`count` repeats of `of`).",
+      "description": "A coalescing summary: `{of, key, count, first_at, last_at, first_targets, last_targets}`\n(`count` repeats of `of`; the target ids of the first and the last 5 repeats).",
       "nullable": true,
       "type": "object"
      },
@@ -3082,11 +3702,31 @@
       "$ref": "#/components/schemas/ActivityCredential",
       "nullable": true
      },
+     "detail_ref": {
+      "description": "Project path only: the event's `detail_blob`, `{id, bytes, sha256}`. Never on a viewer path.",
+      "nullable": true,
+      "type": "object"
+     },
+     "display": {
+      "$ref": "#/components/schemas/ActivityDisplay",
+      "description": "The event rendered by its action template (`display=1`): plain text.",
+      "nullable": true
+     },
      "id": {
       "type": "string"
      },
+     "imported": {
+      "description": "Stored by `POST .../activity/import`: a backdated event is not clock skew.",
+      "type": "boolean"
+     },
      "ip": {
+      "deprecated": true,
       "description": "Deprecated: same as `context.ip`.",
+      "nullable": true,
+      "type": "string"
+     },
+     "label": {
+      "description": "The title of `display` as a plain string: the `label` column / key of exports.",
       "nullable": true,
       "type": "string"
      },
@@ -3118,9 +3758,18 @@
       "type": "string"
      },
      "outcome": {
-      "description": "`success`, `failure` or `denied`.",
+      "description": "`success`, `failure` or `denied`.\n\nAn open (`pending`) event that passes its `pending_ttl` is finalized by the server as `outcome: \"failure\"` with `abandoned: true`; there is no `abandoned` outcome.",
       "nullable": true,
       "type": "string"
+     },
+     "over_quota": {
+      "description": "Stored past the plan's `activity_events_per_day`; the plan or the day's use may need review.",
+      "type": "boolean"
+     },
+     "progress": {
+      "$ref": "#/components/schemas/ActivityProgress",
+      "description": "Progress of an open event (`PATCH .../by-key/{key}` with `progress`); kept after it is\nfinalized.",
+      "nullable": true
      },
      "received_at": {
       "type": "string"
@@ -3187,6 +3836,24 @@
     ],
     "type": "object"
    },
+   "ActivityEventAttachments": {
+    "properties": {
+     "attachments": {
+      "items": {
+       "$ref": "#/components/schemas/ActivityAttachment"
+      },
+      "type": "array"
+     },
+     "event_id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "event_id",
+     "attachments"
+    ],
+    "type": "object"
+   },
    "ActivityEventBatch": {
     "additionalProperties": false,
     "properties": {
@@ -3222,9 +3889,69 @@
     ],
     "type": "object"
    },
+   "ActivityEventFinalize": {
+    "additionalProperties": false,
+    "properties": {
+     "changes": {
+      "description": "Replaces the event's `changes` (up to 50, as at ingest); only with `outcome`.",
+      "items": {
+       "$ref": "#/components/schemas/ActivityChange"
+      },
+      "nullable": true,
+      "type": "array"
+     },
+     "metadata": {
+      "description": "Keys merged over the event's `metadata` (a later value wins); same limits as at ingest.\nWithout `outcome` the keys are merged over the open event's earlier patches and shown in\nreads until the event is finalized.",
+      "nullable": true,
+      "type": "object"
+     },
+     "outcome": {
+      "$ref": "#/components/schemas/ActivityOutcome",
+      "description": "The final outcome: `success`, `failure` or `denied`. Left out, the request only updates\nthe open event (`progress` and/or `metadata`) and does not finalize it.",
+      "nullable": true
+     },
+     "progress": {
+      "$ref": "#/components/schemas/ActivityProgress",
+      "description": "`{done, total}` of a running action (`0 \u003c= done \u003c= total`); only without `outcome`.",
+      "nullable": true
+     }
+    },
+    "type": "object"
+   },
+   "ActivityEventFinalized": {
+    "properties": {
+     "id": {
+      "description": "The event's id.",
+      "type": "string"
+     },
+     "idempotency_key": {
+      "type": "string"
+     },
+     "outcome": {
+      "description": "The final outcome, or `pending` after a progress or metadata update.",
+      "type": "string"
+     },
+     "progress": {
+      "$ref": "#/components/schemas/ActivityProgress",
+      "description": "The event's progress after an update without `outcome`.",
+      "nullable": true
+     },
+     "replay": {
+      "description": "True when the event was already finalized with this same body (nothing changed).",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "id",
+     "idempotency_key",
+     "outcome",
+     "replay"
+    ],
+    "type": "object"
+   },
    "ActivityEventIn": {
     "additionalProperties": false,
-    "description": "One event as the customer sends it. Every metadata object (`metadata`, `actor.metadata`,\n`targets[].metadata`) holds at most 50 keys per object, keys of at most 40 characters,\nnesting at most 5 levels deep; all of them and `changes` share a 16 KB budget. Top-level\n`wt.*` keys are dropped.",
+    "description": "One event as the customer sends it. Every metadata object (`metadata`, `actor.metadata`,\n`targets[].metadata`) holds at most 50 keys per object, keys of at most 40 characters,\nnesting at most 5 levels deep; all of them and `changes` share a size budget (16 KB, more on plans). Top-level\n`wt.*` keys are dropped.",
     "properties": {
      "account_id": {
       "description": "The customer's end-user account the event belongs to.",
@@ -3258,18 +3985,24 @@
       "$ref": "#/components/schemas/ActivityCredential",
       "nullable": true
      },
+     "detail_blob": {
+      "description": "Any JSON up to 256 KB, stored cold beside the event and never shown to viewers; the event gets `detail_ref {id, bytes, sha256}`. Metadata keys the action's schema marks `x-viewer: hidden` may exceed the budget the same way (`attachment {bytes, keys}`).",
+      "nullable": true,
+      "type": "object"
+     },
      "idempotency_key": {
       "description": "Unique per project; a repeat is accepted and stored once. Absent: the SHA-256 of the\nevent's canonical JSON, so an identical retry is stored once.",
       "nullable": true,
       "type": "string"
      },
      "ip": {
+      "deprecated": true,
       "description": "Deprecated alias of `context.ip`.",
       "nullable": true,
       "type": "string"
      },
      "metadata": {
-      "description": "A JSON object; with `changes` and the actor and target metadata up to 16 KB.",
+      "description": "A JSON object; with `changes` and the actor and target metadata up to the project's size budget: 16,384 bytes of compact UTF-8 JSON by default, up to 65,536 on plans with `activity_event_bytes`.",
       "nullable": true,
       "type": "object"
      },
@@ -3288,7 +4021,13 @@
      },
      "outcome": {
       "$ref": "#/components/schemas/ActivityOutcome",
+      "description": "`pending` stores an open event: send the final state later with\n`PATCH /v1/activity/events/by-key/{key}` (needs this event's `idempotency_key`).",
       "nullable": true
+     },
+     "pending_ttl": {
+      "description": "With `outcome: \"pending\"`: how long the event may stay open (`\"90s\"`, `\"30m\"`, `\"6h\"`, `\"2d\"`; 1m to 30d). Past it the event finalizes itself as `failure`, flagged `abandoned`. Default: the action schema's `\"x-pending-ttl\"`, else 24h.\n\nWhen it passes while the event is still `pending`, the server finalizes the event as `outcome: \"failure\"` with `abandoned: true` (read back as `ActivityEvent.abandoned`).",
+      "nullable": true,
+      "type": "string"
      },
      "severity": {
       "$ref": "#/components/schemas/ActivitySeverity",
@@ -3345,6 +4084,7 @@
     "type": "object"
    },
    "ActivityEventPage": {
+    "description": "A page of events. `total` and `total_exact` are present only when asked for (`total=true`).",
     "properties": {
      "data": {
       "items": {
@@ -3355,6 +4095,17 @@
      "next_cursor": {
       "nullable": true,
       "type": "string"
+     },
+     "total": {
+      "description": "Events matching the same filters in the live log, counted up to 100,000.",
+      "format": "int64",
+      "nullable": true,
+      "type": "integer"
+     },
+     "total_exact": {
+      "description": "False when more than 100,000 match: `total` is then 100000.",
+      "nullable": true,
+      "type": "boolean"
      }
     },
     "required": [
@@ -3467,6 +4218,40 @@
     ],
     "type": "object"
    },
+   "ActivityEventsExists": {
+    "properties": {
+     "exists": {
+      "description": "Whether any event matches.",
+      "type": "boolean"
+     },
+     "first": {
+      "$ref": "#/components/schemas/ActivityEventsExistsFirst",
+      "description": "A matching event (the newest one), when `exists`.",
+      "nullable": true
+     }
+    },
+    "required": [
+     "exists"
+    ],
+    "type": "object"
+   },
+   "ActivityEventsExistsFirst": {
+    "properties": {
+     "id": {
+      "description": "The event's id.",
+      "type": "string"
+     },
+     "occurred_at": {
+      "description": "RFC 3339.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "occurred_at"
+    ],
+    "type": "object"
+   },
    "ActivityEvidenceRequest": {
     "additionalProperties": false,
     "properties": {
@@ -3555,6 +4340,14 @@
       "nullable": true,
       "type": "string"
      },
+     "actions": {
+      "description": "Several actions, or-ed (at most 50): exact names or `x*`, `*x`, `*x*` patterns, as in\n`action:` of `q`. And-ed with `action` (which keeps working) and with the other terms of `q`; merged with\nany `action:` terms `q` itself carries (an event matching any of them is kept).",
+      "items": {
+       "type": "string"
+      },
+      "nullable": true,
+      "type": "array"
+     },
      "actor_id": {
       "nullable": true,
       "type": "string"
@@ -3564,8 +4357,18 @@
       "nullable": true,
       "type": "string"
      },
+     "include_attachments": {
+      "description": "Project exports only, with `format: ndjson` and `report: events`: each event carries its\ncold attachments as `attachments` (hidden metadata moved out of an over-budget event,\nand the event's `detail_blob`), as the streaming export's `include_attachments=true`\ndoes. A 422 on a viewer export, a digest or a schedule.",
+      "nullable": true,
+      "type": "boolean"
+     },
      "outcome": {
       "description": "`success`, `failure` or `denied`.",
+      "nullable": true,
+      "type": "string"
+     },
+     "q": {
+      "description": "The activity search language, parsed exactly as the feed's `q` (same qualifiers, `x*`\nprefixes, negation, `metadata.\u003cpath\u003e:value`; same 422 messages), for example\n`action:listing.* -metadata.category:request`. And-ed with every other filter; works for\nevery format and for `summary` reports.",
       "nullable": true,
       "type": "string"
      },
@@ -3738,6 +4541,11 @@
       "nullable": true,
       "type": "string"
      },
+     "removed": {
+      "description": "`true` when the actor was removed (marked by the vendor, or deprovisioned by the viewer\n`IdP`'s SCIM), as the feed's `removed_actors` says; left out otherwise and for every\nfield but `actor`.",
+      "nullable": true,
+      "type": "boolean"
+     },
      "value": {
       "type": "string"
      }
@@ -3765,6 +4573,48 @@
     "required": [
      "data"
     ],
+    "type": "object"
+   },
+   "ActivityFailureReason": {
+    "additionalProperties": false,
+    "description": "Advice for one failure code: `text` (up to 256 characters, same placeholders and formatters\nas a template), an optional `action` and `locales` (`pt-BR`, then `pt`, then these keys).\nChosen when the event's `outcome` is `failure` and the value at the theme's\n`failureReasonPath` equals the code (the key of `failureReasons`).",
+    "properties": {
+     "action": {
+      "$ref": "#/components/schemas/ActivityReasonAction",
+      "nullable": true
+     },
+     "locales": {
+      "additionalProperties": {
+       "$ref": "#/components/schemas/ActivityFailureReasonLocale"
+      },
+      "nullable": true,
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "text": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "type": "object"
+   },
+   "ActivityFailureReasonLocale": {
+    "additionalProperties": false,
+    "description": "Copy of one reason for one locale; every key falls back to the reason's own.",
+    "properties": {
+     "action": {
+      "$ref": "#/components/schemas/ActivityReasonAction",
+      "nullable": true
+     },
+     "text": {
+      "nullable": true,
+      "type": "string"
+     }
+    },
     "type": "object"
    },
    "ActivityFeed": {
@@ -3824,6 +4674,15 @@
      "time_zone": {
       "nullable": true,
       "type": "string"
+     },
+     "total": {
+      "description": "Events matching the same filters, counted up to 100,000.",
+      "format": "int64",
+      "type": "integer"
+     },
+     "total_exact": {
+      "description": "False when more than 100,000 match: `total` is then 100000.",
+      "type": "boolean"
      }
     },
     "required": [
@@ -3832,7 +4691,9 @@
      "css",
      "strings",
      "capabilities",
-     "removed_actors"
+     "removed_actors",
+     "total",
+     "total_exact"
     ],
     "type": "object"
    },
@@ -4237,7 +5098,7 @@
    "ActivityHistogram": {
     "properties": {
      "data": {
-      "description": "Days with events, oldest first; days without events are left out.",
+      "description": "Buckets with events, oldest first; empty buckets are left out.",
       "items": {
        "$ref": "#/components/schemas/ActivityHistogramBucket"
       },
@@ -4257,7 +5118,7 @@
    "ActivityHistogramBucket": {
     "properties": {
      "at": {
-      "description": "Start of the UTC day.",
+      "description": "Start of the UTC day, hour or 5-minute bucket.",
       "type": "string"
      },
      "count": {
@@ -4331,6 +5192,60 @@
     "required": [
      "account_id",
      "reason"
+    ],
+    "type": "object"
+   },
+   "ActivityHook": {
+    "properties": {
+     "created_at": {
+      "description": "When the endpoint was set. The URL and secret are never returned.",
+      "type": "string"
+     },
+     "kind": {
+      "description": "`digest` or `target_labels`.",
+      "type": "string"
+     },
+     "signing_secret": {
+      "description": "Only in the response that set the hook: the HMAC signing secret. Shown once.",
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "created_at"
+    ],
+    "type": "object"
+   },
+   "ActivityHookIn": {
+    "additionalProperties": false,
+    "properties": {
+     "url": {
+      "description": "The `https` endpoint. Setting a hook again replaces the endpoint and rotates the secret.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "url"
+    ],
+    "type": "object"
+   },
+   "ActivityHookPage": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/ActivityHook"
+      },
+      "type": "array"
+     },
+     "next_cursor": {
+      "description": "Always null.",
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "data"
     ],
     "type": "object"
    },
@@ -4451,6 +5366,80 @@
      "kid",
      "message",
      "signature"
+    ],
+    "type": "object"
+   },
+   "ActivityIcons": {
+    "properties": {
+     "aliases": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "description": "Old names Lucide renamed, `alias -\u003e icon` (`alert-triangle` -\u003e `triangle-alert`). An alias\nis valid and renders the same icon.",
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "icons": {
+      "description": "Every Lucide icon name of the version the hosted feed ships, sorted. A template's `icon`\nshould be one of them (or an alias); the feed shows the icon beside the event.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "icons",
+     "aliases"
+    ],
+    "type": "object"
+   },
+   "ActivityImportJob": {
+    "description": "An import job.",
+    "properties": {
+     "accepted": {
+      "description": "Events accepted so far (a repeated idempotency key counts, and is stored once).",
+      "format": "int64",
+      "type": "integer"
+     },
+     "error": {
+      "description": "Why the import (or the last part) stopped: with `failed`, send the same body again\n(idempotency keys dedupe); with `running`, resume at `lines_seen`.",
+      "nullable": true,
+      "type": "string"
+     },
+     "job_id": {
+      "type": "string"
+     },
+     "lines_seen": {
+      "description": "The highest line number (from 1, in the whole import) that is stored or rejected: the\n`offset` of the next part. Lines up to it are never processed twice.",
+      "format": "int64",
+      "type": "integer"
+     },
+     "rejected": {
+      "description": "`[{line, problem}]`: `line` counts from 1, `problem` is a problem document.",
+      "items": {
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "rejected_count": {
+      "description": "All rejected lines; `rejected` lists the first 1000.",
+      "format": "int64",
+      "type": "integer"
+     },
+     "status": {
+      "description": "`running` (a part is being processed, or the job waits for the next one), `stalled` (no\npart for 10 minutes; resume it within 24 hours), `done` or `failed`.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "job_id",
+     "status",
+     "lines_seen",
+     "accepted",
+     "rejected_count",
+     "rejected"
     ],
     "type": "object"
    },
@@ -5132,7 +6121,8 @@
     "enum": [
      "success",
      "failure",
-     "denied"
+     "denied",
+     "pending"
     ],
     "type": "string"
    },
@@ -5226,6 +6216,11 @@
       "description": "|receive time - `occurred_at`| above this is skew (1000 to 86400000, default 300000).",
       "format": "int64",
       "type": "integer"
+     },
+     "viewer_prefilter_q": {
+      "description": "A `q` expression (the events query language, up to 512 characters) `ANDed` to EVERY\nviewer read of the project: viewer tokens, account tokens and server-key reads\n(`as_account`), including the feed, one event, facets, histogram, exports and the live\nstream. An event it filters out is a 404. A session's own `q` applies on top. Empty: none.\nLeft out of a `PUT`: the stored filter stays (so an old client cannot drop it); `null`\nor `\"\"` clears it.",
+      "nullable": true,
+      "type": "string"
      }
     },
     "type": "object"
@@ -5244,6 +6239,25 @@
     "required": [
      "alg",
      "x"
+    ],
+    "type": "object"
+   },
+   "ActivityProgress": {
+    "additionalProperties": false,
+    "description": "How far a running action is: `{done, total}` with `0 \u003c= done \u003c= total`.",
+    "properties": {
+     "done": {
+      "format": "int64",
+      "type": "integer"
+     },
+     "total": {
+      "format": "int64",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "done",
+     "total"
     ],
     "type": "object"
    },
@@ -5358,6 +6372,23 @@
      "mmd_seconds",
      "log_origin_prefix",
      "project_id"
+    ],
+    "type": "object"
+   },
+   "ActivityReasonAction": {
+    "additionalProperties": false,
+    "description": "A button under the advice: `label` takes placeholders, `url` is a literal `https` URL.",
+    "properties": {
+     "label": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "label",
+     "url"
     ],
     "type": "object"
    },
@@ -6173,7 +7204,7 @@
       "type": "string"
      },
      "channel": {
-      "description": "`{kind, to?}`: the Slack and webhook URLs are not returned.",
+      "description": "`{kind, to?, secret_ref?}`: the Slack and webhook URLs and secret values are not returned.",
       "type": "object"
      },
      "created_at": {
@@ -6324,6 +7355,7 @@
       "type": "boolean"
      },
      "match": {
+      "description": "A new match, same shape as on create (including `q`).",
       "nullable": true,
       "type": "object"
      },
@@ -6339,6 +7371,174 @@
     },
     "type": "object"
    },
+   "ActivityRulePayload": {
+    "additionalProperties": false,
+    "description": "The body of an alert rule notification (`Content-Type: application/json`), the same envelope\nas the `digest` hook's. Fields are only ever added; `type`, `version`, `message` and the\nnames under `data` are stable. Signed with `X-Watchtower-Signature` for webhook rules.",
+    "properties": {
+     "at": {
+      "description": "When the notification was built (RFC 3339, UTC).",
+      "type": "string"
+     },
+     "data": {
+      "$ref": "#/components/schemas/ActivityRulePayloadData"
+     },
+     "kind": {
+      "description": "Always `event`.",
+      "type": "string"
+     },
+     "message": {
+      "description": "One line for humans (what email and Slack show); the structured fields are in `data`.",
+      "type": "string"
+     },
+     "project": {
+      "description": "The project id (`prj_...`).",
+      "type": "string"
+     },
+     "recipient": {
+      "description": "Rules created with an email address: that address.",
+      "nullable": true,
+      "type": "string"
+     },
+     "test": {
+      "description": "`true` only on a test send (`POST .../rules/{id}/test`); absent on real notifications.",
+      "nullable": true,
+      "type": "boolean"
+     },
+     "type": {
+      "description": "Always `activity.rule_matched`: a plain match and a threshold fire share it (a fire has\n`data.threshold`).",
+      "type": "string"
+     },
+     "version": {
+      "description": "Envelope version, `1`.",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "kind",
+     "type",
+     "version",
+     "at",
+     "project",
+     "message",
+     "data"
+    ],
+    "type": "object"
+   },
+   "ActivityRulePayloadData": {
+    "additionalProperties": false,
+    "properties": {
+     "account_id": {
+      "description": "The account the event belongs to (also `event.account_id`).",
+      "type": "string"
+     },
+     "event": {
+      "description": "The event as the activity API reads it (`id`, `account_id`, `action`, `occurred_at`,\n`received_at`, `actor`, `target`, `context`, `outcome`, `severity`, `metadata`, ...).\nAccount rules never carry `context.ip` or `context.user_agent`. For a threshold fire it\nis the event that completed the window.",
+      "type": "object"
+     },
+     "group": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "description": "Rules with `match.group_by` only: the group that fired, by `group_by` path\n(`{\"metadata.error_code\": \"E42\", \"metadata.route\": \"/v1/pay\"}`).",
+      "nullable": true,
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "rule": {
+      "$ref": "#/components/schemas/ActivityRulePayloadRule"
+     },
+     "threshold": {
+      "$ref": "#/components/schemas/ActivityRulePayloadThreshold",
+      "description": "Threshold rules only.",
+      "nullable": true
+     }
+    },
+    "required": [
+     "account_id",
+     "rule",
+     "event"
+    ],
+    "type": "object"
+   },
+   "ActivityRulePayloadRule": {
+    "additionalProperties": false,
+    "properties": {
+     "id": {
+      "description": "The rule id (as in `GET .../rules`).",
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name"
+    ],
+    "type": "object"
+   },
+   "ActivityRulePayloadThreshold": {
+    "additionalProperties": false,
+    "properties": {
+     "bucket_secs": {
+      "description": "The rule's bucket size in seconds, when it has one.",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "count": {
+      "description": "The rule's `threshold.count`.",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "group": {
+      "description": "The value of the group that fired (an actor id, an IP, an account id; empty without\n`group_by`).",
+      "type": "string"
+     },
+     "group_by": {
+      "description": "`actor`, `ip` or `account`; `null` when the rule counts all matches together.",
+      "nullable": true,
+      "type": "string"
+     },
+     "matched": {
+      "description": "How many matches the window held, as a decimal string.",
+      "type": "string"
+     },
+     "min_buckets": {
+      "description": "The rule's `threshold.min_buckets`, when it has one.",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "renotify_secs": {
+      "description": "The rule's `threshold.renotify_after` in seconds, when it has one.",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "window_secs": {
+      "description": "The rule's `threshold.window_secs`.",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "count",
+     "window_secs",
+     "group",
+     "matched"
+    ],
+    "type": "object"
+   },
    "ActivityRuleRequest": {
     "additionalProperties": false,
     "properties": {
@@ -6348,11 +7548,11 @@
       "type": "string"
      },
      "channel": {
-      "description": "`{kind: \"email\", to}`, `{kind: \"slack\", url}` (a Slack incoming webhook) or\n`{kind: \"webhook\", url}`.",
+      "description": "`{kind: \"email\", to}`, `{kind: \"slack\", url}` (a Slack incoming webhook) or\n`{kind: \"webhook\", url, secret_ref?}`. `secret_ref` names a project secret\n(`PUT .../activity/secrets/{name}`; an unknown name is a 422): the rule signs with that\nsecret's current values, so rotating it needs no change here. Project path only.",
       "type": "object"
      },
      "match": {
-      "description": "`{actions: [..], outcome?, severity?}`. Actions are exact names or prefixes ending in `*`\n(`*` alone matches every action); `severity` is a minimum.",
+      "description": "`{actions: [..], outcome?, severity?, q?}`. Actions are exact names or prefixes ending in\n`*` (`*` alone matches every action); `severity` is a minimum. `q` is the activity search\nlanguage of the feed's `q` (for example `metadata.plan:pro -metadata.test:true`), and-ed\nwith `actions`, `outcome` and `severity` and checked per event; a `q` the feed would\nreject is a 422 with the feed's message. A rule without `q` matches as before.",
       "type": "object"
      },
      "name": {
@@ -6360,7 +7560,7 @@
       "type": "string"
      },
      "threshold": {
-      "description": "`{count, window_secs, group_by?}`: notify once `count` (2 to 1000) matching events land\nwithin `window_secs` (60 to 86400), counted per `actor`, `ip` or `account` (default: all\ntogether), e.g. 5 bulk exports by one actor in 10 minutes. A group notifies once per window.",
+      "description": "`{count, window_secs, group_by?}`: notify once `count` (2 to 1000) matching events land\nwithin `window_secs` (60 to 86400), counted per `actor`, `ip` or `account` (default: all\ntogether), e.g. 5 bulk exports by one actor in 10 minutes. A group notifies once per window.\n`window` (`\"1h\"`) may be given instead of `window_secs`. Steady: `bucket` (`\"5m\"`: at least\n1m, divides the window, at most 288 buckets) with `min_buckets` means that many buckets of\nthe window must hold a match (one error code \"steadily\" for an hour, not a burst).\n`renotify_after` (`\"24h\"`, 1m to 30d) keeps a firing group quiet that long (default: one\nwindow). With `match.group_by` (up to 4 event fields such as `metadata.error_code`) the\nthreshold applies per group, the notification names the group (`data.group`), and at most\n200 groups per rule are tracked per pass (the rest is counted, not notified).",
       "nullable": true,
       "type": "object"
      }
@@ -6369,6 +7569,19 @@
      "name",
      "match",
      "channel"
+    ],
+    "type": "object"
+   },
+   "ActivityRuleTestDelivery": {
+    "description": "What a test send queued.",
+    "properties": {
+     "payload": {
+      "$ref": "#/components/schemas/ActivityRulePayload",
+      "description": "The exact body queued to the rule's channel (also what a webhook receives)."
+     }
+    },
+    "required": [
+     "payload"
     ],
     "type": "object"
    },
@@ -6477,6 +7690,11 @@
       "description": "JSON Schema subset for `actor.metadata`.",
       "nullable": true,
       "type": "object"
+     },
+     "changed": {
+      "description": "On `PUT`: true when this call stored a new version, false when it was identical to the\nnewest and stored nothing. Absent on reads.",
+      "nullable": true,
+      "type": "boolean"
      },
      "code": {
       "description": "Stable machine code (6 of `A-Z0-9`), stamped on the action's events as `code` with a\nsuffix `S`/`F`/`D` for success, failure or denied.",
@@ -6678,7 +7896,7 @@
       "type": "string"
      },
      "stored": {
-      "description": "`server` (account tokens) or `browser` (sessions keep the marker in `localStorage`).",
+      "description": "`server` (account tokens and sessions with a `viewer_id`) or `browser` (other sessions\nkeep the marker in `localStorage`).",
       "type": "string"
      }
     },
@@ -6785,6 +8003,11 @@
      },
      "time_zone": {
       "description": "IANA zone such as `Europe/Berlin`.",
+      "nullable": true,
+      "type": "string"
+     },
+     "viewer_id": {
+      "description": "Your id of the person behind this session (1 to 56 characters). With it the session can\nsave views and keep the seen marker on the server, shared by every session minted for\nthe same account and person (across devices).",
       "nullable": true,
       "type": "string"
      }
@@ -7177,8 +8400,21 @@
       "nullable": true,
       "type": "string"
      },
+     "other": {
+      "description": "Only with `group`, and `true` on the series that sums the other values and the events\nwithout the field (its `key` is `other`); left out otherwise.",
+      "nullable": true,
+      "type": "boolean"
+     },
+     "series": {
+      "description": "Only with `group`: the group's events per bucket, oldest first, empty buckets left out.",
+      "items": {
+       "$ref": "#/components/schemas/ActivityStatPoint"
+      },
+      "nullable": true,
+      "type": "array"
+     },
      "value": {
-      "description": "Events in the group.",
+      "description": "Events in the group (with `group`: in the whole range).",
       "format": "int64",
       "type": "integer"
      }
@@ -7204,6 +8440,23 @@
     },
     "required": [
      "data"
+    ],
+    "type": "object"
+   },
+   "ActivityStatPoint": {
+    "properties": {
+     "at": {
+      "description": "Start of the bucket (RFC 3339 UTC; a `YYYY-MM-DD` day for `by=day`).",
+      "type": "string"
+     },
+     "count": {
+      "format": "int64",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "at",
+     "count"
     ],
     "type": "object"
    },
@@ -7633,6 +8886,34 @@
     ],
     "type": "object"
    },
+   "ActivitySubjectErased": {
+    "properties": {
+     "account": {
+      "description": "The account log of the subject: `erased`, `none` (nothing stored) or `legal_hold`.",
+      "type": "string"
+     },
+     "actor": {
+      "description": "The subject as actor in every account: `erased`, `none` or `legal_hold` (also answered\nunder a project retention lock).",
+      "type": "string"
+     },
+     "job_id": {
+      "description": "The id of this erase in the erasure ledger: the `request_id` of its decision in\n`GET .../activity/erasure-decisions`, and `GET .../activity/erasures/{job_id}/certificate`\nanswers the signed proof-of-erasure certificate (also for a refused `actor` step). Also\nthe id in the `activity.subject.erased` audit event. The erase is complete when the call\nreturns: there is no job to wait for.",
+      "type": "string"
+     },
+     "sessions_revoked": {
+      "description": "Viewer sessions of the account that were revoked.",
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "account",
+     "actor",
+     "sessions_revoked",
+     "job_id"
+    ],
+    "type": "object"
+   },
    "ActivitySubprocessor": {
     "properties": {
      "location": {
@@ -7699,6 +8980,11 @@
       "nullable": true,
       "type": "string"
      },
+     "thumbnail": {
+      "description": "An https image of the object, set at read time by the project's target-label callback\n(never stored with the event).",
+      "nullable": true,
+      "type": "string"
+     },
      "type": {
       "type": "string"
      },
@@ -7722,7 +9008,7 @@
       "additionalProperties": {
        "$ref": "#/components/schemas/ActivityActionTemplate"
       },
-      "description": "Display template per action name (up to 500).",
+      "description": "Display template per action name (up to 500). A key ending in `.*` (for example\n`email.*`) is a prefix template for every action starting with the stem and a dot; an\nexact name wins over a prefix, and among prefixes the longest wins. A prefix key needs a\nnon-empty stem; any other `*` is rejected.",
       "nullable": true,
       "propertyNames": {
        "type": "string"
@@ -7730,11 +9016,13 @@
       "type": "object"
      },
      "brandName": {
+      "description": "Name shown in the hosted page header (up to 256 characters). Default: none.",
       "nullable": true,
       "type": "string"
      },
      "colorScheme": {
       "$ref": "#/components/schemas/ActivityColorScheme",
+      "description": "`system` (default, follows the viewer's device), `light` or `dark`.",
       "nullable": true
      },
      "columns": {
@@ -7752,6 +9040,7 @@
      },
      "density": {
       "$ref": "#/components/schemas/ActivityDensity",
+      "description": "Row spacing: `comfortable` (default) or `compact`.",
       "nullable": true
      },
      "detailFields": {
@@ -7767,16 +9056,39 @@
       "nullable": true,
       "type": "string"
      },
+     "failureReasonPath": {
+      "description": "Event path whose value picks the `failureReasons` entry, e.g. `metadata.error_code`.",
+      "nullable": true,
+      "type": "string"
+     },
+     "failureReasons": {
+      "additionalProperties": {
+       "$ref": "#/components/schemas/ActivityFailureReason"
+      },
+      "description": "Advice per failure code (up to 200), shown as `display.failure_reason` on failed events.",
+      "nullable": true,
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "fallbackTemplate": {
+      "$ref": "#/components/schemas/ActivityActionTemplate",
+      "description": "Template for an action no `actions` key matches; `{action.noun}` and `{action.verb}` split it.",
+      "nullable": true
+     },
      "faviconUrl": {
+      "description": "`https` URL of the page icon. Default: the Watchtower icon.",
       "nullable": true,
       "type": "string"
      },
      "font": {
       "$ref": "#/components/schemas/ActivityFont",
+      "description": "Font of the hosted page; default: the system font stack.",
       "nullable": true
      },
      "hideAccessEvents": {
-      "description": "Hide the reserved `wt.activity.*` access events from the viewer list.",
+      "description": "Hide the reserved `wt.activity.*` access events from the viewer list (default off: shown).",
       "nullable": true,
       "type": "boolean"
      },
@@ -7802,19 +9114,23 @@
       "type": "boolean"
      },
      "logoDarkUrl": {
+      "description": "`https` URL of the logo in the dark scheme. Default: `logoUrl`.",
       "nullable": true,
       "type": "string"
      },
      "logoUrl": {
+      "description": "`https` URL of the header logo. Default: none.",
       "nullable": true,
       "type": "string"
      },
      "palette": {
       "$ref": "#/components/schemas/ActivityPalette",
+      "description": "Light-scheme colours; unset ones use the built-in look.",
       "nullable": true
      },
      "paletteDark": {
       "$ref": "#/components/schemas/ActivityPalette",
+      "description": "Colours of the dark scheme; unset colours use the built-in dark look.",
       "nullable": true
      },
      "radius": {
@@ -7830,15 +9146,17 @@
       "type": "boolean"
      },
      "showIp": {
+      "description": "Show network identity to viewers (default off): off removes `context.ip`, `ip`,\n`user_agent`, `device_id` and, unless `showLocation`, `country|region|asn`.",
       "nullable": true,
       "type": "boolean"
      },
      "showLocation": {
-      "description": "Show the country derived from the IP.",
+      "description": "Show `context.country|region|asn` to viewers (default off; `showIp` also shows them).",
       "nullable": true,
       "type": "boolean"
      },
      "showMetadata": {
+      "description": "Show `metadata` to viewers (default off: unset or `false` hides it). Off removes the\n`metadata` of the event, actor and targets from viewer rows, exports and streams, so\n`{metadata.*}`, `columns` and `detailFields` read empty; `q` filters and `failureReasons`\nstill use it. A theme saved without this key hides it; saving one that hides metadata but\nreferences `metadata.*` warns (never a 422, even when strict).",
       "nullable": true,
       "type": "boolean"
      },
@@ -7856,18 +9174,39 @@
       "description": "Whether the org's plan lets `hideWatchtowerBadge` take effect.",
       "type": "boolean"
      },
+     "changed": {
+      "description": "On a save (`PUT`): true only when the stored draft differs from before, so a repeated\nidentical save reports false. Absent on reads.",
+      "nullable": true,
+      "type": "boolean"
+     },
+     "changed_keys": {
+      "description": "On a save or a publish: the top-level theme keys whose stored value differs from before\n(the previous draft for a save, the previous published theme for a publish), sorted,\nincluding keys that went from present to absent: `[\"showMetadata\"]`.",
+      "items": {
+       "type": "string"
+      },
+      "nullable": true,
+      "type": "array"
+     },
      "draft": {
       "$ref": "#/components/schemas/ActivityTheme",
       "description": "Saved, not yet published."
+     },
+     "key_changes": {
+      "description": "The same keys with `previous` and `next` values for scalar keys (`null` = absent), so a\nsync can print `showMetadata: true -\u003e absent`.",
+      "items": {
+       "$ref": "#/components/schemas/ActivityThemeKeyChange"
+      },
+      "nullable": true,
+      "type": "array"
      },
      "theme": {
       "$ref": "#/components/schemas/ActivityTheme",
       "description": "Published."
      },
      "warnings": {
-      "description": "Contrast warnings of the draft (never blocking).",
+      "description": "Problems of the draft that never block a save, each `{path, message}`: low palette\ncontrast (`palette`), and placeholders, formatters or icons in `actions` the renderer does\nnot know (`actions.invoice.paid.label`), and a theme that hides `metadata` (`showMetadata`\nnot `true` once laid over the org default) while `detailFields`, `columns`, action\ntemplates or `fallbackTemplate` read `metadata.*` (`detailFields`: \"detailFields reference\nmetadata.status but showMetadata is off: viewers will not see it\"). With `?strict=true` the\ntemplate ones are a 422 on the write instead; the metadata one is always only a warning.",
       "items": {
-       "type": "string"
+       "$ref": "#/components/schemas/ActivityThemeWarning"
       },
       "type": "array"
      }
@@ -7892,6 +9231,25 @@
     ],
     "type": "object"
    },
+   "ActivityThemeKeyChange": {
+    "description": "One top-level theme key whose stored value differs between two versions.",
+    "properties": {
+     "key": {
+      "description": "The theme key, for example `showMetadata`.",
+      "type": "string"
+     },
+     "next": {
+      "description": "The value after, with the same rules as `previous`: `null` when the key is now absent."
+     },
+     "previous": {
+      "description": "The value before, for a scalar key (boolean, number or string): `null` when the key was\nabsent. Omitted for object and array keys, which are listed in `changed_keys` only."
+     }
+    },
+    "required": [
+     "key"
+    ],
+    "type": "object"
+   },
    "ActivityThemePreview": {
     "properties": {
      "expires_at": {
@@ -7900,11 +9258,36 @@
      "url": {
       "description": "The hosted page showing the draft; valid until `expires_at`. Shown once.",
       "type": "string"
+     },
+     "warnings": {
+      "description": "Placeholders, formatters and icons of the draft's action templates the renderer does not\nknow, each `{path, message}` (the preview shows them as the renderer reads them).",
+      "items": {
+       "$ref": "#/components/schemas/ActivityThemeWarning"
+      },
+      "type": "array"
      }
     },
     "required": [
      "url",
-     "expires_at"
+     "expires_at",
+     "warnings"
+    ],
+    "type": "object"
+   },
+   "ActivityThemeWarning": {
+    "description": "A problem that does not stop a save: where it is and what is wrong.",
+    "properties": {
+     "message": {
+      "type": "string"
+     },
+     "path": {
+      "description": "The field, for example `actions.invoice.paid.label` or `palette`.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "path",
+     "message"
     ],
     "type": "object"
    },
@@ -8082,6 +9465,13 @@
       "description": "The UTC day counted (`YYYY-MM-DD`).",
       "type": "string"
      },
+     "days": {
+      "description": "The last 30 days with use, newest first.",
+      "items": {
+       "$ref": "#/components/schemas/ActivityUsageDay"
+      },
+      "type": "array"
+     },
      "events": {
       "format": "int64",
       "type": "integer"
@@ -8101,6 +9491,11 @@
       },
       "type": "array"
      },
+     "overage": {
+      "description": "Events stored today past the plan cap (kept, flagged `over_quota`, still answered 202).",
+      "format": "int64",
+      "type": "integer"
+     },
      "percent": {
       "description": "`events / limit` in percent, rounded down; `null` when unlimited.",
       "format": "int64",
@@ -8112,7 +9507,32 @@
     "required": [
      "day",
      "events",
-     "notified"
+     "notified",
+     "overage",
+     "days"
+    ],
+    "type": "object"
+   },
+   "ActivityUsageDay": {
+    "properties": {
+     "day": {
+      "description": "`YYYY-MM-DD` (UTC).",
+      "type": "string"
+     },
+     "events": {
+      "format": "int64",
+      "type": "integer"
+     },
+     "overage": {
+      "description": "Events of the day past the plan cap.",
+      "format": "int64",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "day",
+     "events",
+     "overage"
     ],
     "type": "object"
    },
@@ -8560,6 +9980,72 @@
      "rejected",
      "failed",
      "open_incidents"
+    ],
+    "type": "object"
+   },
+   "ActivityWebhookSecret": {
+    "description": "A named secret, without its values.",
+    "properties": {
+     "count": {
+      "description": "How many values it holds (1 or 2).",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "fingerprints": {
+      "description": "First 8 hex of the SHA-256 of each value, newest first.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "name": {
+      "type": "string"
+     },
+     "updated_at": {
+      "description": "RFC 3339.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "count",
+     "fingerprints",
+     "updated_at"
+    ],
+    "type": "object"
+   },
+   "ActivityWebhookSecretIn": {
+    "additionalProperties": false,
+    "properties": {
+     "values": {
+      "description": "One or two different values, newest first (each 16 to 256 characters): the notifier signs\nwith the first, receivers accept either during a rotation.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "values"
+    ],
+    "type": "object"
+   },
+   "ActivityWebhookSecretPage": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/ActivityWebhookSecret"
+      },
+      "type": "array"
+     },
+     "next_cursor": {
+      "description": "Always null (at most 50 names).",
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "data"
     ],
     "type": "object"
    },
@@ -9777,80 +11263,6 @@
     ],
     "type": "object"
    },
-   "AggSpec": {
-    "description": "Flattened into the API request, so it cannot use `deny_unknown_fields`.",
-    "properties": {
-     "calculations": {
-      "items": {
-       "$ref": "#/components/schemas/Calc"
-      },
-      "type": "array"
-     },
-     "granularity_s": {
-      "description": "Bucket width in seconds for time-bucketed rows, heatmap and concurrency (default: auto).",
-      "format": "int32",
-      "minimum": 0,
-      "nullable": true,
-      "type": "integer"
-     },
-     "group_by": {
-      "description": "`service.name`, `name`, `status`, or an attribute key; at most 4.",
-      "items": {
-       "type": "string"
-      },
-      "type": "array"
-     },
-     "havings": {
-      "items": {
-       "$ref": "#/components/schemas/Having"
-      },
-      "type": "array"
-     },
-     "limit": {
-      "description": "Group rows returned, 1 to 1000 (default 100).",
-      "format": "int32",
-      "minimum": 0,
-      "nullable": true,
-      "type": "integer"
-     },
-     "orders": {
-      "items": {
-       "$ref": "#/components/schemas/Order"
-      },
-      "type": "array"
-     }
-    },
-    "required": [
-     "calculations"
-    ],
-    "type": "object"
-   },
-   "AggregateRequest": {
-    "allOf": [
-     {
-      "$ref": "#/components/schemas/AggSpec"
-     },
-     {
-      "properties": {
-       "filter": {
-        "$ref": "#/components/schemas/AggFilter"
-       },
-       "from": {
-        "description": "RFC 3339; default one hour before `to`.",
-        "nullable": true,
-        "type": "string"
-       },
-       "to": {
-        "description": "RFC 3339 (exclusive); default now.",
-        "nullable": true,
-        "type": "string"
-       }
-      },
-      "type": "object"
-     }
-    ],
-    "unevaluatedProperties": false
-   },
    "AiAgentOpsDecisionRequest": {
     "additionalProperties": false,
     "properties": {
@@ -10659,6 +12071,11 @@
       "description": "Days of alert history (evaluations and alert events) kept, 30 to 1825 (default 400).",
       "format": "int32",
       "type": "integer"
+     },
+     "owner_fallback_alerts": {
+      "description": "An alert no route matches is emailed to the org owner by Watchtower, default true. A route\nthat matches and has no receiver (an intentional drop) never triggers it.\nAbsent on PUT: unchanged.",
+      "nullable": true,
+      "type": "boolean"
      },
      "require_resolve_note": {
       "description": "Resolving an alert or a page needs a note (`{\"note\": ...}`; chat and SMS replies are exempt).\nAbsent on PUT: unchanged.",
@@ -12264,6 +13681,17 @@
    "ApprovalMode": {
     "additionalProperties": false,
     "properties": {
+     "exempt_service_accounts": {
+      "description": "Service accounts (`sva_...`) whose `kind:user` deletions skip the second approver.\n`kind:filter` deletions always need one while the mode is `second_admin`.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "exempt_user_deletions": {
+      "description": "When true, every `kind:user` deletion skips the second approver.",
+      "type": "boolean"
+     },
      "mode": {
       "description": "`second_admin` (default: a different `ManageSecurity` user approves each request) or\n`none` (requests are queued at once; for projects with a single admin).",
       "type": "string"
@@ -13768,6 +15196,42 @@
      "credit_pct",
      "incidents"
     ],
+    "type": "object"
+   },
+   "BTreeMap": {
+    "additionalProperties": {
+     "additionalProperties": false,
+     "description": "Copy of one action for one locale; every key falls back to the template's own.",
+     "properties": {
+      "fields": {
+       "items": {
+        "$ref": "#/components/schemas/ActivityDisplayField"
+       },
+       "nullable": true,
+       "type": "array"
+      },
+      "label": {
+       "nullable": true,
+       "type": "string"
+      },
+      "label_denied": {
+       "nullable": true,
+       "type": "string"
+      },
+      "label_failure": {
+       "nullable": true,
+       "type": "string"
+      },
+      "subtitle": {
+       "nullable": true,
+       "type": "string"
+      }
+     },
+     "type": "object"
+    },
+    "propertyNames": {
+     "type": "string"
+    },
     "type": "object"
    },
    "BackfillDto": {
@@ -19557,6 +21021,43 @@
     ],
     "type": "object"
    },
+   "CommitRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "author_email": {
+      "nullable": true,
+      "type": "string"
+     },
+     "committed_at": {
+      "description": "RFC 3339; also accepted as `timestamp`. DORA lead time runs from the earliest commit of a\nrelease to its first deployment, so CI can send it without a repository integration.",
+      "nullable": true,
+      "type": "string"
+     },
+     "files": {
+      "items": {
+       "type": "string"
+      },
+      "nullable": true,
+      "type": "array"
+     },
+     "message": {
+      "nullable": true,
+      "type": "string"
+     },
+     "repo": {
+      "nullable": true,
+      "type": "string"
+     },
+     "sha": {
+      "description": "The commit sha; also accepted as `id` (Sentry's name). Giving both is a 422.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "sha"
+    ],
+    "type": "object"
+   },
    "Compare": {
     "description": "How a [`RuleCheck::Query`] value is compared with its threshold.",
     "enum": [
@@ -20708,23 +22209,36 @@
     "type": "object"
    },
    "CorrelationIn": {
-    "allOf": [
-     {
-      "$ref": "#/components/schemas/CorrelationSpec"
+    "additionalProperties": false,
+    "properties": {
+     "action": {
+      "$ref": "#/components/schemas/Action"
      },
-     {
-      "properties": {
-       "name": {
-        "type": "string"
-       }
+     "group_by": {
+      "description": "Attributes whose values key a case, e.g. `[\"service\", \"env\"]`.",
+      "items": {
+       "type": "string"
       },
-      "required": [
-       "name"
-      ],
-      "type": "object"
+      "type": "array"
+     },
+     "match": {
+      "$ref": "#/components/schemas/Match"
+     },
+     "name": {
+      "type": "string"
+     },
+     "window_s": {
+      "description": "Seconds a case stays open from its first signal.",
+      "format": "int64",
+      "type": "integer"
      }
+    },
+    "required": [
+     "match",
+     "window_s",
+     "name"
     ],
-    "unevaluatedProperties": false
+    "type": "object"
    },
    "CorrelationLinksBody": {
     "additionalProperties": false,
@@ -21995,13 +23509,18 @@
      },
      {
       "properties": {
+       "secret": {
+        "description": "The same value as `token`, under the name every key-create response shares.",
+        "type": "string"
+       },
        "token": {
-        "description": "The secret, shown once, here only: it is stored as a SHA-256 hash and no later call\nreturns it. Send it as `Authorization: Bearer \u003ctoken\u003e`. Save it now; lose it and you rotate or mint a new one.",
+        "description": "The secret, shown once, here only: it is stored as a SHA-256 hash and no later call\nreturns it. Send it as `Authorization: Bearer \u003ctoken\u003e`. Save it now; lose it and you rotate or mint a new one.\nThe existing name of the field; `secret` carries the same value.",
         "type": "string"
        }
       },
       "required": [
-       "token"
+       "token",
+       "secret"
       ],
       "type": "object"
      }
@@ -22104,7 +23623,8 @@
      "ingest:feedback",
      "ingest:activity",
      "read:activity",
-     "test:activity"
+     "test:activity",
+     "erase:activity"
     ],
     "type": "string"
    },
@@ -26143,7 +27663,7 @@
       "type": "array"
      },
      "kind": {
-      "description": "One of `available_kinds`: secrets (`aws_key`, `github_token`, `private_key`, ...), contact\nand payment data (`email`, `phone`, `card`, `iban`), national ids (`ssn`, `uk_nino`,\n`ca_sin`, `es_dni`, `fr_nir`, `br_cpf`, `in_aadhaar`, `it_fiscal_code`, `passport`) and\nnetwork ids (`ipv4`, `ipv6`, `mac`).",
+      "description": "One of `available_kinds`: secrets (`aws_key`, `github_token`, ...), contact and payment\ndata (`email`, `phone`, `card`, `iban`), national ids (`ssn`, `uk_nino`, `ca_sin`, `es_dni`,\n`fr_nir`, `br_cpf`, `in_aadhaar`, `it_fiscal_code`, `passport`), network ids (`ipv4`, `ipv6`, `mac`).",
       "type": "string"
      },
      "sample_percent": {
@@ -28751,75 +30271,6 @@
      "route",
      "errors"
     ],
-    "type": "object"
-   },
-   "Escalation": {
-    "description": "How the managed rule pages (UPT-021). Kept in the `quorum` column under `escalation`, so no\nmigration is needed; it ends up on the managed rule as its severity and labels.",
-    "properties": {
-     "alert_kind": {
-      "$ref": "#/components/schemas/AlertKind",
-      "description": "What the managed rule watches (default `check_failed`: the round fails quorum). A\nheartbeat always uses `check_failed`."
-     },
-     "availability_window_s": {
-      "description": "`availability`: the window in seconds, 300 to 86400 (default 3600).",
-      "format": "int32",
-      "minimum": 0,
-      "nullable": true,
-      "type": "integer"
-     },
-     "consecutive_failures": {
-      "description": "Alert config, not live state (read `status`): with `alert_kind` `consecutive_failures`, the failed\nrounds in a row that fire the alert, 2 to 100 (default 3).",
-      "format": "int32",
-      "minimum": 0,
-      "nullable": true,
-      "type": "integer"
-     },
-     "declare_incident": {
-      "description": "Open an incident, linked to the monitor, when the rule fires.",
-      "type": "boolean"
-     },
-     "escalation_policy_id": {
-      "description": "Escalation policy (`esc_...`) the alert follows.",
-      "nullable": true,
-      "type": "string"
-     },
-     "min_availability_pct": {
-      "description": "`availability`: alert below this percent of up results, 50 to 99.999 (default 99).",
-      "format": "double",
-      "nullable": true,
-      "type": "number"
-     },
-     "regression_factor": {
-      "description": "`performance_regression`: alert when the phase is this many times slower than its last\nday's mean, 1.1 to 20 (default 2).",
-      "format": "double",
-      "nullable": true,
-      "type": "number"
-     },
-     "regression_phase": {
-      "description": "`performance_regression`: `dns`, `connect`, `tls`, `ttfb` or `total` (default).",
-      "nullable": true,
-      "type": "string"
-     },
-     "renotify_s": {
-      "description": "Re-notify an open alert every this many seconds (60 to 604800); a rule label for routes.",
-      "format": "int32",
-      "minimum": 0,
-      "nullable": true,
-      "type": "integer"
-     },
-     "severity": {
-      "$ref": "#/components/schemas/Severity",
-      "description": "Severity of the managed rule (default `high`).",
-      "nullable": true
-     },
-     "stop_after": {
-      "description": "Stop notifying after this many notifications (1 to 100); a rule label like `renotify_s`.",
-      "format": "int32",
-      "minimum": 0,
-      "nullable": true,
-      "type": "integer"
-     }
-    },
     "type": "object"
    },
    "EscalationSimulateRequest": {
@@ -32082,8 +33533,22 @@
       "nullable": true,
       "type": "string"
      },
+     "credentials": {
+      "description": "The project's ingest credentials (live, with an `ingest:` scope). `last_used_at` null\nmeans the key has never been used.",
+      "items": {
+       "$ref": "#/components/schemas/IngestCredentialDto"
+      },
+      "type": "array"
+     },
      "received": {
       "type": "boolean"
+     },
+     "services": {
+      "description": "Every service seen since `since` (at most 50 per signal), by name; with `?service=` only\nthat one. Check it against the services you expect: one service can turn `received` green\nwhile others send nothing.",
+      "items": {
+       "$ref": "#/components/schemas/ServiceSeenDto"
+      },
+      "type": "array"
      },
      "signal": {
       "description": "`logs`, `traces` or `metrics`; set when `received`.",
@@ -32092,7 +33557,9 @@
      }
     },
     "required": [
-     "received"
+     "received",
+     "services",
+     "credentials"
     ],
     "type": "object"
    },
@@ -38437,6 +39904,26 @@
     ],
     "type": "object"
    },
+   "IngestCredentialDto": {
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "last_used_at": {
+      "description": "RFC 3339; null = never used.",
+      "nullable": true,
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name"
+    ],
+    "type": "object"
+   },
    "IngestGap": {
     "properties": {
      "data_may_be_lost": {
@@ -41497,6 +42984,10 @@
      "description": {
       "type": "string"
      },
+     "min_role": {
+      "$ref": "#/components/schemas/Role",
+      "description": "Lowest account role that can use a key from this preset; a lower-role account cannot mint it (422)."
+     },
      "name": {
       "type": "string"
      },
@@ -41510,7 +43001,8 @@
     "required": [
      "name",
      "description",
-     "scopes"
+     "scopes",
+     "min_role"
     ],
     "type": "object"
    },
@@ -44943,6 +46435,10 @@
       "description": "Public `env_…` id on the wire (W41); the stored UUID in memory.",
       "type": "string"
      },
+     "id": {
+      "description": "Stable link target: a decimal string, unique per log within its project (the `log_id` of\n`logs/context`). Also the tie-breaker of the paging cursor.",
+      "type": "string"
+     },
      "resource": {
       "additionalProperties": {
        "type": "string"
@@ -44984,7 +46480,8 @@
      "trace_id",
      "span_id",
      "attrs",
-     "resource"
+     "resource",
+     "id"
     ],
     "type": "object"
    },
@@ -45412,9 +46909,10 @@
       "type": "string"
      },
      "limit": {
-      "description": "1 to 1000 (default 100).",
+      "description": "1 to 1000 (default 100); outside that is a 400.",
       "format": "int32",
-      "minimum": 0,
+      "maximum": 1000,
+      "minimum": 1,
       "nullable": true,
       "type": "integer"
      },
@@ -45447,6 +46945,129 @@
       "type": "string"
      }
     },
+    "type": "object"
+   },
+   "LogSessionCreated": {
+    "properties": {
+     "expires_at": {
+      "type": "string"
+     },
+     "id": {
+      "description": "Revoke with `DELETE /v1/projects/{prj}/logs/sessions/{id}`.",
+      "type": "string"
+     },
+     "token": {
+      "description": "Bearer token. Shown once, stored only as a hash.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "token",
+     "expires_at"
+    ],
+    "type": "object"
+   },
+   "LogSessionRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "expires_in": {
+      "description": "Seconds until the token stops working, 1 to 86400 (default 900).",
+      "format": "int64",
+      "nullable": true,
+      "type": "integer"
+     },
+     "filter": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "description": "Shorthand for `eq` predicates: `{\"attributes.seller_id\": \"s_1\", \"resource.host.name\": \"h\"}`\n(`attributes.` or no prefix is a log attribute, `resource.` a resource attribute).",
+      "nullable": true,
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "predicates": {
+      "description": "1 to 10 predicates, all of which every query of the session must also satisfy. Send this\nor `filter`, not both.",
+      "items": {
+       "$ref": "#/components/schemas/SessionPredicate"
+      },
+      "nullable": true,
+      "type": "array"
+     },
+     "ttl_seconds": {
+      "description": "Alias of `expires_in`; send one of them.",
+      "format": "int64",
+      "nullable": true,
+      "type": "integer"
+     }
+    },
+    "type": "object"
+   },
+   "LogsAggregateRequest": {
+    "additionalProperties": false,
+    "description": "Body form of [`aggregate`]: the log filters of `logs/search` (with `attrs`) and the grouping.",
+    "properties": {
+     "attrs": {
+      "description": "At most 20 attribute filters.",
+      "items": {
+       "$ref": "#/components/schemas/AttrFilter"
+      },
+      "type": "array"
+     },
+     "env_id": {
+      "nullable": true,
+      "type": "string"
+     },
+     "field": {
+      "description": "`service`, `severity`, `env_id`, `resource.\u003ckey\u003e` or an attribute key.",
+      "type": "string"
+     },
+     "from": {
+      "description": "RFC 3339; default one hour before `to`.",
+      "nullable": true,
+      "type": "string"
+     },
+     "mode": {
+      "description": "`top` (default), `table`, `pie` or `timeseries`; only `timeseries` adds per-bucket counts.",
+      "nullable": true,
+      "type": "string"
+     },
+     "services": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "severities": {
+      "description": "Matched against the log's `severity_text` (case-insensitive).",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "text": {
+      "description": "Terms (whitespace separated, at most 256 chars) that must all occur in the body.",
+      "nullable": true,
+      "type": "string"
+     },
+     "to": {
+      "description": "RFC 3339 (exclusive); default now.",
+      "nullable": true,
+      "type": "string"
+     },
+     "top_n": {
+      "description": "1 to 100 (default 10).",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "field"
+    ],
     "type": "object"
    },
    "LogsAttachDto": {
@@ -45556,27 +47177,39 @@
       "type": "integer"
      },
      "next_cursor": {
-      "description": "Opaque; pass back as `cursor` for the next page.",
+      "description": "Opaque; pass back as `cursor` for the next page. Null on the last page: more pages are\nsignalled only here.",
       "nullable": true,
       "type": "string"
      },
      "partial": {
       "$ref": "#/components/schemas/Partial",
-      "description": "Why the result may be incomplete; null when it is complete.",
+      "description": "Why the result may be incomplete (rows dropped, range clamped); null when it is complete.",
       "nullable": true
      },
      "query_id": {
       "description": "`{project_id}:{ulid}`; `DELETE /v1/queries/{query_id}` cancels a running query.",
       "type": "string"
      },
+     "total": {
+      "description": "How many logs match the filters and time range in all (not only this page, ignoring\n`cursor` and `limit`); null when the count did not finish within 5 seconds.",
+      "format": "int64",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "total_exact": {
+      "description": "True when `total` is the exact count.",
+      "type": "boolean"
+     },
      "truncated": {
-      "description": "Deprecated alias of `partial` containing `row_cap`.",
+      "description": "Deprecated alias of `partial` containing `row_cap`. Always false for search: a page is\nnever cut short, `next_cursor` says whether more follow.",
       "type": "boolean"
      }
     },
     "required": [
      "data",
      "truncated",
+     "total_exact",
      "elapsed_ms",
      "query_id"
     ],
@@ -49195,93 +50828,156 @@
     "type": "object"
    },
    "MonitorSpec": {
-    "allOf": [
-     {
-      "$ref": "#/components/schemas/Escalation"
-     },
-     {
-      "properties": {
-       "alert": {
-        "description": "Whether alerting is enabled for this monitor (default true): config, not current state.\nTrue creates the managed alert rule; read `status` for whether the monitor is up or down.",
-        "type": "boolean"
-       },
-       "assertions": {
-        "description": "Gatus-style conditions, for example `[STATUS] == 200`. All must hold.",
-        "items": {
-         "type": "string"
-        },
-        "type": "array"
-       },
-       "config": {
-        "$ref": "#/components/schemas/MonitorConfigDoc",
-        "description": "Driver config, by `kind`: `MonitorHttpConfig`, `MonitorTcpConfig`, `MonitorDnsConfig`,\n`MonitorTlsConfig` or `MonitorHeartbeatConfig` (the other kinds take their driver's\nfields). `http` for example: `url`, `method`, `headers`, `body`, `max_redirects` (0 to\n10), `tls_verify`, `ip_version` (`4` or `6`), `auth`. An unknown key is a 422 that lists\nthe accepted ones. Credentials never go here."
-       },
-       "degraded_ms": {
-        "description": "A passing check slower than this is degraded, not down.",
-        "format": "int32",
-        "minimum": 0,
-        "nullable": true,
-        "type": "integer"
-       },
-       "deploy_canary": {
-        "description": "Opt in to the deploy canary (default false): after a deploy marker (`change_events` kind\n`deploy`) lands, the monitor runs every 10 s for 5 minutes (below the plan's\n`check_min_interval_s` on purpose, so use it on monitors that tolerate the load). The\nresults are flagged `canary` and still alert; uptime leaves them out. The running canary\nshows as `canary` on the monitor.",
-        "type": "boolean"
-       },
-       "enabled": {
-        "type": "boolean"
-       },
-       "env_id": {
-        "type": "string"
-       },
-       "interval_s": {
-        "description": "10 to 86400 (default 60).",
-        "format": "int32",
-        "minimum": 0,
-        "type": "integer"
-       },
-       "kind": {
-        "description": "One of the check kinds, `heartbeat` included (see the `MonitorHeartbeatConfig` schema for\nits config).",
-        "type": "string"
-       },
-       "locations": {
-        "description": "Probe locations, at most 10 (default `[\"default\"]`).",
-        "items": {
-         "type": "string"
-        },
-        "type": "array"
-       },
-       "name": {
-        "type": "string"
-       },
-       "quorum": {
-        "$ref": "#/components/schemas/Quorum"
-       },
-       "retry": {
-        "$ref": "#/components/schemas/Retry"
-       },
-       "service": {
-        "description": "Catalog service the monitor belongs to.",
-        "nullable": true,
-        "type": "string"
-       },
-       "timeout_ms": {
-        "description": "100 to 60000 (browser: 120000) and at most the interval (default 10000).",
-        "format": "int32",
-        "minimum": 0,
-        "type": "integer"
-       }
-      },
-      "required": [
-       "env_id",
-       "name",
-       "kind",
-       "config"
-      ],
-      "type": "object"
-     }
-    ],
+    "additionalProperties": false,
     "description": "Everything about a monitor that a user sets.",
-    "unevaluatedProperties": false
+    "properties": {
+     "alert": {
+      "description": "Whether alerting is enabled for this monitor (default true): config, not current state.\nTrue creates the managed alert rule; read `status` for whether the monitor is up or down.",
+      "type": "boolean"
+     },
+     "alert_kind": {
+      "$ref": "#/components/schemas/AlertKind",
+      "description": "What the managed rule watches (default `check_failed`: the round fails quorum). A\nheartbeat always uses `check_failed`."
+     },
+     "assertions": {
+      "description": "Gatus-style conditions, for example `[STATUS] == 200`. All must hold.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "availability_window_s": {
+      "description": "`availability`: the window in seconds, 300 to 86400 (default 3600).",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "config": {
+      "$ref": "#/components/schemas/MonitorConfigDoc",
+      "description": "Driver config, by `kind`: `MonitorHttpConfig`, `MonitorTcpConfig`, `MonitorDnsConfig`,\n`MonitorTlsConfig` or `MonitorHeartbeatConfig` (the other kinds take their driver's\nfields). `http` for example: `url`, `method`, `headers`, `body`, `max_redirects` (0 to\n10), `tls_verify`, `ip_version` (`4` or `6`), `auth`. An unknown key is a 422 that lists\nthe accepted ones. Credentials never go here."
+     },
+     "consecutive_failures": {
+      "description": "Alert config, not live state (read `status`): with `alert_kind` `consecutive_failures`, the failed\nrounds in a row that fire the alert, 2 to 100 (default 3).",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "declare_incident": {
+      "description": "Open an incident, linked to the monitor, when the rule fires.",
+      "type": "boolean"
+     },
+     "degraded_ms": {
+      "description": "A passing check slower than this is degraded, not down.",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "deploy_canary": {
+      "description": "Opt in to the deploy canary (default false): after a deploy marker (`change_events` kind\n`deploy`) lands, the monitor runs every 10 s for 5 minutes (below the plan's\n`check_min_interval_s` on purpose, so use it on monitors that tolerate the load). The\nresults are flagged `canary` and still alert; uptime leaves them out. The running canary\nshows as `canary` on the monitor.",
+      "type": "boolean"
+     },
+     "enabled": {
+      "type": "boolean"
+     },
+     "env_id": {
+      "type": "string"
+     },
+     "escalation_policy_id": {
+      "description": "Escalation policy (`esc_...`) the alert follows.",
+      "nullable": true,
+      "type": "string"
+     },
+     "interval_s": {
+      "description": "10 to 86400 (default 60).",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "kind": {
+      "description": "One of the check kinds, `heartbeat` included (see the `MonitorHeartbeatConfig` schema for\nits config).",
+      "type": "string"
+     },
+     "locations": {
+      "description": "Probe locations, at most 10 (default `[\"default\"]`).",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "min_availability_pct": {
+      "description": "`availability`: alert below this percent of up results, 50 to 99.999 (default 99).",
+      "format": "double",
+      "nullable": true,
+      "type": "number"
+     },
+     "name": {
+      "type": "string"
+     },
+     "quorum": {
+      "$ref": "#/components/schemas/Quorum"
+     },
+     "recovery_threshold": {
+      "description": "Successful rounds in a row that resolve a firing alert, 1 to 100 (default 1). Applies to\nevery `alert_kind` of a probed check; a heartbeat sets its own in its config.",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "regression_factor": {
+      "description": "`performance_regression`: alert when the phase is this many times slower than its last\nday's mean, 1.1 to 20 (default 2).",
+      "format": "double",
+      "nullable": true,
+      "type": "number"
+     },
+     "regression_phase": {
+      "description": "`performance_regression`: `dns`, `connect`, `tls`, `ttfb` or `total` (default).",
+      "nullable": true,
+      "type": "string"
+     },
+     "renotify_s": {
+      "description": "Re-notify an open alert every this many seconds (60 to 604800); a rule label for routes.",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "retry": {
+      "$ref": "#/components/schemas/Retry"
+     },
+     "service": {
+      "description": "Catalog service the monitor belongs to.",
+      "nullable": true,
+      "type": "string"
+     },
+     "severity": {
+      "$ref": "#/components/schemas/Severity",
+      "description": "Severity of the managed rule (default `high`).",
+      "nullable": true
+     },
+     "stop_after": {
+      "description": "Stop notifying after this many notifications (1 to 100); a rule label like `renotify_s`.",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "timeout_ms": {
+      "description": "100 to 60000 (browser: 120000) and at most the interval (default 10000).",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "env_id",
+     "name",
+     "kind",
+     "config"
+    ],
+    "type": "object"
    },
    "MonitorSuggestionsSuggestionDto": {
     "properties": {
@@ -50181,6 +51877,33 @@
     ],
     "type": "object"
    },
+   "NewAutomationKeyRequest": {
+    "additionalProperties": false,
+    "description": "Example: `{\"name\": \"seo-alerts\", \"preset\": \"events\"}`.",
+    "properties": {
+     "expires_in_days": {
+      "default": 90,
+      "description": "Days until the key expires, 1 to 365. Defaults to 90.",
+      "format": "int32",
+      "maximum": 365,
+      "minimum": 1,
+      "nullable": true,
+      "type": "integer"
+     },
+     "name": {
+      "type": "string"
+     },
+     "preset": {
+      "description": "`ci`, `events`, `monitors` or `monitors-as-code` (see `GET /v1/orgs/{org}/key-presets`).",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "preset"
+    ],
+    "type": "object"
+   },
    "NewCalculated": {
     "additionalProperties": false,
     "properties": {
@@ -50688,6 +52411,8 @@
     "additionalProperties": false,
     "properties": {
      "env_id": {
+      "description": "Environment id, or its name (e.g. `production`).",
+      "nullable": true,
       "type": "string"
      },
      "external_id": {
@@ -50710,23 +52435,22 @@
       "type": "string"
      },
      "started_at": {
-      "description": "RFC 3339; default now.",
+      "description": "RFC 3339; default `finished_at` when given, else now.",
       "nullable": true,
       "type": "string"
      },
      "status": {
-      "description": "`started`, `succeeded` or `failed` (default `succeeded`).",
+      "description": "`started`, `succeeded` or `failed` (default `succeeded`). A terminal status without\n`finished_at` defaults it to now.",
       "nullable": true,
       "type": "string"
      },
      "version": {
-      "description": "Version of an existing release of this project.",
+      "description": "Version of the release; created (no commits) when it does not exist yet.",
       "type": "string"
      }
     },
     "required": [
-     "version",
-     "env_id"
+     "version"
     ],
     "type": "object"
    },
@@ -51656,7 +53380,7 @@
       "type": "array"
      },
      "scopes": {
-      "description": "Narrower than the user's role: `query:read`, `query:sql`, `admin:read`, `admin:write`.\nOmit for no narrowing.",
+      "description": "Narrower than the user's role: `query:read`, `query:sql`, `admin:read`, `admin:write`.\nOmit for no narrowing. `config:write` is accepted as another name of `config:activity`.",
       "items": {
        "type": "string"
       },
@@ -52041,7 +53765,7 @@
      "commits": {
       "description": "At most 1000; each a sha string or `{sha, repo, timestamp}`. Known shas of an existing\nrelease are kept.",
       "items": {
-       "type": "object"
+       "$ref": "#/components/schemas/CommitRequest"
       },
       "nullable": true,
       "type": "array"
@@ -52242,9 +53966,12 @@
       "type": "string"
      },
      "expires_in_days": {
-      "description": "Required, 1 to 365 (days until the key expires).",
+      "default": 90,
+      "description": "Days until the key expires, 1 to 365. Defaults to 90 when absent.",
       "format": "int32",
-      "minimum": 0,
+      "maximum": 365,
+      "minimum": 1,
+      "nullable": true,
       "type": "integer"
      },
      "name": {
@@ -52262,7 +53989,7 @@
       "type": "string"
      },
      "scopes": {
-      "description": "Any of `ingest:logs|traces|metrics|errors|alerts|checkins`, `query:read`, `query:sql`,\n`admin:read`, `admin:write`, `ci:write` (releases, deployments, test runs, artifacts),\n`events:write` (post events), `monitors:write` (monitors, maintenance windows, triggers),\n`privacy:execute` (the Cookie Munch privacy executor routes of a project), `slos:write`\n(SLOs) and `bootstrap` (create projects and keys). Omit when `preset` is given.",
+      "description": "Any of `ingest:logs|traces|metrics|errors|alerts|checkins`, `query:read`, `query:sql`,\n`admin:read`, `admin:write`, `ci:write` (releases, deployments, test runs, artifacts),\n`events:write` (post events), `monitors:write` (monitors, maintenance windows, triggers),\n`privacy:execute` (the Cookie Munch privacy executor routes of a project), `slos:write`\n(SLOs), `erase:activity` (Activity account and actor erasure and their status),\n`schema:activity` (action schemas), `theme:activity` (Activity theme and action\ntemplates), `rules:activity` (Activity policy and alert rules), `config:activity` (the whole\nActivity config document, plan and apply, for CI) and `bootstrap` (create\nprojects and keys). The five Activity scopes need role `project_admin` and open no event\ndata. Omit when `preset` is given.\n`config:write` is accepted as another name of `config:activity`.",
       "items": {
        "type": "string"
       },
@@ -52270,8 +53997,7 @@
      }
     },
     "required": [
-     "name",
-     "expires_in_days"
+     "name"
     ],
     "type": "object"
    },
@@ -53457,6 +55183,18 @@
     "required": [
      "data"
     ],
+    "type": "object"
+   },
+   "NotificationsTestRequest": {
+    "additionalProperties": false,
+    "description": "Optional body of `:test`.",
+    "properties": {
+     "dry_run": {
+      "description": "Return the payload that would be queued (200) and deliver nothing, e.g. for a status page\nreceiver whose test would post to a public page.",
+      "nullable": true,
+      "type": "boolean"
+     }
+    },
     "type": "object"
    },
    "NumberDto": {
@@ -55912,6 +57650,34 @@
      "name": {
       "nullable": true,
       "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "PatchQualityGateRequest": {
+    "additionalProperties": false,
+    "description": "Fields to change; omitted ones keep their value. `conditions` replaces the whole set, and an\nempty `service` clears it.",
+    "properties": {
+     "conditions": {
+      "$ref": "#/components/schemas/GateConditions",
+      "nullable": true
+     },
+     "env_id": {
+      "nullable": true,
+      "type": "string"
+     },
+     "name": {
+      "nullable": true,
+      "type": "string"
+     },
+     "service": {
+      "nullable": true,
+      "type": "string"
+     },
+     "window_min": {
+      "format": "int32",
+      "nullable": true,
+      "type": "integer"
      }
     },
     "type": "object"
@@ -60111,6 +61877,14 @@
       "format": "float",
       "type": "number"
      },
+     "subject_keys": {
+      "default": [],
+      "description": "Extra attribute keys (e.g. `crossly.user_id`) the privacy executor and user deletions\nmatch a subject on, besides `user.id` / `enduser.id`.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
      "unmask_selectors": {
       "default": [],
       "description": "Only effective at balanced or relaxed.",
@@ -60381,7 +62155,7 @@
     "properties": {
      "code": {
       "$ref": "#/components/schemas/ProblemCode",
-      "description": "One of:\n`not_found`, `forbidden`, `unauthorized`, `read_only_key`, `method_not_allowed`,\n`validation`, `unprocessable`, `would_exceed_cap`, `limit_exceeded`, `limit_reached`,\n`query_too_expensive`, `data_shredded`, `conflict`, `legal_hold`, `version_limit`,\n`rate_limited`, `ai_disabled`, `no_model_key`, `ai_cap_reached`,\n`too_many_investigations`, `payload_unavailable`, `payload_too_large`, `quota_exceeded`,\n`precondition_failed`, `precondition_required`, `ip_not_allowed`, `would_lock_out_self`,\n`unavailable`, `unsupported_promql`, `query_timeout`, `query_cancelled`,\n`query_overloaded`, `internal`, `client_too_old`, `dataplane_bad_response`,\n`dataplane_unreachable`, `dataplane_error`, `key_revoked`, `key_unavailable`, `mfa_required`,\n`privacy_change_requires_admin`, `sso_required`, `wrong_region`.\nThe same set is listed in the error reference."
+      "description": "One of:\n`not_found`, `forbidden`, `unauthorized`, `read_only_key`, `method_not_allowed`,\n`validation`, `unknown_parameter`, `unprocessable`, `would_exceed_cap`, `limit_exceeded`, `limit_reached`,\n`query_too_expensive`, `data_shredded`, `conflict`, `legal_hold`, `version_limit`,\n`rate_limited`, `ai_disabled`, `no_model_key`, `ai_cap_reached`,\n`too_many_investigations`, `payload_unavailable`, `payload_too_large`, `quota_exceeded`,\n`precondition_failed`, `precondition_required`, `ip_not_allowed`, `would_lock_out_self`,\n`unavailable`, `unsupported_promql`, `query_timeout`, `query_cancelled`,\n`query_overloaded`, `internal`, `client_too_old`, `dataplane_bad_response`,\n`dataplane_unreachable`, `dataplane_error`, `key_revoked`, `key_unavailable`, `mfa_required`,\n`privacy_change_requires_admin`, `sso_required`, `wrong_region`, `event_finalized`.\nThe same set is listed in the error reference."
      },
      "detail": {
       "nullable": true,
@@ -60423,6 +62197,7 @@
      "unauthorized",
      "method_not_allowed",
      "validation",
+     "unknown_parameter",
      "unprocessable",
      "conflict",
      "would_exceed_cap",
@@ -60460,7 +62235,8 @@
      "key_unavailable",
      "client_too_old",
      "data_shredded",
-     "no_model_key"
+     "no_model_key",
+     "event_finalized"
     ],
     "type": "string"
    },
@@ -62379,6 +64155,10 @@
       "nullable": true,
       "type": "string"
      },
+     "secret": {
+      "description": "The same value as `key`, under the name every key-create response shares.",
+      "type": "string"
+     },
      "session_cap_per_min": {
       "format": "int32",
       "type": "integer"
@@ -62400,6 +64180,7 @@
      "name",
      "key",
      "token",
+     "secret",
      "prefix",
      "origins",
      "app_ids",
@@ -62455,7 +64236,7 @@
       "type": "string"
      },
      "origins": {
-      "description": "1 to 50 exact origins (`https://app.example.com`) or single-label wildcards\n(`https://*.example.com`). Never `*`.",
+      "description": "1 to 50 exact origins (`https://app.example.com`) or single-label wildcards\n(`https://*.example.com`), or exact browser-extension origins\n(`chrome-extension://\u003cid\u003e`; Firefox and Safari ids change per install, so `moz-extension://*` and\n`safari-web-extension://*` accept any install of that browser). Never `*`. May be empty (the default) for an app-only key,\nthat is when `app_ids` is not empty: such a key refuses every request with an `Origin`.",
       "items": {
        "type": "string"
       },
@@ -62469,8 +64250,7 @@
      }
     },
     "required": [
-     "name",
-     "origins"
+     "name"
     ],
     "type": "object"
    },
@@ -65332,6 +67112,11 @@
      "team": {
       "nullable": true,
       "type": "string"
+     },
+     "validation": {
+      "$ref": "#/components/schemas/Validation",
+      "description": "Only in the response to saving a hermetica email receiver: the Hermeticor readiness check.",
+      "nullable": true
      }
     },
     "required": [
@@ -69194,6 +70979,19 @@
     },
     "type": "object"
    },
+   "RootReceiverPatch": {
+    "additionalProperties": false,
+    "properties": {
+     "receiver": {
+      "description": "Receiver name or `rcv_` id.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "receiver"
+    ],
+    "type": "object"
+   },
    "Rotation": {
     "oneOf": [
      {
@@ -69900,76 +71698,6 @@
       "type": "object"
      }
     ]
-   },
-   "RuleExt": {
-    "description": "The flattened options. Every field defaults to the behaviour before it existed.",
-    "properties": {
-     "expression": {
-      "description": "Math over the queries, the value the condition tests: `$A / $B * 100`,\n`$A \u003e 5 \u0026\u0026 $B \u003c 3` (comparisons give 1 or 0), `abs($A - $B)`, `$A / sum($A)`\n(`sum avg min max count` of one query reduce over all its groups). Groups are joined\nby labels; a query with a single group without labels applies to every group.",
-      "nullable": true,
-      "type": "string"
-     },
-     "holidays": {
-      "description": "UTC days (`YYYY-MM-DD`, at most 400) left out of an anomaly rule's baseline, such as\npublic holidays, so a quiet holiday does not skew the seasonal norm (ALT-009).",
-      "items": {
-       "type": "string"
-      },
-      "type": "array"
-     },
-     "jitter": {
-      "description": "Spread evaluations: this rule runs at a stable offset within `every_s`, derived from\nits id, instead of on the interval boundary.",
-      "type": "boolean"
-     },
-     "limit": {
-      "description": "Most alert groups one evaluation may produce (Prometheus group `limit`); above it the\nevaluation fails as an error. 0: only the global cap.",
-      "format": "int32",
-      "minimum": 0,
-      "type": "integer"
-     },
-     "missing_series_evals": {
-      "description": "Consecutive evaluations a labelled series may be missing before its group is retired\nand its alert resolves (default 10, 1 to 1000).",
-      "format": "int32",
-      "minimum": 0,
-      "nullable": true,
-      "type": "integer"
-     },
-     "notify": {
-      "$ref": "#/components/schemas/RuleNotify",
-      "description": "Route this rule's alerts from the rule (see [`RuleNotify`]).",
-      "nullable": true
-     },
-     "on_error": {
-      "$ref": "#/components/schemas/OnError",
-      "description": "What an evaluation error means (default `error`)."
-     },
-     "queries": {
-      "additionalProperties": {
-       "$ref": "#/components/schemas/RuleQuery"
-      },
-      "description": "`query` is `A`. Only queries that read one window may be added.",
-      "propertyNames": {
-       "type": "string"
-      },
-      "type": "object"
-     },
-     "skip_pending_on_error": {
-      "description": "Fire `error`, `no_data` and the `alerting` policies at once instead of waiting `for_s`.",
-      "type": "boolean"
-     },
-     "source_author": {
-      "description": "Set by the server on save; access to every source is re-checked as this user at evaluation.",
-      "nullable": true,
-      "type": "string"
-     },
-     "source_projects": {
-      "description": "Extra queries by ref id (`B` to `E`), each read over the same window; the main\nFederated alert rule (A25): also read these same-org projects. `promql` rules only.",
-      "items": {
-       "type": "string"
-      },
-      "type": "array"
-     }
-    },
-    "type": "object"
    },
    "RuleForecast": {
     "additionalProperties": false,
@@ -71380,148 +73108,204 @@
     "type": "object"
    },
    "RuleSpec": {
-    "allOf": [
-     {
-      "$ref": "#/components/schemas/RuleExt",
-      "description": "Error handling, jitter, limit, multi-query expressions and routing on the rule."
-     },
-     {
-      "properties": {
-       "annotations": {
-        "$ref": "#/components/schemas/Annotations"
-       },
-       "condition": {
-        "$ref": "#/components/schemas/Condition",
-        "description": "What breaches, for example `{\"threshold\": {\"op\": \"gt\", \"value\": 5}}` (ops `gt`, `ge`,\n`lt`, `le`, `eq`, `ne`; optional `recovery`, `warn`, `warn_recovery`), or an `anomaly`\nor `forecast` condition."
-       },
-       "delay_s": {
-        "description": "Seconds the window lags the tick, for late data; 0 to 86400 (default 60).",
-        "format": "int32",
-        "minimum": 0,
-        "type": "integer"
-       },
-       "enabled": {
-        "type": "boolean"
-       },
-       "env_id": {
-        "description": "An environment id (`env_…`), not its name; omitted = every environment. Sent and stored\nas `env_id` (B14, the name monitors and SLOs use); the older `env` is still read.",
-        "nullable": true,
-        "pattern": "^env_[0-9a-hjkmnp-tv-z]{26}$",
-        "type": "string"
-       },
-       "every_s": {
-        "description": "Seconds between evaluations, 10 to 86400 (default 60).",
-        "format": "int32",
-        "minimum": 0,
-        "type": "integer"
-       },
-       "fill": {
-        "$ref": "#/components/schemas/Fill",
-        "description": "What a gap in a group's series reads as (default none)."
-       },
-       "for_s": {
-        "description": "Seconds a breach must last before firing (default 0: fire at once).",
-        "format": "int32",
-        "minimum": 0,
-        "type": "integer"
-       },
-       "group_by": {
-        "description": "At most 10 keys (log rules only; `PromQL` groups by its result series).",
-        "items": {
-         "type": "string"
-        },
-        "type": "array"
-       },
-       "investigate": {
-        "description": "Start an AI investigation when an alert fires; `None` follows the project's\n`auto_investigate_on_alert` setting.",
-        "nullable": true,
-        "type": "boolean"
-       },
-       "kind": {
-        "$ref": "#/components/schemas/RuleKind",
-        "description": "The rule kind; it must match the key of `query`. `GET /v1/rule-kinds` lists them."
-       },
-       "labels": {
-        "additionalProperties": {
-         "type": "string"
-        },
-        "propertyNames": {
-         "type": "string"
-        },
-        "type": "object"
-       },
-       "muted_until": {
-        "description": "Unix seconds; until then transitions are recorded but not notified.",
-        "format": "int64",
-        "nullable": true,
-        "type": "integer"
-       },
-       "name": {
-        "description": "Display name, 1 to 256 bytes.",
-        "type": "string"
-       },
-       "no_data": {
-        "$ref": "#/components/schemas/NoData"
-       },
-       "no_data_after_s": {
-        "description": "Seconds a group may be missing before `no_data` applies (default 0: at once).",
-        "format": "int32",
-        "minimum": 0,
-        "type": "integer"
-       },
-       "query": {
-        "$ref": "#/components/schemas/RuleQuery",
-        "description": "The query object, keyed by the kind's `query_key`, for example\n`{\"log_count\": {\"filter\": {\"severities\": [\"ERROR\"]}}}`. The `example` field of each entry\nof `GET /v1/rule-kinds` is exactly a valid value for this field."
-       },
-       "recover_after": {
-        "description": "Consecutive non-breaching evaluations before a firing group resolves (default 1).",
-        "format": "int32",
-        "minimum": 0,
-        "type": "integer"
-       },
-       "recover_for_s": {
-        "description": "Seconds the recovery condition must hold before a firing group resolves (default 0).",
-        "format": "int32",
-        "minimum": 0,
-        "type": "integer"
-       },
-       "recovery_expr": {
-        "$ref": "#/components/schemas/RecoveryExpr",
-        "description": "Extra condition a firing group must also meet to resolve.",
-        "nullable": true
-       },
-       "schedule": {
-        "$ref": "#/components/schemas/Schedule",
-        "description": "Calendar schedule; when set, the rule runs at those times instead of every `every_s`.",
-        "nullable": true
-       },
-       "severity": {
-        "$ref": "#/components/schemas/Severity"
-       },
-       "spec_version": {
-        "description": "Document version; stored rules without it are version 1 and are upgraded on save.",
-        "format": "int32",
-        "minimum": 0,
-        "type": "integer"
-       },
-       "window_s": {
-        "description": "Seconds of data each evaluation covers (default 300).",
-        "format": "int32",
-        "minimum": 0,
-        "type": "integer"
-       }
-      },
-      "required": [
-       "name",
-       "kind",
-       "query",
-       "condition"
-      ],
-      "type": "object"
-     }
-    ],
+    "additionalProperties": false,
     "description": "Everything about a rule that a user sets (the stored and wire document).",
-    "unevaluatedProperties": false
+    "properties": {
+     "annotations": {
+      "$ref": "#/components/schemas/Annotations"
+     },
+     "condition": {
+      "$ref": "#/components/schemas/Condition",
+      "description": "What breaches, for example `{\"threshold\": {\"op\": \"gt\", \"value\": 5}}` (ops `gt`, `ge`,\n`lt`, `le`, `eq`, `ne`; optional `recovery`, `warn`, `warn_recovery`), or an `anomaly`\nor `forecast` condition."
+     },
+     "delay_s": {
+      "description": "Seconds the window lags the tick, for late data; 0 to 86400 (default 60).",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "enabled": {
+      "type": "boolean"
+     },
+     "env_id": {
+      "description": "An environment id (`env_…`), not its name; omitted = every environment. Sent and stored\nas `env_id` (B14, the name monitors and SLOs use); the older `env` is still read.",
+      "nullable": true,
+      "pattern": "^env_[0-9a-hjkmnp-tv-z]{26}$",
+      "type": "string"
+     },
+     "every_s": {
+      "description": "Seconds between evaluations, 10 to 86400 (default 60).",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "expression": {
+      "description": "Math over the queries, the value the condition tests: `$A / $B * 100`,\n`$A \u003e 5 \u0026\u0026 $B \u003c 3` (comparisons give 1 or 0), `abs($A - $B)`, `$A / sum($A)`\n(`sum avg min max count` of one query reduce over all its groups). Groups are joined\nby labels; a query with a single group without labels applies to every group.",
+      "nullable": true,
+      "type": "string"
+     },
+     "fill": {
+      "$ref": "#/components/schemas/Fill",
+      "description": "What a gap in a group's series reads as (default none)."
+     },
+     "for_s": {
+      "description": "Seconds a breach must last before firing (default 0: fire at once).",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "group_by": {
+      "description": "At most 10 keys (log rules only; `PromQL` groups by its result series).",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "holidays": {
+      "description": "UTC days (`YYYY-MM-DD`, at most 400) left out of an anomaly rule's baseline, such as\npublic holidays, so a quiet holiday does not skew the seasonal norm (ALT-009).",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "investigate": {
+      "description": "Start an AI investigation when an alert fires; `None` follows the project's\n`auto_investigate_on_alert` setting.",
+      "nullable": true,
+      "type": "boolean"
+     },
+     "jitter": {
+      "description": "Spread evaluations: this rule runs at a stable offset within `every_s`, derived from\nits id, instead of on the interval boundary.",
+      "type": "boolean"
+     },
+     "kind": {
+      "$ref": "#/components/schemas/RuleKind",
+      "description": "The rule kind; it must match the key of `query`. `GET /v1/rule-kinds` lists them."
+     },
+     "labels": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "limit": {
+      "description": "Most alert groups one evaluation may produce (Prometheus group `limit`); above it the\nevaluation fails as an error. 0: only the global cap.",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "missing_series_evals": {
+      "description": "Consecutive evaluations a labelled series may be missing before its group is retired\nand its alert resolves (default 10, 1 to 1000).",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "muted_until": {
+      "description": "Unix seconds; until then transitions are recorded but not notified.",
+      "format": "int64",
+      "nullable": true,
+      "type": "integer"
+     },
+     "name": {
+      "description": "Display name, 1 to 256 bytes.",
+      "type": "string"
+     },
+     "no_data": {
+      "$ref": "#/components/schemas/NoData"
+     },
+     "no_data_after_s": {
+      "description": "Seconds a group may be missing before `no_data` applies (default 0: at once).",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "notify": {
+      "$ref": "#/components/schemas/RuleNotify",
+      "description": "Route this rule's alerts from the rule (see [`RuleNotify`]).",
+      "nullable": true
+     },
+     "on_error": {
+      "$ref": "#/components/schemas/OnError",
+      "description": "What an evaluation error means (default `error`)."
+     },
+     "queries": {
+      "additionalProperties": {
+       "$ref": "#/components/schemas/RuleQuery"
+      },
+      "description": "`query` is `A`. Only queries that read one window may be added.",
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "query": {
+      "$ref": "#/components/schemas/RuleQuery",
+      "description": "The query object, keyed by the kind's `query_key`, for example\n`{\"log_count\": {\"filter\": {\"severities\": [\"ERROR\"]}}}`. The `example` field of each entry\nof `GET /v1/rule-kinds` is exactly a valid value for this field."
+     },
+     "recover_after": {
+      "description": "Consecutive non-breaching evaluations before a firing group resolves (default 1).",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "recover_for_s": {
+      "description": "Seconds the recovery condition must hold before a firing group resolves (default 0).",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "recovery_expr": {
+      "$ref": "#/components/schemas/RecoveryExpr",
+      "description": "Extra condition a firing group must also meet to resolve.",
+      "nullable": true
+     },
+     "schedule": {
+      "$ref": "#/components/schemas/Schedule",
+      "description": "Calendar schedule; when set, the rule runs at those times instead of every `every_s`.",
+      "nullable": true
+     },
+     "severity": {
+      "$ref": "#/components/schemas/Severity"
+     },
+     "skip_pending_on_error": {
+      "description": "Fire `error`, `no_data` and the `alerting` policies at once instead of waiting `for_s`.",
+      "type": "boolean"
+     },
+     "source_author": {
+      "description": "Set by the server on save; access to every source is re-checked as this user at evaluation.",
+      "nullable": true,
+      "type": "string"
+     },
+     "source_projects": {
+      "description": "Extra queries by ref id (`B` to `E`), each read over the same window; the main\nFederated alert rule (A25): also read these same-org projects. `promql` rules only.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "spec_version": {
+      "description": "Document version; stored rules without it are version 1 and are upgraded on save.",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "window_s": {
+      "description": "Seconds of data each evaluation covers (default 300).",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "name",
+     "kind",
+     "query",
+     "condition"
+    ],
+    "type": "object"
    },
    "RuleSpecRequest": {
     "additionalProperties": false,
@@ -72983,18 +74767,23 @@
      },
      {
       "properties": {
+       "secret": {
+        "description": "The same value as `token`, under the name every key-create response shares.",
+        "type": "string"
+       },
        "token": {
-        "description": "The secret, shown once, here only: it is stored as a SHA-256 hash and no later call\nreturns it. Send it as `Authorization: Bearer \u003ctoken\u003e`. Save it now; lose it and you rotate or mint a new one.",
+        "description": "The secret, shown once, here only: it is stored as a SHA-256 hash and no later call\nreturns it. Send it as `Authorization: Bearer \u003ctoken\u003e`. Save it now; lose it and you rotate or mint a new one.\nThe existing name of the field; `secret` carries the same value.",
         "type": "string"
        }
       },
       "required": [
-       "token"
+       "token",
+       "secret"
       ],
       "type": "object"
      }
     ],
-    "description": "Returned once, by create and rotate. `token` is never stored or shown again."
+    "description": "Returned once, by create and rotate. The secret is never stored or shown again."
    },
    "SaKeyDto": {
     "properties": {
@@ -76108,6 +77897,30 @@
     ],
     "type": "object"
    },
+   "ServiceAccountPatchRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "name": {
+      "description": "New name, unique in the org.",
+      "nullable": true,
+      "type": "string"
+     },
+     "projects": {
+      "description": "`prj_` ids of this org; `null` = all projects; omit to keep the list.",
+      "items": {
+       "type": "string"
+      },
+      "nullable": true,
+      "type": "array"
+     },
+     "role": {
+      "$ref": "#/components/schemas/Role",
+      "description": "New built-in role. Existing keys of the account take it at once.",
+      "nullable": true
+     }
+    },
+    "type": "object"
+   },
    "ServiceActionDto": {
     "properties": {
      "id": {
@@ -76379,6 +78192,34 @@
      "score",
      "level",
      "rules"
+    ],
+    "type": "object"
+   },
+   "ServiceSeenDto": {
+    "properties": {
+     "first_at": {
+      "description": "RFC 3339: earliest and latest event of the service in the window.",
+      "type": "string"
+     },
+     "last_at": {
+      "type": "string"
+     },
+     "service": {
+      "type": "string"
+     },
+     "signals": {
+      "description": "`logs`, `traces` and/or `metrics`.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "service",
+     "signals",
+     "first_at",
+     "last_at"
     ],
     "type": "object"
    },
@@ -76853,6 +78694,31 @@
     },
     "required": [
      "data"
+    ],
+    "type": "object"
+   },
+   "SessionPredicate": {
+    "additionalProperties": false,
+    "properties": {
+     "field": {
+      "description": "`attr:\u003ckey\u003e` (a log attribute) or `resource:\u003ckey\u003e` (a resource attribute).",
+      "type": "string"
+     },
+     "op": {
+      "$ref": "#/components/schemas/AttrOp",
+      "description": "`eq`, `neq`, `contains` or `exists`."
+     },
+     "values": {
+      "description": "Exactly one value, none for `exists`.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "field",
+     "op"
     ],
     "type": "object"
    },
@@ -81880,18 +83746,26 @@
    "Subject": {
     "additionalProperties": false,
     "properties": {
+     "identities": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "description": "More identifiers of the same person, each matched on its own attribute key and OR-ed with\nthe rest: `{\"user.email\": \"a@b.c\", \"atlas_id\": \"usr_9\"}`. At most 10, key up to 128 bytes,\nvalue up to 256.",
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
      "key": {
       "description": "Attribute key; default `user.id` (`enduser.id` is erased too).",
       "nullable": true,
       "type": "string"
      },
      "value": {
+      "description": "The subject's id, matched as described for `key`. Send this, `identities`, or both.",
       "type": "string"
      }
     },
-    "required": [
-     "value"
-    ],
     "type": "object"
    },
    "SubjectDto": {
@@ -83476,6 +85350,26 @@
     ],
     "type": "object"
    },
+   "TestDryRun": {
+    "description": "What a dry-run test would queue.",
+    "properties": {
+     "kind": {
+      "type": "string"
+     },
+     "payload": {
+      "description": "The message handed to the notifier. The channel renders and signs it at delivery, where\nthe receiver's secrets are opened; the API never holds them, so this is not signed."
+     },
+     "receiver_id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "receiver_id",
+     "kind",
+     "payload"
+    ],
+    "type": "object"
+   },
    "TestEventResponse": {
     "properties": {
      "service": {
@@ -83632,24 +85526,6 @@
     "required": [
      "passed",
      "tests"
-    ],
-    "type": "object"
-   },
-   "TestRequest": {
-    "additionalProperties": false,
-    "properties": {
-     "event_type": {
-      "description": "One of the trigger event types.",
-      "type": "string"
-     },
-     "payload": {
-      "description": "A sample event payload (at most 64 KiB).",
-      "type": "object"
-     }
-    },
-    "required": [
-     "event_type",
-     "payload"
     ],
     "type": "object"
    },
@@ -85980,6 +87856,67 @@
     ],
     "type": "object"
    },
+   "TracesAggregateRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "calculations": {
+      "items": {
+       "$ref": "#/components/schemas/Calc"
+      },
+      "type": "array"
+     },
+     "filter": {
+      "$ref": "#/components/schemas/AggFilter"
+     },
+     "from": {
+      "description": "RFC 3339; default one hour before `to`.",
+      "nullable": true,
+      "type": "string"
+     },
+     "granularity_s": {
+      "description": "Bucket width in seconds for time-bucketed rows, heatmap and concurrency (default: auto).",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "group_by": {
+      "description": "`service.name`, `name`, `status`, or an attribute key; at most 4.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "havings": {
+      "items": {
+       "$ref": "#/components/schemas/Having"
+      },
+      "type": "array"
+     },
+     "limit": {
+      "description": "Group rows returned, 1 to 1000 (default 100).",
+      "format": "int32",
+      "minimum": 0,
+      "nullable": true,
+      "type": "integer"
+     },
+     "orders": {
+      "items": {
+       "$ref": "#/components/schemas/Order"
+      },
+      "type": "array"
+     },
+     "to": {
+      "description": "RFC 3339 (exclusive); default now.",
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "calculations"
+    ],
+    "type": "object"
+   },
    "TracesFacetsFacet": {
     "properties": {
      "key": {
@@ -87915,6 +89852,29 @@
     ],
     "type": "object"
    },
+   "Validation": {
+    "description": "Outcome of the Hermeticor check made when a hermetica receiver is saved.",
+    "properties": {
+     "can_send": {
+      "description": "`canSend.emailTransactional` from `GET /v1/readiness`; false when `unknown`.",
+      "type": "boolean"
+     },
+     "fix": {
+      "description": "When `can_send` is false: what to do, from the first failing check or `alternatives[0]`.",
+      "nullable": true,
+      "type": "string"
+     },
+     "unknown": {
+      "description": "Hermeticor could not be asked or answered in an unknown shape; the receiver is saved anyway.",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "can_send",
+     "unknown"
+    ],
+    "type": "object"
+   },
    "ValueBox": {
     "additionalProperties": false,
     "description": "Value-axis box (`BubbleUp` style): rows whose latency in milliseconds lies in `[min, max]`.\nThe column is the span duration, the LLM call duration or the session's LCP.",
@@ -88999,6 +90959,24 @@
     ],
     "type": "object"
    },
+   "WorkflowsTestRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "event_type": {
+      "description": "One of the trigger event types.",
+      "type": "string"
+     },
+     "payload": {
+      "description": "A sample event payload (at most 64 KiB).",
+      "type": "object"
+     }
+    },
+    "required": [
+     "event_type",
+     "payload"
+    ],
+    "type": "object"
+   },
    "WorkloadDto": {
     "properties": {
      "actor": {
@@ -89336,6 +91314,11 @@
     "summary": "Live projects of the org.",
     "tags": [
      "projects"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write",
+     "bootstrap"
     ]
    },
    "post": {
@@ -89413,6 +91396,10 @@
     "summary": "Create a project with its default environment, retention and quotas, and (when\n`default_alerting` is not false) a receiver that emails every project owner and admin.",
     "tags": [
      "projects"
+    ],
+    "x-required-scopes": [
+     "admin:write",
+     "bootstrap"
     ]
    }
   },
@@ -89501,6 +91488,9 @@
     "summary": "Soft-delete the project and queue its purge after the grace period (`?purge_now=true\u0026confirm=\u003cslug\u003e`\nskips the grace and needs `ManageSecurity`). `POST /v1/orgs/{org}/projects/{prj}/restore` cancels it.",
     "tags": [
      "projects"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    },
    "get": {
@@ -89568,6 +91558,10 @@
     "summary": "One project. A missing, deleted or foreign id is a 404.",
     "tags": [
      "projects"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "patch": {
@@ -89645,6 +91639,9 @@
     "summary": "Rename, change retention and/or the localhost-origins switch. Each part is checked against its own permission.",
     "tags": [
      "projects"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -89734,6 +91731,10 @@
     "summary": "Agent configs (newest version of each), ordered by id.",
     "tags": [
      "agent-configs"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "post": {
@@ -89811,6 +91812,9 @@
     "summary": "Create an agent config (at most 200 per project; the 201st is 422 `limit_exceeded`).",
     "tags": [
      "agent-configs"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -89881,6 +91885,9 @@
     "summary": "Delete a config with all its versions. Agents that ran it are told to clear it.",
     "tags": [
      "agent-configs"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    },
    "get": {
@@ -89957,6 +91964,10 @@
     "summary": "The newest version of one config.",
     "tags": [
      "agent-configs"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "post": {
@@ -90043,6 +92054,9 @@
     "summary": "Restore an earlier version as a new version. The path segment is `{c}:rollback`, for example\n`POST /v1/projects/{prj}/agent-configs/acf_...:rollback?version=3`.",
     "tags": [
      "agent-configs"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    },
    "put": {
@@ -90138,6 +92152,9 @@
     "summary": "Change a config; the result is a new version.",
     "tags": [
      "agent-configs"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -90227,6 +92244,10 @@
     "summary": "A page of the project's rules, oldest first.",
     "tags": [
      "alert-rules"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "post": {
@@ -90304,6 +92325,9 @@
     "summary": "Create a rule. At most 2000 per project (422).",
     "tags": [
      "alert-rules"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -90383,6 +92407,9 @@
     "summary": "Delete a rule; its open alerts are resolved.",
     "tags": [
      "alert-rules"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    },
    "get": {
@@ -90458,6 +92485,10 @@
     },
     "tags": [
      "alert-rules"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "put": {
@@ -90562,6 +92593,9 @@
     "summary": "Replace a rule. Its state per group is kept; the next evaluation is the next aligned tick.\nDisabling it resolves its open alerts.",
     "tags": [
      "alert-rules"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -90649,6 +92683,10 @@
     "summary": "Services seen in telemetry (names passed through the project's remaps) merged with catalog\nentries; services seen only in telemetry have `owner_team: null` and `owner_missing: true`, with `suggested_owners` from the commit authors of their deployed releases.",
     "tags": [
      "catalog"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    }
   },
@@ -90719,6 +92757,9 @@
     "summary": "Remove a service from the catalog listing: same as `DELETE /v1/projects/{prj}/services/{s}`.\nIt stays hidden until telemetry newer than the deletion arrives; stored telemetry is\nuntouched and its automatic \"stopped reporting\" rule is deleted.",
     "tags": [
      "catalog"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    },
    "get": {
@@ -90795,6 +92836,10 @@
     "summary": "One catalog entry, or the observed service (`observed: true`, `owner_team: null`) when it has\ntelemetry but no entry, as the listing shows it. Unknown to both: 404.",
     "tags": [
      "catalog"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "put": {
@@ -90881,6 +92926,9 @@
     "summary": "Create or replace one service's catalog entry. `owner_team` is a catalog team slug or an org\nteam's slug or id (a catalog team with the same slug wins); unknown is 422.",
     "tags": [
      "catalog"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -90961,6 +93009,10 @@
     "summary": "Names and metadata of the project's vault secrets, never values.",
     "tags": [
      "check-secrets"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    }
   },
@@ -91031,6 +93083,9 @@
     "summary": "Delete a vault secret. Monitors that still reference it fail with \"secret not available\".",
     "tags": [
      "check-secrets"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    },
    "put": {
@@ -91126,6 +93181,9 @@
     "summary": "Create or replace a vault secret. The response never contains the value.",
     "tags": [
      "check-secrets"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -91215,6 +93273,10 @@
     "summary": "Dashboards of the project (without specs); `?kind=notebook` lists notebooks instead.",
     "tags": [
      "dashboards"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "post": {
@@ -91301,6 +93363,9 @@
     "summary": "Create a dashboard (version 1).",
     "tags": [
      "dashboards"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -91380,6 +93445,9 @@
     "summary": "Delete (versions are kept). Needs the project-wide edit permission; per-dashboard editors cannot.",
     "tags": [
      "dashboards"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    },
    "get": {
@@ -91456,6 +93524,10 @@
     "summary": "One dashboard with its current spec; `ETag` is the version.",
     "tags": [
      "dashboards"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "put": {
@@ -91560,6 +93632,9 @@
     "summary": "Save a new version. Requires `If-Match: \u003ccurrent version\u003e`: 428 without it, 412 when stale.\nAt most 1000 versions per dashboard: 409 `version_limit`.",
     "tags": [
      "dashboards"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -91648,6 +93723,10 @@
     },
     "tags": [
      "escalation-policies"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "post": {
@@ -91733,6 +93812,9 @@
     },
     "tags": [
      "escalation-policies"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -91812,6 +93894,9 @@
     "summary": "409 while a receiver, another policy or an open page uses the policy.",
     "tags": [
      "escalation-policies"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    },
    "get": {
@@ -91887,6 +93972,10 @@
     },
     "tags": [
      "escalation-policies"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "put": {
@@ -91990,6 +94079,9 @@
     },
     "tags": [
      "escalation-policies"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -92070,6 +94162,10 @@
     "summary": "Health tokens of the project (never the secret).",
     "tags": [
      "health-tokens"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "post": {
@@ -92156,6 +94252,9 @@
     "summary": "Create a health token for one target. The token is in this response only.",
     "tags": [
      "health-tokens"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -92226,6 +94325,9 @@
     "summary": "Revoke a health token immediately; its endpoint then answers 404.",
     "tags": [
      "health-tokens"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -92314,6 +94416,10 @@
     },
     "tags": [
      "incident-types"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "post": {
@@ -92399,6 +94505,9 @@
     },
     "tags": [
      "incident-types"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -92478,6 +94587,9 @@
     "summary": "409 while an incident uses the type.",
     "tags": [
      "incident-types"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    },
    "get": {
@@ -92553,6 +94665,10 @@
     },
     "tags": [
      "incident-types"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "put": {
@@ -92656,6 +94772,9 @@
     },
     "tags": [
      "incident-types"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -92744,6 +94863,11 @@
     },
     "tags": [
      "maintenance-windows"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write",
+     "monitors:write"
     ]
    },
    "post": {
@@ -92829,6 +94953,10 @@
     },
     "tags": [
      "maintenance-windows"
+    ],
+    "x-required-scopes": [
+     "admin:write",
+     "monitors:write"
     ]
    }
   },
@@ -92898,6 +95026,10 @@
     },
     "tags": [
      "maintenance-windows"
+    ],
+    "x-required-scopes": [
+     "admin:write",
+     "monitors:write"
     ]
    },
    "get": {
@@ -92973,6 +95105,11 @@
     },
     "tags": [
      "maintenance-windows"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write",
+     "monitors:write"
     ]
    },
    "put": {
@@ -93076,6 +95213,10 @@
     },
     "tags": [
      "maintenance-windows"
+    ],
+    "x-required-scopes": [
+     "admin:write",
+     "monitors:write"
     ]
    }
   },
@@ -93165,6 +95306,11 @@
     "summary": "A page of the project's monitors, oldest first.",
     "tags": [
      "monitors"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write",
+     "monitors:write"
     ]
    },
    "post": {
@@ -93270,6 +95416,10 @@
     "summary": "Create a monitor and, with `alert`, its managed rule. At most 500 per project (422).",
     "tags": [
      "monitors"
+    ],
+    "x-required-scopes": [
+     "admin:write",
+     "monitors:write"
     ]
    }
   },
@@ -93340,6 +95490,10 @@
     "summary": "Delete a monitor and its managed rule; the rule's open alerts are resolved.",
     "tags": [
      "monitors"
+    ],
+    "x-required-scopes": [
+     "admin:write",
+     "monitors:write"
     ]
    },
    "get": {
@@ -93415,6 +95569,11 @@
     },
     "tags": [
      "monitors"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write",
+     "monitors:write"
     ]
    },
    "patch": {
@@ -93538,6 +95697,10 @@
     "summary": "Change some fields of a monitor (JSON merge patch, RFC 7386, over the monitor as `GET`\nreturns it: an object merges key by key, `null` removes a key, anything else replaces). The\nmerged monitor gets the same validation as `PUT`. Optional `If-Match: \u003cupdated_at\u003e` (the\nvalue `GET` returns, quotes optional) makes it 412 when the monitor changed since.",
     "tags": [
      "monitors"
+    ],
+    "x-required-scopes": [
+     "admin:write",
+     "monitors:write"
     ]
    },
    "post": {
@@ -93633,6 +95796,10 @@
     "summary": "Run a monitor now: POST /v1/projects/{prj}/monitors/{monitor}:run-now (or :run)",
     "tags": [
      "monitors"
+    ],
+    "x-required-scopes": [
+     "admin:write",
+     "monitors:write"
     ]
    },
    "put": {
@@ -93738,6 +95905,10 @@
     "summary": "Replace a monitor. Its managed rule is created, updated or deleted to match `alert`; disabling\nthe monitor resolves the rule's open alerts.",
     "tags": [
      "monitors"
+    ],
+    "x-required-scopes": [
+     "admin:write",
+     "monitors:write"
     ]
    }
   },
@@ -93826,6 +95997,10 @@
     },
     "tags": [
      "oncall"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "post": {
@@ -93902,6 +96077,9 @@
     },
     "tags": [
      "oncall"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -93981,6 +96159,9 @@
     "summary": "Delete with its shifts, overrides, cover requests and feeds. 409 while another schedule\nnests it.",
     "tags": [
      "oncall"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    },
    "get": {
@@ -94056,6 +96237,10 @@
     },
     "tags": [
      "oncall"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "put": {
@@ -94160,6 +96345,9 @@
     "summary": "Replace the document; the horizon of this schedule and of those nesting it is rebuilt.",
     "tags": [
      "oncall"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -94248,6 +96436,10 @@
     },
     "tags": [
      "receivers"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "post": {
@@ -94342,6 +96534,9 @@
     },
     "tags": [
      "receivers"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -94421,6 +96616,9 @@
     "summary": "Delete a receiver the current tree does not use (422 otherwise).",
     "tags": [
      "receivers"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    },
    "get": {
@@ -94496,6 +96694,10 @@
     },
     "tags": [
      "receivers"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "post": {
@@ -94520,7 +96722,26 @@
       }
      }
     ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/NotificationsTestRequest",
+        "nullable": true
+       }
+      }
+     }
+    },
     "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TestDryRun"
+        }
+       }
+      }
+     },
      "202": {
       "content": {
        "application/json": {
@@ -94549,6 +96770,15 @@
        }
       }
      },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
+     },
      "429": {
       "content": {
        "application/json": {
@@ -94559,9 +96789,12 @@
       }
      }
     },
-    "summary": "Queue a test message for a receiver: `POST /v1/projects/{prj}/receivers/{receiver}:test`. It\ngoes through the normal delivery path (signing, retries, history).",
+    "summary": "Queue a test message for a receiver: `POST /v1/projects/{prj}/receivers/{receiver}:test`. It\ngoes through the normal delivery path (signing, retries, history). With body\n`{\"dry_run\": true}` nothing is queued or delivered and the payload is returned (200).",
     "tags": [
      "receivers"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    },
    "put": {
@@ -94666,6 +96899,9 @@
     "summary": "Replace a receiver; omitted `secrets` keep the stored ones.",
     "tags": [
      "receivers"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -94689,6 +96925,14 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/RoutingDto"
+        }
+       }
+      },
+      "headers": {
+       "ETag": {
+        "description": "The quoted version; send it as If-Match on PUT",
+        "schema": {
+         "type": "string"
         }
        }
       }
@@ -94734,6 +96978,117 @@
     },
     "tags": [
      "routing"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
+    ]
+   },
+   "patch": {
+    "operationId": "patch_v1_projects_prj_routing",
+    "parameters": [
+     {
+      "description": "Project id",
+      "in": "path",
+      "name": "prj",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "description": "The current version",
+      "in": "header",
+      "name": "If-Match",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RootReceiverPatch"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RoutingDto"
+        }
+       }
+      }
+     },
+     "401": {
+      "content": {
+       "application/problem+json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      },
+      "description": "Missing or invalid credentials"
+     },
+     "412": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
+     },
+     "428": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
+     },
+     "429": {
+      "content": {
+       "application/problem+json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      },
+      "description": "Rate limit exceeded; retry after the `Retry-After` seconds",
+      "headers": {
+       "Retry-After": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+         "minimum": 0,
+         "type": "integer"
+        }
+       }
+      }
+     }
+    },
+    "summary": "Change only the root receiver, as a new version. `If-Match` must carry the current version,\nas for `PUT`: 428 without it, 412 when it is stale.",
+    "tags": [
+     "routing"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    },
    "put": {
@@ -94797,7 +97152,7 @@
       },
       "description": "Missing or invalid credentials"
      },
-     "409": {
+     "412": {
       "content": {
        "application/json": {
         "schema": {
@@ -94844,9 +97199,12 @@
       }
      }
     },
-    "summary": "Save a new version of the tree. `If-Match` must carry the current version (0 before the\nfirst save): 428 without it, 409 when it is stale. Keep route ids stable across versions:\ngroups (and their timers) belong to a route id; a root sent without an `id` keeps the current\nroot's. A tree with no receiver and no child routes routes nothing, so it needs `?confirm=true`\n(422 otherwise). The body is the tree, or the `GET` response as it is: `tree` is used and\n`version`, `created_by`, `created_at` and `not_delivering` are ignored.",
+    "summary": "Save a new version of the tree. `If-Match` must carry the current version (0 before the\nfirst save; the `ETag` of `GET`, quoted or bare): 428 without it (unless the body is the `GET`\nresponse, whose `version` then counts), 412 when it is stale. Routes may name a receiver by\nname or `rcv_` id. Keep route ids stable across versions:\ngroups (and their timers) belong to a route id; a root sent without an `id` keeps the current\nroot's. A tree with no receiver and no child routes routes nothing, so it needs `?confirm=true`\n(422 otherwise). The body is the tree, or the `GET` response as it is: `tree` is used and\n`version`, `created_by`, `created_at` and `not_delivering` are ignored.",
     "tags": [
      "routing"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -94917,6 +97275,9 @@
     "summary": "Delete a rule group with its alert rules (their open alerts resolve); recording stops.",
     "tags": [
      "rule-groups"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    },
    "put": {
@@ -95012,6 +97373,9 @@
     "summary": "Create or replace a rule group. The body is a Prometheus group (`name`, `interval`, `rules`,\noptional `wt_ingest_delay`) or a rule file (`groups:`) holding exactly that group, as YAML or\nJSON. Alert rules become alert rules named `group/alert` and keep their id and state across\nre-applies; recording rules write series labelled `wt_recording_rule`.",
     "tags": [
      "rule-groups"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -95109,6 +97473,10 @@
     },
     "tags": [
      "silences"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "post": {
@@ -95185,6 +97553,9 @@
     },
     "tags": [
      "silences"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -95255,6 +97626,9 @@
     "summary": "Expire a silence: it is removed and its alerts resume at the next `group_interval`.",
     "tags": [
      "silences"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    },
    "get": {
@@ -95330,6 +97704,10 @@
     },
     "tags": [
      "silences"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "put": {
@@ -95425,6 +97803,9 @@
     "summary": "Replace a silence (extend, shorten or change its matchers).",
     "tags": [
      "silences"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -95514,6 +97895,11 @@
     "summary": "A page of the project's SLOs, oldest first.",
     "tags": [
      "slos"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write",
+     "slos:write"
     ]
    },
    "post": {
@@ -95600,6 +97986,10 @@
     "summary": "Create an SLO with its two managed burn-rate rules. At most 200 per project (422).",
     "tags": [
      "slos"
+    ],
+    "x-required-scopes": [
+     "admin:write",
+     "slos:write"
     ]
    }
   },
@@ -95679,6 +98069,10 @@
     "summary": "Delete an SLO, its corrections and its managed rules (their open alerts are resolved). 422\nwhile a composite SLO uses it.",
     "tags": [
      "slos"
+    ],
+    "x-required-scopes": [
+     "admin:write",
+     "slos:write"
     ]
    },
    "get": {
@@ -95754,6 +98148,11 @@
     },
     "tags": [
      "slos"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write",
+     "slos:write"
     ]
    },
    "put": {
@@ -95849,6 +98248,10 @@
     "summary": "Replace an SLO; its managed rules follow.",
     "tags": [
      "slos"
+    ],
+    "x-required-scopes": [
+     "admin:write",
+     "slos:write"
     ]
    }
   },
@@ -95929,6 +98332,10 @@
     "summary": "Templates of the project.",
     "tags": [
      "templates"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "post": {
@@ -96024,6 +98431,9 @@
     "summary": "Create a template. The body is rendered against a sample alert first: a template error is a\n422 naming the line and column, and an unreachable notifier a 503.",
     "tags": [
      "templates"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -96094,6 +98504,9 @@
     "summary": "Delete a template.",
     "tags": [
      "templates"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    },
    "get": {
@@ -96170,6 +98583,10 @@
     "summary": "One template. A template of another project is a 404.",
     "tags": [
      "templates"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "patch": {
@@ -96283,6 +98700,9 @@
     "summary": "Rename a template or change its body (validated again; the version goes up).",
     "tags": [
      "templates"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -96363,6 +98783,10 @@
     "summary": "Workflows of the project, ordered by id.",
     "tags": [
      "workflows"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "post": {
@@ -96467,6 +98891,9 @@
     "summary": "Create a workflow. Its actions run as you, with your role at run time.",
     "tags": [
      "workflows"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   },
@@ -96545,6 +98972,9 @@
     },
     "tags": [
      "workflows"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    },
    "get": {
@@ -96620,6 +99050,10 @@
     },
     "tags": [
      "workflows"
+    ],
+    "x-required-scopes": [
+     "admin:read",
+     "admin:write"
     ]
    },
    "post": {
@@ -96648,7 +99082,7 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/TestRequest"
+        "$ref": "#/components/schemas/WorkflowsTestRequest"
        }
       }
      },
@@ -96724,6 +99158,9 @@
     "summary": "`POST /workflows/{id}:test`: dry-run the saved workflow against a sample event. No action runs\nand nothing is stored; each step reports the parameters it would have used. 200\n`{run: {state, steps}, error?}`; state `skipped` when the conditions do not match.",
     "tags": [
      "workflows"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    },
    "put": {
@@ -96837,6 +99274,9 @@
     "summary": "Replace a workflow. You become its owner: its actions then run as you, so you need the\npermission of every step.",
     "tags": [
      "workflows"
+    ],
+    "x-required-scopes": [
+     "admin:write"
     ]
    }
   }

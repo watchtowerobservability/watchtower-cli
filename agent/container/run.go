@@ -23,6 +23,9 @@ type Config struct {
 	// Labels limit the engine's containers and events to those carrying every label, each with one of its values (a string or a list; sent as a
 	// server-side filter). Set, they also turn the cgroup scan off: it cannot see labels.
 	Labels LabelSet `json:"labels"`
+	// Select narrows by container name (regex), image (glob or `re:` regex) and compose service (glob),
+	// ANDed with Labels; WT_AGENT_DOCKER_NAMES / _IMAGES / _SERVICES add comma-separated entries.
+	Select Selector `json:"select"`
 	// RequireLabels makes empty Labels collect nothing instead of every container (shared hosts).
 	RequireLabels bool `json:"require_labels"`
 	// Scope "self" (or WT_AGENT_SCOPE=self) sets Labels to the compose project of the agent's own
@@ -55,6 +58,10 @@ func Run(ctx context.Context, raw json.RawMessage, out sink.Sink) error {
 	if c.DockerHost == "" {
 		c.DockerHost = DefaultHost()
 	}
+	c.Select.SelectorFromEnv()
+	if err := c.Select.Compile(); err != nil {
+		return err
+	}
 	out = sink.Hoist(out)
 	d, err := NewDocker(c.DockerHost)
 	if err != nil {
@@ -66,18 +73,18 @@ func Run(ctx context.Context, raw json.RawMessage, out sink.Sink) error {
 		}
 		return err
 	}
-	if c.RequireLabels && len(c.Labels) == 0 {
+	if c.RequireLabels && len(c.Labels) == 0 && !c.Select.Active() {
 		slog.Warn("container: require_labels is set but labels are empty; collecting nothing")
 		<-ctx.Done()
 		return nil
 	}
-	if len(c.Labels) > 0 {
-		c.CgroupRoot = "off"
+	if len(c.Labels) > 0 || c.Select.Active() {
+		c.CgroupRoot = "off" // the cgroup scan cannot see labels, names or images
 	}
 	if c.CgroupRoot == "" && runtime.GOOS == "linux" {
 		c.CgroupRoot = cgroupRootDefault()
 	}
-	d.Labels = c.Labels
+	d.Labels, d.Select = c.Labels, c.Select
 	if c.Events == nil || *c.Events {
 		go followEvents(ctx, d, out)
 	}

@@ -49,6 +49,10 @@ type Kind struct {
 	// LocalFields are spec fields that steer wtctl only (write_token_to, token_env): never sent, never compared.
 	LocalFields []string
 
+	// DropNull: export leaves out null top-level fields (an unset singleton such as the Lucida host
+	// exports as nothing, not as a null the API would reject).
+	DropNull bool
+
 	// ops replaces the generic REST mapping for kinds that are not one document per resource
 	// (a Pipeline is a resource plus versions).
 	ops kindOps
@@ -81,6 +85,15 @@ var Kinds = []*Kind{
 	// One source per repository label; the webhook secret is shown once.
 	{Name: "CiSource", Path: "ci-sources", Key: "repo", CreateOnly: true, SecretOut: "secret", LocalFields: []string{"write_token_to", "token_env"}},
 	{Name: "RedactionDetectors", Path: "redaction/detectors", Singleton: true, NoPrune: true}, // name: any, one document per project
+	// Per-project settings singletons (GET, then PUT; issue settings PATCH). Read-only response fields are ExportOmit.
+	{Name: "IssueSettings", Path: "issue-settings", Singleton: true, NoPrune: true, Update: "PATCH", DropNull: true}, // store_ip, safe_fields, auto_resolve_days, ...
+	{Name: "AiSettings", Path: "ai/settings", Singleton: true, NoPrune: true, DropNull: true},
+	{Name: "SamplingRules", Path: "sampling/rules", Singleton: true, NoPrune: true, ExportOmit: []string{"version", "effective", "enforced_by_pipeline"}}, // spec: {rules: [...]}
+	{Name: "AdaptiveSampling", Path: "sampling/adaptive", Singleton: true, NoPrune: true},                                                                 // spec: {adaptive_sampling?, trace_limits?}
+	{Name: "Lucida", Path: "rum/lucida", Singleton: true, NoPrune: true, DropNull: true, ExportOmit: []string{"effective_host"}},                          // spec: {host}; no host exports nothing
+	{Name: "ProductAnalytics", Path: "settings/product-analytics", Singleton: true, NoPrune: true, DropNull: true},                                        // spec: {kind, base_url, ...}
+	{Name: "ActivityTheme", Path: "activity/theme", Singleton: true, NoPrune: true, ExportOmit: []string{"theme", "warnings", "badge_entitled"}},          // spec: {draft}; publishing stays a separate act
+	{Name: "ActivityFrameAncestors", Path: "activity/frame-ancestors", Singleton: true, NoPrune: true},
 	// The caller's own (the key owner's): contact addresses are never returned, so they are only ever created.
 	{Name: "ContactMethod", Path: "me/contact-methods", Key: "label", CreateOnly: true},
 	{Name: "NotificationRule", Path: "me/notification-rules", NoPrune: true, ops: notifyRuleOps{}, // name: audible or quiet

@@ -26,7 +26,8 @@ import (
 // outcome, severity, id, plus metadata_* keys), then to an Event v2. The original occurred_at is kept;
 // the idempotency key is hex(SHA-256(source id)) so a re-run adds nothing; events are posted per
 // account in occurred order so the server-side chain follows the real timeline. The tenant is the
-// key's (wti_ with scope ingest:activity); --project is accepted for symmetry and is not sent.
+// key's (wti_ with scope ingest:activity). With --project the events go as one gzip ndjson body to
+// POST /v1/projects/{prj}/activity/import (marked imported, no skew policy, own rate budget).
 
 // importMapping is the mapping.yaml form: {format: csv|ndjson, map: {field: column}, const: {field: value}, metadata: [columns]}.
 type importMapping struct {
@@ -43,7 +44,7 @@ func activityImportMain(ctx context.Context, args []string, out io.Writer) error
 	from := fs.String("from", "", "workos-csv, retraced-ndjson or a mapping.yaml path")
 	api := fs.String("api", apiEnv(), "API base URL; default $WT_API_URL")
 	key := fs.String("key", os.Getenv("WT_ACTIVITY_KEY"), "ingestion key (wti_...); default $WT_ACTIVITY_KEY")
-	_ = fs.String("project", "", "project id (implied by the key)")
+	project := fs.String("project", "", "project id: send through the import endpoint (backdated events, own rate budget, per-line rejections)")
 	account := fs.String("account", "", "account_id for rows that carry none")
 	dry := fs.Bool("dry-run", false, "map and print the first events, send nothing")
 	var files []string
@@ -81,6 +82,9 @@ func activityImportMain(ctx context.Context, args []string, out io.Writer) error
 		}
 		fmt.Fprintf(out, "dry run: %d event(s) mapped, %d skipped\n", len(events), len(skipped))
 		return nil
+	}
+	if *project != "" {
+		return postImportJob(ctx, strings.TrimRight(*api, "/")+"/v1/projects/"+*project+"/activity/import", *key, events, len(skipped), out)
 	}
 	url := strings.TrimRight(*api, "/") + "/v1/activity/events"
 	for i := 0; i < len(events); i += 100 {

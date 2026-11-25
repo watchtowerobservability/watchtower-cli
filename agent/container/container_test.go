@@ -71,8 +71,8 @@ func TestDockerStatsFromFakeSocket(t *testing.T) {
 	if cores <= 0 {
 		t.Fatalf("cpu cores from the delta: %v", cores)
 	}
-	if _, err := NewDocker("tcp://x:2375"); err == nil {
-		t.Fatal("tcp endpoints must be refused")
+	if _, err := NewDocker("ftp://x:2375"); err == nil {
+		t.Fatal("unknown schemes must be refused")
 	}
 }
 

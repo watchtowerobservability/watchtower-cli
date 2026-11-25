@@ -52,6 +52,9 @@ func (c *Client) Export(ctx context.Context, kinds []string) ([]Doc, error) {
 		sort.Strings(order)
 		for _, n := range order {
 			d := ExportDoc(k, n, items[n].Body)
+			if k.DropNull && len(d.Spec) == 0 {
+				continue // nothing set
+			}
 			c.dropReadOnly(ctx, k, &d)
 			if err := c.nameRefs(ctx, k, d.Spec, names); err != nil {
 				return nil, err
@@ -79,6 +82,13 @@ func ExportDoc(k *Kind, name string, body map[string]any) Doc {
 	}
 	for _, f := range k.ExportOmit {
 		delete(spec, f)
+	}
+	if k.DropNull {
+		for f, v := range spec {
+			if v == nil {
+				delete(spec, f)
+			}
+		}
 	}
 	for _, f := range k.SecretFields {
 		switch v := spec[f].(type) {

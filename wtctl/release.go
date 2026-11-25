@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -11,7 +12,9 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type commit struct {
@@ -81,34 +84,83 @@ func git(ctx context.Context, dir string, args ...string) (string, error) {
 	return string(out), nil
 }
 
+// callSleep waits between retries; tests swap it.
+var callSleep = func(ctx context.Context, d time.Duration) {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-t.C:
+	case <-ctx.Done():
+	}
+}
+
+// retryable reports whether the API may be briefly down (deploys, Cloudflare 52x).
+func retryable(code int) bool {
+	return code == 502 || code == 503 || code == 504 || code == 520 || code == 521 || code == 522
+}
+
+// call sends one API request. Idempotent requests (GET, HEAD, PUT, DELETE, and any request with an
+// Idempotency-Key, which PATCH gets automatically) are tried up to 5 times on a connection error or
+// 502/503/504/520/521/522, waiting 1s, 2s, 4s, 8s or the Retry-After seconds. A plain POST is sent once.
 func call(ctx context.Context, method, url, key string, body, out any) error {
-	var rdr io.Reader
+	var payload []byte
 	if body != nil {
-		b, err := json.Marshal(body)
+		var err error
+		if payload, err = json.Marshal(body); err != nil {
+			return err
+		}
+	}
+	idem := ""
+	if method == http.MethodPatch {
+		idem = newIdempotencyKey()
+	}
+	retry := idem != "" || method == http.MethodGet || method == http.MethodHead || method == http.MethodPut || method == http.MethodDelete
+	for attempt := 1; ; attempt++ {
+		var rdr io.Reader
+		if payload != nil {
+			rdr = bytes.NewReader(payload)
+		}
+		req, err := http.NewRequestWithContext(ctx, method, url, rdr)
 		if err != nil {
 			return err
 		}
-		rdr = bytes.NewReader(b)
+		req.Header.Set("Authorization", "Bearer "+key)
+		req.Header.Set("Content-Type", "application/json")
+		if idem != "" {
+			req.Header.Set("Idempotency-Key", idem)
+		}
+		resp, err := guardedClient(0).Do(req)
+		var b []byte
+		wait := time.Second << (attempt - 1)
+		if err == nil {
+			b, _ = io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+			resp.Body.Close()
+			if !retryable(resp.StatusCode) {
+				if resp.StatusCode/100 != 2 {
+					return fmt.Errorf("%s %s: %s: %s", method, url, resp.Status, strings.TrimSpace(string(b)))
+				}
+				if out != nil {
+					return json.Unmarshal(b, out)
+				}
+				return nil
+			}
+			if s, e := strconv.Atoi(resp.Header.Get("Retry-After")); e == nil && s >= 0 {
+				wait = time.Duration(s) * time.Second
+			}
+			err = fmt.Errorf("%s %s: %s: %s", method, url, resp.Status, strings.TrimSpace(string(b)))
+		}
+		if !retry || attempt == 5 || ctx.Err() != nil {
+			return err
+		}
+		callSleep(ctx, min(wait, 30*time.Second))
 	}
-	req, err := http.NewRequestWithContext(ctx, method, url, rdr)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Bearer "+key)
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := guardedClient(0).Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if resp.StatusCode/100 != 2 {
-		return fmt.Errorf("%s %s: %s: %s", method, url, resp.Status, strings.TrimSpace(string(b)))
-	}
-	if out != nil {
-		return json.Unmarshal(b, out)
-	}
-	return nil
+}
+
+func newIdempotencyKey() string {
+	var b [16]byte
+	_, _ = rand.Read(b[:])
+	b[6], b[8] = b[6]&0x0f|0x40, b[8]&0x3f|0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }
 
 type releaseOpts struct {

@@ -240,6 +240,7 @@ const (
 	ProblemCodeDataplaneBadResponse       ProblemCode = "dataplane_bad_response"
 	ProblemCodeDataplaneError             ProblemCode = "dataplane_error"
 	ProblemCodeDataplaneUnreachable       ProblemCode = "dataplane_unreachable"
+	ProblemCodeEventFinalized             ProblemCode = "event_finalized"
 	ProblemCodeForbidden                  ProblemCode = "forbidden"
 	ProblemCodeInternal                   ProblemCode = "internal"
 	ProblemCodeIpNotAllowed               ProblemCode = "ip_not_allowed"
@@ -268,6 +269,7 @@ const (
 	ProblemCodeTooManyInvestigations      ProblemCode = "too_many_investigations"
 	ProblemCodeUnauthorized               ProblemCode = "unauthorized"
 	ProblemCodeUnavailable                ProblemCode = "unavailable"
+	ProblemCodeUnknownParameter           ProblemCode = "unknown_parameter"
 	ProblemCodeUnprocessable              ProblemCode = "unprocessable"
 	ProblemCodeUnsupportedPromql          ProblemCode = "unsupported_promql"
 	ProblemCodeValidation                 ProblemCode = "validation"
@@ -858,45 +860,6 @@ type DeferSpec struct {
 // Dir defines model for Dir.
 type Dir string
 
-// Escalation How the managed rule pages (UPT-021). Kept in the `quorum` column under `escalation`, so no
-// migration is needed; it ends up on the managed rule as its severity and labels.
-type Escalation struct {
-	AlertKind *AlertKind `json:"alert_kind,omitempty"`
-
-	// AvailabilityWindowS `availability`: the window in seconds, 300 to 86400 (default 3600).
-	AvailabilityWindowS *int32 `json:"availability_window_s"`
-
-	// ConsecutiveFailures Alert config, not live state (read `status`): with `alert_kind` `consecutive_failures`, the failed
-	// rounds in a row that fire the alert, 2 to 100 (default 3).
-	ConsecutiveFailures *int32 `json:"consecutive_failures"`
-
-	// DeclareIncident Open an incident, linked to the monitor, when the rule fires.
-	DeclareIncident *bool `json:"declare_incident,omitempty"`
-
-	// EscalationPolicyId Escalation policy (`esc_...`) the alert follows.
-	EscalationPolicyId *string `json:"escalation_policy_id"`
-
-	// MinAvailabilityPct `availability`: alert below this percent of up results, 50 to 99.999 (default 99).
-	MinAvailabilityPct *float64 `json:"min_availability_pct"`
-
-	// RegressionFactor `performance_regression`: alert when the phase is this many times slower than its last
-	// day's mean, 1.1 to 20 (default 2).
-	RegressionFactor *float64 `json:"regression_factor"`
-
-	// RegressionPhase `performance_regression`: `dns`, `connect`, `tls`, `ttfb` or `total` (default).
-	RegressionPhase *string `json:"regression_phase"`
-
-	// RenotifyS Re-notify an open alert every this many seconds (60 to 604800); a rule label for routes.
-	RenotifyS *int32 `json:"renotify_s"`
-
-	// Severity `critical`, `high`, `warning` or `info`, on rules and on monitors alike. `medium` is read as
-	// `warning` (it is always answered as `warning`).
-	Severity *Severity `json:"severity,omitempty"`
-
-	// StopAfter Stop notifying after this many notifications (1 to 100); a rule label like `renotify_s`.
-	StopAfter *int32 `json:"stop_after"`
-}
-
 // Extract Dynamic routing: when `regex` matches label `from`, capture group 1 (or the whole match)
 // becomes label `into`, before any route is matched. Applied for every route of the tree,
 // depth first; an existing `into` label is kept (a real label beats a derived one).
@@ -1429,6 +1392,10 @@ type MonitorDto struct {
 	ProjectId          string   `json:"project_id"`
 	Quorum             *Quorum  `json:"quorum,omitempty"`
 
+	// RecoveryThreshold Successful rounds in a row that resolve a firing alert, 1 to 100 (default 1). Applies to
+	// every `alert_kind` of a probed check; a heartbeat sets its own in its config.
+	RecoveryThreshold *int32 `json:"recovery_threshold"`
+
 	// RegressionFactor `performance_regression`: alert when the phase is this many times slower than its last
 	// day's mean, 1.1 to 20 (default 2).
 	RegressionFactor *float64 `json:"regression_factor"`
@@ -1542,7 +1509,7 @@ type MonitorPage struct {
 	NextCursor *string      `json:"next_cursor"`
 }
 
-// MonitorSpec defines model for MonitorSpec.
+// MonitorSpec Everything about a monitor that a user sets.
 type MonitorSpec struct {
 	// Alert Whether alerting is enabled for this monitor (default true): config, not current state.
 	// True creates the managed alert rule; read `status` for whether the monitor is up or down.
@@ -1595,6 +1562,10 @@ type MonitorSpec struct {
 	MinAvailabilityPct *float64 `json:"min_availability_pct"`
 	Name               string   `json:"name"`
 	Quorum             *Quorum  `json:"quorum,omitempty"`
+
+	// RecoveryThreshold Successful rounds in a row that resolve a firing alert, 1 to 100 (default 1). Applies to
+	// every `alert_kind` of a probed check; a heartbeat sets its own in its config.
+	RecoveryThreshold *int32 `json:"recovery_threshold"`
 
 	// RegressionFactor `performance_regression`: alert when the phase is this many times slower than its last
 	// day's mean, 1.1 to 20 (default 2).
@@ -1712,6 +1683,13 @@ type NewTemplateRequest struct {
 
 // NoData What an evaluation without data means.
 type NoData string
+
+// NotificationsTestRequest Optional body of `:test`.
+type NotificationsTestRequest struct {
+	// DryRun Return the payload that would be queued (200) and deliver nothing, e.g. for a status page
+	// receiver whose test would post to a public page.
+	DryRun *bool `json:"dry_run"`
+}
 
 // OnError What an evaluation error means for a group.
 type OnError string
@@ -1889,6 +1867,9 @@ type ReceiverDto struct {
 	// `escalation_policy` receiver whose people have no login email or verified method).
 	NotDelivering *string `json:"not_delivering"`
 	Team          *string `json:"team"`
+
+	// Validation Outcome of the Hermeticor check made when a hermetica receiver is saved.
+	Validation *Validation `json:"validation,omitempty"`
 }
 
 // ReceiverKind Channel kind. What goes where, per kind (`secrets` are write-only; `config` is returned as given):
@@ -2020,6 +2001,12 @@ type Retry struct {
 
 // RetryMode defines model for RetryMode.
 type RetryMode string
+
+// RootReceiverPatch defines model for RootReceiverPatch.
+type RootReceiverPatch struct {
+	// Receiver Receiver name or `rcv_` id.
+	Receiver string `json:"receiver"`
+}
 
 // Rotation defines model for Rotation.
 type Rotation struct {
@@ -2279,51 +2266,6 @@ type RuleDto struct {
 
 	// WindowS Seconds of data each evaluation covers (default 300).
 	WindowS *int32 `json:"window_s,omitempty"`
-}
-
-// RuleExt The flattened options. Every field defaults to the behaviour before it existed.
-type RuleExt struct {
-	// Expression Math over the queries, the value the condition tests: `$A / $B * 100`,
-	// `$A > 5 && $B < 3` (comparisons give 1 or 0), `abs($A - $B)`, `$A / sum($A)`
-	// (`sum avg min max count` of one query reduce over all its groups). Groups are joined
-	// by labels; a query with a single group without labels applies to every group.
-	Expression *string `json:"expression"`
-
-	// Holidays UTC days (`YYYY-MM-DD`, at most 400) left out of an anomaly rule's baseline, such as
-	// public holidays, so a quiet holiday does not skew the seasonal norm (ALT-009).
-	Holidays *[]string `json:"holidays,omitempty"`
-
-	// Jitter Spread evaluations: this rule runs at a stable offset within `every_s`, derived from
-	// its id, instead of on the interval boundary.
-	Jitter *bool `json:"jitter,omitempty"`
-
-	// Limit Most alert groups one evaluation may produce (Prometheus group `limit`); above it the
-	// evaluation fails as an error. 0: only the global cap.
-	Limit *int32 `json:"limit,omitempty"`
-
-	// MissingSeriesEvals Consecutive evaluations a labelled series may be missing before its group is retired
-	// and its alert resolves (default 10, 1 to 1000).
-	MissingSeriesEvals *int32 `json:"missing_series_evals"`
-
-	// Notify Routing picked on the rule ("simplified routing"): its alerts skip the label-based policy
-	// tree and go straight to a receiver, or start at a named route of the tree.
-	Notify *RuleNotify `json:"notify,omitempty"`
-
-	// OnError What an evaluation error means for a group.
-	OnError *OnError `json:"on_error,omitempty"`
-
-	// Queries `query` is `A`. Only queries that read one window may be added.
-	Queries *map[string]RuleQuery `json:"queries,omitempty"`
-
-	// SkipPendingOnError Fire `error`, `no_data` and the `alerting` policies at once instead of waiting `for_s`.
-	SkipPendingOnError *bool `json:"skip_pending_on_error,omitempty"`
-
-	// SourceAuthor Set by the server on save; access to every source is re-checked as this user at evaluation.
-	SourceAuthor *string `json:"source_author"`
-
-	// SourceProjects Extra queries by ref id (`B` to `E`), each read over the same window; the main
-	// Federated alert rule (A25): also read these same-org projects. `promql` rules only.
-	SourceProjects *[]string `json:"source_projects,omitempty"`
 }
 
 // RuleForecast The `forecast` rule kind (W57): one group per series of `expr`, valued at the forecast's
@@ -2851,7 +2793,7 @@ type RuleQuery52 struct {
 	VulnerabilityNew VulnNewQuery `json:"vulnerability_new"`
 }
 
-// RuleSpec defines model for RuleSpec.
+// RuleSpec Everything about a rule that a user sets (the stored and wire document).
 type RuleSpec struct {
 	Annotations *Annotations `json:"annotations,omitempty"`
 	Condition   Condition    `json:"condition"`
@@ -3429,13 +3371,14 @@ type TemplatePage struct {
 	NextCursor *string       `json:"next_cursor"`
 }
 
-// TestRequest defines model for TestRequest.
-type TestRequest struct {
-	// EventType One of the trigger event types.
-	EventType string `json:"event_type"`
+// TestDryRun What a dry-run test would queue.
+type TestDryRun struct {
+	Kind string `json:"kind"`
 
-	// Payload A sample event payload (at most 64 KiB).
-	Payload map[string]interface{} `json:"payload"`
+	// Payload The message handed to the notifier. The channel renders and signs it at delivery, where
+	// the receiver's secrets are opened; the API never holds them, so this is not signed.
+	Payload    interface{} `json:"payload"`
+	ReceiverId string      `json:"receiver_id"`
 }
 
 // TestSent defines model for TestSent.
@@ -3526,6 +3469,18 @@ type UpdateDashboardRequest struct {
 // ValidateResult The `?validate=1` answer: every check passed, nothing was written.
 type ValidateResult struct {
 	Valid bool `json:"valid"`
+}
+
+// Validation Outcome of the Hermeticor check made when a hermetica receiver is saved.
+type Validation struct {
+	// CanSend `canSend.emailTransactional` from `GET /v1/readiness`; false when `unknown`.
+	CanSend bool `json:"can_send"`
+
+	// Fix When `can_send` is false: what to do, from the first failing check or `alternatives[0]`.
+	Fix *string `json:"fix"`
+
+	// Unknown Hermeticor could not be asked or answered in an unknown shape; the receiver is saved anyway.
+	Unknown bool `json:"unknown"`
 }
 
 // VulnNewQuery A `vulnerability_new` rule over `vulnerabilities_v1` (D2): Code Security findings first seen in
@@ -3659,6 +3614,15 @@ type WorkflowRequest struct {
 	// expression of `eq`, `ne`, `in`, `contains`, `startsWith`, `matches` (RE2), `and`, `or` and
 	// `not` over `JSONPath` into the event payload (at most 4 KiB, 16 levels).
 	Trigger map[string]interface{} `json:"trigger"`
+}
+
+// WorkflowsTestRequest defines model for WorkflowsTestRequest.
+type WorkflowsTestRequest struct {
+	// EventType One of the trigger event types.
+	EventType string `json:"event_type"`
+
+	// Payload A sample event payload (at most 64 KiB).
+	Payload map[string]interface{} `json:"payload"`
 }
 
 // GetV1OrgsOrgProjectsParams defines parameters for GetV1OrgsOrgProjects.
@@ -3845,6 +3809,12 @@ type GetV1ProjectsPrjReceiversParams struct {
 	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
+// PatchV1ProjectsPrjRoutingParams defines parameters for PatchV1ProjectsPrjRouting.
+type PatchV1ProjectsPrjRoutingParams struct {
+	// IfMatch The current version
+	IfMatch string `json:"If-Match"`
+}
+
 // PutV1ProjectsPrjRoutingParams defines parameters for PutV1ProjectsPrjRouting.
 type PutV1ProjectsPrjRoutingParams struct {
 	// Confirm Must be `true` to save a tree with no receiver and no child routes, which routes nothing.
@@ -3962,8 +3932,14 @@ type PutV1ProjectsPrjOncallSchedulesSchJSONRequestBody = ScheduleSpec
 // PostV1ProjectsPrjReceiversJSONRequestBody defines body for PostV1ProjectsPrjReceivers for application/json ContentType.
 type PostV1ProjectsPrjReceiversJSONRequestBody = ReceiverRequest
 
+// PostV1ProjectsPrjReceiversReceiverJSONRequestBody defines body for PostV1ProjectsPrjReceiversReceiver for application/json ContentType.
+type PostV1ProjectsPrjReceiversReceiverJSONRequestBody = NotificationsTestRequest
+
 // PutV1ProjectsPrjReceiversReceiverJSONRequestBody defines body for PutV1ProjectsPrjReceiversReceiver for application/json ContentType.
 type PutV1ProjectsPrjReceiversReceiverJSONRequestBody = ReceiverRequest
+
+// PatchV1ProjectsPrjRoutingJSONRequestBody defines body for PatchV1ProjectsPrjRouting for application/json ContentType.
+type PatchV1ProjectsPrjRoutingJSONRequestBody = RootReceiverPatch
 
 // PutV1ProjectsPrjRoutingJSONRequestBody defines body for PutV1ProjectsPrjRouting for application/json ContentType.
 type PutV1ProjectsPrjRoutingJSONRequestBody = Route
@@ -3990,7 +3966,7 @@ type PatchV1ProjectsPrjTemplatesIdJSONRequestBody = PatchTemplateRequest
 type PostV1ProjectsPrjWorkflowsJSONRequestBody = WorkflowRequest
 
 // PostV1ProjectsPrjWorkflowsWJSONRequestBody defines body for PostV1ProjectsPrjWorkflowsW for application/json ContentType.
-type PostV1ProjectsPrjWorkflowsWJSONRequestBody = TestRequest
+type PostV1ProjectsPrjWorkflowsWJSONRequestBody = WorkflowsTestRequest
 
 // PutV1ProjectsPrjWorkflowsWJSONRequestBody defines body for PutV1ProjectsPrjWorkflowsW for application/json ContentType.
 type PutV1ProjectsPrjWorkflowsWJSONRequestBody = WorkflowRequest
@@ -6486,8 +6462,10 @@ type ClientInterface interface {
 	// GetV1ProjectsPrjReceiversReceiver request
 	GetV1ProjectsPrjReceiversReceiver(ctx context.Context, prj string, receiver string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// PostV1ProjectsPrjReceiversReceiver request
-	PostV1ProjectsPrjReceiversReceiver(ctx context.Context, prj string, receiver string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// PostV1ProjectsPrjReceiversReceiverWithBody request with any body
+	PostV1ProjectsPrjReceiversReceiverWithBody(ctx context.Context, prj string, receiver string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostV1ProjectsPrjReceiversReceiver(ctx context.Context, prj string, receiver string, body PostV1ProjectsPrjReceiversReceiverJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PutV1ProjectsPrjReceiversReceiverWithBody request with any body
 	PutV1ProjectsPrjReceiversReceiverWithBody(ctx context.Context, prj string, receiver string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -6496,6 +6474,11 @@ type ClientInterface interface {
 
 	// GetV1ProjectsPrjRouting request
 	GetV1ProjectsPrjRouting(ctx context.Context, prj string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PatchV1ProjectsPrjRoutingWithBody request with any body
+	PatchV1ProjectsPrjRoutingWithBody(ctx context.Context, prj string, params *PatchV1ProjectsPrjRoutingParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PatchV1ProjectsPrjRouting(ctx context.Context, prj string, params *PatchV1ProjectsPrjRoutingParams, body PatchV1ProjectsPrjRoutingJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PutV1ProjectsPrjRoutingWithBody request with any body
 	PutV1ProjectsPrjRoutingWithBody(ctx context.Context, prj string, params *PutV1ProjectsPrjRoutingParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -7610,8 +7593,20 @@ func (c *Client) GetV1ProjectsPrjReceiversReceiver(ctx context.Context, prj stri
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostV1ProjectsPrjReceiversReceiver(ctx context.Context, prj string, receiver string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostV1ProjectsPrjReceiversReceiverRequest(c.Server, prj, receiver)
+func (c *Client) PostV1ProjectsPrjReceiversReceiverWithBody(ctx context.Context, prj string, receiver string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostV1ProjectsPrjReceiversReceiverRequestWithBody(c.Server, prj, receiver, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostV1ProjectsPrjReceiversReceiver(ctx context.Context, prj string, receiver string, body PostV1ProjectsPrjReceiversReceiverJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostV1ProjectsPrjReceiversReceiverRequest(c.Server, prj, receiver, body)
 	if err != nil {
 		return nil, err
 	}
@@ -7648,6 +7643,30 @@ func (c *Client) PutV1ProjectsPrjReceiversReceiver(ctx context.Context, prj stri
 
 func (c *Client) GetV1ProjectsPrjRouting(ctx context.Context, prj string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetV1ProjectsPrjRoutingRequest(c.Server, prj)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PatchV1ProjectsPrjRoutingWithBody(ctx context.Context, prj string, params *PatchV1ProjectsPrjRoutingParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPatchV1ProjectsPrjRoutingRequestWithBody(c.Server, prj, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PatchV1ProjectsPrjRouting(ctx context.Context, prj string, params *PatchV1ProjectsPrjRoutingParams, body PatchV1ProjectsPrjRoutingJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPatchV1ProjectsPrjRoutingRequest(c.Server, prj, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -11451,8 +11470,19 @@ func NewGetV1ProjectsPrjReceiversReceiverRequest(server string, prj string, rece
 	return req, nil
 }
 
-// NewPostV1ProjectsPrjReceiversReceiverRequest generates requests for PostV1ProjectsPrjReceiversReceiver
-func NewPostV1ProjectsPrjReceiversReceiverRequest(server string, prj string, receiver string) (*http.Request, error) {
+// NewPostV1ProjectsPrjReceiversReceiverRequest calls the generic PostV1ProjectsPrjReceiversReceiver builder with application/json body
+func NewPostV1ProjectsPrjReceiversReceiverRequest(server string, prj string, receiver string, body PostV1ProjectsPrjReceiversReceiverJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostV1ProjectsPrjReceiversReceiverRequestWithBody(server, prj, receiver, "application/json", bodyReader)
+}
+
+// NewPostV1ProjectsPrjReceiversReceiverRequestWithBody generates requests for PostV1ProjectsPrjReceiversReceiver with any type of body
+func NewPostV1ProjectsPrjReceiversReceiverRequestWithBody(server string, prj string, receiver string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -11484,10 +11514,12 @@ func NewPostV1ProjectsPrjReceiversReceiverRequest(server string, prj string, rec
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	req, err := http.NewRequest("POST", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -11575,6 +11607,66 @@ func NewGetV1ProjectsPrjRoutingRequest(server string, prj string) (*http.Request
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPatchV1ProjectsPrjRoutingRequest calls the generic PatchV1ProjectsPrjRouting builder with application/json body
+func NewPatchV1ProjectsPrjRoutingRequest(server string, prj string, params *PatchV1ProjectsPrjRoutingParams, body PatchV1ProjectsPrjRoutingJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPatchV1ProjectsPrjRoutingRequestWithBody(server, prj, params, "application/json", bodyReader)
+}
+
+// NewPatchV1ProjectsPrjRoutingRequestWithBody generates requests for PatchV1ProjectsPrjRouting with any type of body
+func NewPatchV1ProjectsPrjRoutingRequestWithBody(server string, prj string, params *PatchV1ProjectsPrjRoutingParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "prj", runtime.ParamLocationPath, prj)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/projects/%s/routing", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithLocation("simple", false, "If-Match", runtime.ParamLocationHeader, params.IfMatch)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("If-Match", headerParam0)
+
 	}
 
 	return req, nil
@@ -13111,8 +13203,10 @@ type ClientWithResponsesInterface interface {
 	// GetV1ProjectsPrjReceiversReceiverWithResponse request
 	GetV1ProjectsPrjReceiversReceiverWithResponse(ctx context.Context, prj string, receiver string, reqEditors ...RequestEditorFn) (*GetV1ProjectsPrjReceiversReceiverResponse, error)
 
-	// PostV1ProjectsPrjReceiversReceiverWithResponse request
-	PostV1ProjectsPrjReceiversReceiverWithResponse(ctx context.Context, prj string, receiver string, reqEditors ...RequestEditorFn) (*PostV1ProjectsPrjReceiversReceiverResponse, error)
+	// PostV1ProjectsPrjReceiversReceiverWithBodyWithResponse request with any body
+	PostV1ProjectsPrjReceiversReceiverWithBodyWithResponse(ctx context.Context, prj string, receiver string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostV1ProjectsPrjReceiversReceiverResponse, error)
+
+	PostV1ProjectsPrjReceiversReceiverWithResponse(ctx context.Context, prj string, receiver string, body PostV1ProjectsPrjReceiversReceiverJSONRequestBody, reqEditors ...RequestEditorFn) (*PostV1ProjectsPrjReceiversReceiverResponse, error)
 
 	// PutV1ProjectsPrjReceiversReceiverWithBodyWithResponse request with any body
 	PutV1ProjectsPrjReceiversReceiverWithBodyWithResponse(ctx context.Context, prj string, receiver string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutV1ProjectsPrjReceiversReceiverResponse, error)
@@ -13121,6 +13215,11 @@ type ClientWithResponsesInterface interface {
 
 	// GetV1ProjectsPrjRoutingWithResponse request
 	GetV1ProjectsPrjRoutingWithResponse(ctx context.Context, prj string, reqEditors ...RequestEditorFn) (*GetV1ProjectsPrjRoutingResponse, error)
+
+	// PatchV1ProjectsPrjRoutingWithBodyWithResponse request with any body
+	PatchV1ProjectsPrjRoutingWithBodyWithResponse(ctx context.Context, prj string, params *PatchV1ProjectsPrjRoutingParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PatchV1ProjectsPrjRoutingResponse, error)
+
+	PatchV1ProjectsPrjRoutingWithResponse(ctx context.Context, prj string, params *PatchV1ProjectsPrjRoutingParams, body PatchV1ProjectsPrjRoutingJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchV1ProjectsPrjRoutingResponse, error)
 
 	// PutV1ProjectsPrjRoutingWithBodyWithResponse request with any body
 	PutV1ProjectsPrjRoutingWithBodyWithResponse(ctx context.Context, prj string, params *PutV1ProjectsPrjRoutingParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutV1ProjectsPrjRoutingResponse, error)
@@ -14782,9 +14881,11 @@ func (r GetV1ProjectsPrjReceiversReceiverResponse) StatusCode() int {
 type PostV1ProjectsPrjReceiversReceiverResponse struct {
 	Body                      []byte
 	HTTPResponse              *http.Response
+	JSON200                   *TestDryRun
 	JSON202                   *TestSent
 	ApplicationproblemJSON401 *Problem
 	JSON404                   *Problem
+	JSON422                   *Problem
 	JSON429                   *Problem
 }
 
@@ -14856,12 +14957,39 @@ func (r GetV1ProjectsPrjRoutingResponse) StatusCode() int {
 	return 0
 }
 
+type PatchV1ProjectsPrjRoutingResponse struct {
+	Body                      []byte
+	HTTPResponse              *http.Response
+	JSON200                   *RoutingDto
+	ApplicationproblemJSON401 *Problem
+	JSON412                   *Problem
+	JSON422                   *Problem
+	JSON428                   *Problem
+	ApplicationproblemJSON429 *Problem
+}
+
+// Status returns HTTPResponse.Status
+func (r PatchV1ProjectsPrjRoutingResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PatchV1ProjectsPrjRoutingResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type PutV1ProjectsPrjRoutingResponse struct {
 	Body                      []byte
 	HTTPResponse              *http.Response
 	JSON200                   *RoutingDto
 	ApplicationproblemJSON401 *Problem
-	JSON409                   *Problem
+	JSON412                   *Problem
 	JSON422                   *Problem
 	JSON428                   *Problem
 	ApplicationproblemJSON429 *Problem
@@ -16212,9 +16340,17 @@ func (c *ClientWithResponses) GetV1ProjectsPrjReceiversReceiverWithResponse(ctx 
 	return ParseGetV1ProjectsPrjReceiversReceiverResponse(rsp)
 }
 
-// PostV1ProjectsPrjReceiversReceiverWithResponse request returning *PostV1ProjectsPrjReceiversReceiverResponse
-func (c *ClientWithResponses) PostV1ProjectsPrjReceiversReceiverWithResponse(ctx context.Context, prj string, receiver string, reqEditors ...RequestEditorFn) (*PostV1ProjectsPrjReceiversReceiverResponse, error) {
-	rsp, err := c.PostV1ProjectsPrjReceiversReceiver(ctx, prj, receiver, reqEditors...)
+// PostV1ProjectsPrjReceiversReceiverWithBodyWithResponse request with arbitrary body returning *PostV1ProjectsPrjReceiversReceiverResponse
+func (c *ClientWithResponses) PostV1ProjectsPrjReceiversReceiverWithBodyWithResponse(ctx context.Context, prj string, receiver string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostV1ProjectsPrjReceiversReceiverResponse, error) {
+	rsp, err := c.PostV1ProjectsPrjReceiversReceiverWithBody(ctx, prj, receiver, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostV1ProjectsPrjReceiversReceiverResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostV1ProjectsPrjReceiversReceiverWithResponse(ctx context.Context, prj string, receiver string, body PostV1ProjectsPrjReceiversReceiverJSONRequestBody, reqEditors ...RequestEditorFn) (*PostV1ProjectsPrjReceiversReceiverResponse, error) {
+	rsp, err := c.PostV1ProjectsPrjReceiversReceiver(ctx, prj, receiver, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -16245,6 +16381,23 @@ func (c *ClientWithResponses) GetV1ProjectsPrjRoutingWithResponse(ctx context.Co
 		return nil, err
 	}
 	return ParseGetV1ProjectsPrjRoutingResponse(rsp)
+}
+
+// PatchV1ProjectsPrjRoutingWithBodyWithResponse request with arbitrary body returning *PatchV1ProjectsPrjRoutingResponse
+func (c *ClientWithResponses) PatchV1ProjectsPrjRoutingWithBodyWithResponse(ctx context.Context, prj string, params *PatchV1ProjectsPrjRoutingParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PatchV1ProjectsPrjRoutingResponse, error) {
+	rsp, err := c.PatchV1ProjectsPrjRoutingWithBody(ctx, prj, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePatchV1ProjectsPrjRoutingResponse(rsp)
+}
+
+func (c *ClientWithResponses) PatchV1ProjectsPrjRoutingWithResponse(ctx context.Context, prj string, params *PatchV1ProjectsPrjRoutingParams, body PatchV1ProjectsPrjRoutingJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchV1ProjectsPrjRoutingResponse, error) {
+	rsp, err := c.PatchV1ProjectsPrjRouting(ctx, prj, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePatchV1ProjectsPrjRoutingResponse(rsp)
 }
 
 // PutV1ProjectsPrjRoutingWithBodyWithResponse request with arbitrary body returning *PutV1ProjectsPrjRoutingResponse
@@ -19569,6 +19722,13 @@ func ParsePostV1ProjectsPrjReceiversReceiverResponse(rsp *http.Response) (*PostV
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TestDryRun
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
 		var dest TestSent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -19589,6 +19749,13 @@ func ParsePostV1ProjectsPrjReceiversReceiverResponse(rsp *http.Response) (*PostV
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
 		var dest Problem
@@ -19710,6 +19877,67 @@ func ParseGetV1ProjectsPrjRoutingResponse(rsp *http.Response) (*GetV1ProjectsPrj
 	return response, nil
 }
 
+// ParsePatchV1ProjectsPrjRoutingResponse parses an HTTP response from a PatchV1ProjectsPrjRoutingWithResponse call
+func ParsePatchV1ProjectsPrjRoutingResponse(rsp *http.Response) (*PatchV1ProjectsPrjRoutingResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PatchV1ProjectsPrjRoutingResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest RoutingDto
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 412:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON412 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 428:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON428 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON429 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParsePutV1ProjectsPrjRoutingResponse parses an HTTP response from a PutV1ProjectsPrjRoutingWithResponse call
 func ParsePutV1ProjectsPrjRoutingResponse(rsp *http.Response) (*PutV1ProjectsPrjRoutingResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -19738,12 +19966,12 @@ func ParsePutV1ProjectsPrjRoutingResponse(rsp *http.Response) (*PutV1ProjectsPrj
 		}
 		response.ApplicationproblemJSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 412:
 		var dest Problem
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON409 = &dest
+		response.JSON412 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
 		var dest Problem

@@ -33,6 +33,8 @@ type DockerLogs struct {
 	MatchRules                    // include_at_match / exclude_at_match on top of the global ones
 	Host       string             `json:"host"`   // unix:///var/run/docker.sock (default) or http(s)://
 	Labels     container.LabelSet `json:"labels"` // only containers carrying every label (server-side filter)
+	// Select narrows by container name (regex), image (glob or `re:` regex) and compose service (glob), ANDed with Labels.
+	Select container.Selector `json:"select"`
 	// RequireLabels makes empty Labels follow nothing instead of every container (shared hosts).
 	RequireLabels bool `json:"require_labels"`
 	// Scope "self" (or WT_AGENT_SCOPE=self) follows only the containers of the agent's own compose
@@ -63,7 +65,13 @@ func newDockerFollower(c DockerLogs, stateDir string, out sink.Sink) *dockerFoll
 	}
 	host := c.Host
 	if host == "" {
+		host = os.Getenv("DOCKER_HOST") // e.g. tcp://socket-proxy:2375
+	}
+	if host == "" {
 		host = "unix:///var/run/docker.sock"
+	}
+	if h, ok := strings.CutPrefix(host, "tcp://"); ok {
+		host = "http://" + h
 	}
 	f := &dockerFollower{c: c, out: out, since: map[string]int64{}, running: map[string]bool{}, base: strings.TrimRight(host, "/")}
 	if sock, ok := strings.CutPrefix(host, "unix://"); ok {
@@ -91,6 +99,11 @@ func RunDocker(ctx context.Context, c DockerLogs, stateDir string, out sink.Sink
 		}
 		c.Labels[container.ComposeProjectLabel] = []string{p}
 	}
+	f0 := &c.Select
+	f0.SelectorFromEnv()
+	if err := f0.Compile(); err != nil {
+		return err
+	}
 	f := newDockerFollower(c, stateDir, out)
 	get := func(path string, v any) error {
 		resp, err := f.get(ctx, path)
@@ -106,7 +119,7 @@ func RunDocker(ctx context.Context, c DockerLogs, stateDir string, out sink.Sink
 		}
 		return err
 	}
-	if c.RequireLabels && len(f.c.Labels) == 0 {
+	if c.RequireLabels && len(f.c.Labels) == 0 && !f.c.Select.Active() {
 		slog.Warn("docker logs: require_labels is set but labels are empty; following nothing")
 		<-ctx.Done()
 		return nil
@@ -166,6 +179,9 @@ func (f *dockerFollower) scan(ctx context.Context) error {
 	var matched []string
 	for _, c := range cs {
 		if !container.HasLabels(c.Labels, f.c.Labels) { // guards an engine that ignored the filter
+			continue
+		}
+		if !f.c.Select.Match(strings.TrimPrefix(strings.Join(c.Names, ","), "/"), c.Image, c.Labels) {
 			continue
 		}
 		matched = append(matched, strings.TrimPrefix(strings.Join(c.Names, ","), "/")+"("+c.ID[:min(12, len(c.ID))]+")")

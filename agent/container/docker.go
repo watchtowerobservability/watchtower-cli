@@ -6,10 +6,12 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"runtime"
 	"slices"
 	"strings"
@@ -26,8 +28,12 @@ const (
 	statsParallel = 8
 )
 
-// DefaultHost is the engine endpoint when the local config names none.
+// DefaultHost is the engine endpoint when the local config names none: DOCKER_HOST (unix://,
+// npipe:// or tcp://, e.g. an allow-list socket proxy), else the platform's socket.
 func DefaultHost() string {
+	if h := os.Getenv("DOCKER_HOST"); h != "" {
+		return h
+	}
 	if runtime.GOOS == "windows" {
 		return "npipe:////./pipe/docker_engine"
 	}
@@ -40,7 +46,20 @@ func DefaultHost() string {
 type Docker struct {
 	HTTP   *http.Client
 	Labels LabelSet
+	// Select narrows the labelled containers by name, image and compose service (client side).
+	Select Selector
+	base   string // "http://docker" for a socket or pipe, else the tcp:// endpoint as http(s)
 }
+
+func (d *Docker) url(path string) string {
+	if d.base == "" {
+		return "http://docker" + path
+	}
+	return d.base + path
+}
+
+// ErrForbidden is the engine (or a socket proxy that does not allow the call) answering 403.
+var ErrForbidden = errors.New("docker: forbidden by the engine or socket proxy")
 
 // ComposeProjectLabel is the label docker compose puts on every container of a project.
 const ComposeProjectLabel = "com.docker.compose.project"
@@ -124,7 +143,7 @@ func (d *Docker) filters(kinds map[string][]string) string {
 	return string(b)
 }
 
-// NewDocker accepts unix:///path and npipe:////./pipe/name endpoints.
+// NewDocker accepts unix:///path, npipe:////./pipe/name and tcp://host:port (or http(s)://) endpoints.
 func NewDocker(endpoint string) (*Docker, error) {
 	u, err := url.Parse(endpoint)
 	if err != nil {
@@ -140,8 +159,17 @@ func NewDocker(endpoint string) (*Docker, error) {
 	case "npipe":
 		pipe := strings.ReplaceAll(strings.TrimPrefix(endpoint, "npipe://"), "/", `\`)
 		dial = func(ctx context.Context, _, _ string) (net.Conn, error) { return dialPipe(ctx, pipe) }
+	case "tcp", "http", "https":
+		if u.Host == "" {
+			return nil, fmt.Errorf("docker endpoint %q: no host", endpoint)
+		}
+		scheme := "http"
+		if u.Scheme == "https" {
+			scheme = "https"
+		}
+		return &Docker{HTTP: &http.Client{Transport: &http.Transport{DisableKeepAlives: true}}, base: scheme + "://" + u.Host}, nil
 	default:
-		return nil, fmt.Errorf("docker endpoint %q: want unix:// or npipe://", endpoint)
+		return nil, fmt.Errorf("docker endpoint %q: want unix://, npipe:// or tcp://", endpoint)
 	}
 	return &Docker{HTTP: &http.Client{Transport: &http.Transport{DialContext: dial, DisableKeepAlives: true}}}, nil
 }
@@ -163,7 +191,7 @@ type Info struct {
 func (d *Docker) get(ctx context.Context, path string, v any) error {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://docker"+path, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, d.url(path), nil)
 	if err != nil {
 		return err
 	}
@@ -172,6 +200,9 @@ func (d *Docker) get(ctx context.Context, path string, v any) error {
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusForbidden {
+		return fmt.Errorf("%w: %s", ErrForbidden, path)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("docker %s: %s", path, resp.Status)
 	}
@@ -210,6 +241,9 @@ func (d *Docker) List(ctx context.Context) ([]Info, error) {
 		name := r.ID[:min(12, len(r.ID))]
 		if len(r.Names) > 0 {
 			name = strings.TrimPrefix(r.Names[0], "/")
+		}
+		if !d.Select.Match(name, r.Image, r.Labels) {
+			continue
 		}
 		in := Info{ID: r.ID, Name: name, Image: r.Image, State: r.State, Labels: r.Labels}
 		for _, n := range r.NetworkSettings.Networks {
@@ -268,7 +302,7 @@ func (d *Docker) Stats(ctx context.Context, id string) (Stats, error) {
 // Events streams container events as log records until ctx ends or the stream breaks.
 func (d *Docker) Events(ctx context.Context, since time.Time, out sink.Sink) error {
 	q := url.Values{"since": {fmt.Sprint(since.Unix())}, "filters": {d.filters(map[string][]string{"type": {"container"}})}}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://docker/events?"+q.Encode(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, d.url("/events?"+q.Encode()), nil)
 	if err != nil {
 		return err
 	}
@@ -294,6 +328,9 @@ func (d *Docker) Events(ctx context.Context, since time.Time, out sink.Sink) err
 		}
 		if !HasLabels(e.Actor.Attrs, d.Labels) {
 			continue // the engine filtered already; this guards an engine that ignored the filter
+		}
+		if !d.Select.Match(e.Actor.Attrs["name"], e.Actor.Attrs["image"], e.Actor.Attrs) {
+			continue
 		}
 		sev := "INFO"
 		if e.Action == "die" || e.Action == "oom" || strings.HasPrefix(e.Action, "health_status: unhealthy") {
@@ -349,7 +386,7 @@ func (p *Poller) identity(ctx context.Context, d *Docker, c Info) Identity {
 	}
 	env, err := d.Env(ctx, c.ID)
 	id = ResolveIdentity(env, c.Labels, p.Services, c.Name)
-	if err == nil {
+	if err == nil || errors.Is(err, ErrForbidden) { // a socket proxy without inspect: labels and name only, asked once
 		p.mu.Lock()
 		if p.ids == nil {
 			p.ids = map[string]Identity{}

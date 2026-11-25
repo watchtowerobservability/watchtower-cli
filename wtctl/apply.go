@@ -75,7 +75,7 @@ func (o *asCodeOpts) plan(ctx context.Context, c *ascode.Client) ([]ascode.Chang
 	if o.file == "" {
 		return nil, errors.New("-f <dir|file> is required")
 	}
-	docs, err := ascode.LoadDocs(o.file)
+	docs, err := loadDocs(o.file)
 	if err != nil {
 		return nil, err
 	}

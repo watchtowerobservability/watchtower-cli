@@ -287,7 +287,11 @@ func (c *Client) Create(ctx context.Context, k *Kind, name string, spec map[stri
 		if k.ByName {
 			path = k.itemPath(name)
 		}
-		err = c.do(ctx, http.MethodPut, path, body, &out)
+		m := http.MethodPut
+		if k.Singleton {
+			m = k.updateMethod() // issue settings are PATCHed
+		}
+		err = c.do(ctx, m, path, body, &out)
 	} else {
 		err = c.do(ctx, http.MethodPost, k.Path, body, &out)
 	}
@@ -308,7 +312,7 @@ func (c *Client) Update(ctx context.Context, k *Kind, it Item, name string, spec
 		if it.Version != "" {
 			hdr = map[string]string{"If-Match": it.Version}
 		}
-		err = c.Do(ctx, http.MethodPut, k.Path, hdr, body, &out)
+		err = c.Do(ctx, k.updateMethod(), k.Path, hdr, body, &out)
 	default:
 		var hdr map[string]string
 		if v, ok := it.Body["version"].(float64); k.Versioned && ok {

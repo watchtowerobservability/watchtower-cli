@@ -130,3 +130,13 @@ func TestScratchDBNameIsIdentifierSafe(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestScratchURLIsSocketOnly(t *testing.T) {
+	u := scratchURL("/tmp/wt-scratch-1")
+	if !strings.Contains(u, "host=%2Ftmp%2Fwt-scratch-1") || !strings.HasPrefix(u, "postgres://wt@/") {
+		t.Fatal(u)
+	}
+	if !strings.Contains(scratchPGOpts, "listen_addresses=") {
+		t.Fatal("scratch cluster must not listen on TCP")
+	}
+}

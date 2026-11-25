@@ -22,6 +22,8 @@ grep " wtctl_${os}_${arch}\$" SHA256SUMS | { command -v sha256sum >/dev/null && 
   && sudo install -m 0755 "wtctl_${os}_${arch}" /usr/local/bin/wtctl
 ```
 
+The npm package installs the same binary as `wtctl` and as `wt` (`wt activity config plan ...`); `npx @watchtowerobservability/cli <args>` runs it too and passes every argument and the exit code through. The Go binary stays `wtctl`.
+
 ## Version and updates
 
 ```sh

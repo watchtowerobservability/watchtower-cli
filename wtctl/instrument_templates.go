@@ -57,7 +57,7 @@ def setup() -> None:
 
 
 setup()
-`}}, Next: []string{"pip install watchtower-sdk", "add `import watchtower_otel` as the first import of the entry module"}},
+`}}, Next: []string{"pip install watchtower-observability", "add `import watchtower_otel` as the first import of the entry module"}},
 	"java": {Lang: "java", Files: []instrumentFile{{"src/main/java/WatchtowerOtel.java", `import io.watchtower.Watchtower;
 
 /** Call WatchtowerOtel.start("service") first in main. Endpoint and key come from the environment. */
