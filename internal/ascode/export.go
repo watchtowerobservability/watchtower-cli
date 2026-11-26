@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -26,7 +27,7 @@ func (c *Client) Export(ctx context.Context, kinds []string) ([]Doc, error) {
 	var ks []*Kind
 	if len(kinds) == 0 {
 		for _, k := range Kinds {
-			if k.Name != "ContactMethod" && k.Name != "Project" { // the exporter's own addresses and the org's project list are not the project's configuration
+			if !slices.Contains([]string{"ContactMethod", "Project", "Organization", "ServiceAccountKey"}, k.Name) { // the exporter's own addresses, the account's orgs and the org's project and key lists are not the project's configuration
 				ks = append(ks, k)
 			}
 		}

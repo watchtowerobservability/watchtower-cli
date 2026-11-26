@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0 (2026-11-25)
+
+- `--project` takes `org/slug` (`--project linkhub/linkhub`) wherever it takes a project id, and so do `$WT_PROJECT` and a context's project. The API also accepts a bare unique project slug and `/v1/orgs/{org}/projects/{slug}/...` as a full alias of `/v1/projects/{prj}/...`.
+- `wtctl apply --dry-run` sends `?dryRun=1` with each create it plans for an Organization, Project, IngestKey, PublishableKey, ServiceAccount or ServiceAccountKey, so the server validates it (scopes, `env_id`, plan limits, duplicates) and writes nothing. Server-side 409/422 errors are printed, all of them, and the exit is 1. A change the server checked says `(checked by the server)`. If a server predates `dryRun`, the dry run removes what it just created and says so.
+- New manifest kinds: `Organization` (name = slug, `spec: {name}`; needs no org and no project) and `ServiceAccountKey` (name = `<service account>/<key name>`; `spec: {scopes | preset, expires_in_days, project_id, env_id, write_token_to}`; a key that exists is left alone, the secret is shown once).
+- New `wtctl monitors list [--status retired] [--service <name>]` and `wtctl monitors prune --service <name> [--dry-run]`: retire the auto-created cron monitors of a service whose job no longer exists (they stop alerting "missed" and are deleted after 30 days).
+- `wtctl login` stores the token in the OS keychain (macOS `security`, Linux `secret-tool` when installed, Windows Credential Locker through PowerShell) instead of the config file, never prints it, and falls back to the 0600 file with a printed note when there is no keychain or `WTCTL_KEYCHAIN=off` is set. `logout` and `context delete` remove the keychain entry.
+- `wtctl` MCP: `tools/list` of the hosted server works without a valid key (calls say what is wrong), and `GET /mcp/status` is an unauthenticated probe.
+
 ## 0.5.0
 
 - New `wtctl activity config plan|apply|get --file activity.json` (`-f` works too): the whole Activity project config (schemas, theme, policy, retention, alert rules, hooks, `secret_ref` names) as code. `plan --detailed-exitcode` (alias `--exit-code`) exits 0 when nothing changes, 2 on drift, 1 on an error; without the flag drift exits 0, like `wtctl plan`. `--json` prints exactly the server's plan document (the same as `config.plan()` in the Activity SDK). Runs with a project-scoped service-account key holding the scope `config:activity`.

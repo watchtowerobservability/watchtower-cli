@@ -99,12 +99,16 @@ func logoutMain(ctx context.Context, args []string, out io.Writer) error {
 	if !ok {
 		return errors.New("no context to log out of (wtctl context list)")
 	}
-	if sel.TokenID != "" {
-		if err := call(ctx, http.MethodDelete, sel.API+"/v1/me/tokens/"+sel.TokenID, sel.Key, nil, nil); err != nil {
+	key, kerr := contextKey(ctx, *name, sel)
+	if sel.TokenID != "" && kerr == nil {
+		if err := call(ctx, http.MethodDelete, sel.API+"/v1/me/tokens/"+sel.TokenID, key, nil, nil); err != nil {
 			fmt.Fprintln(out, "could not revoke the token on the server (revoke it under Settings, Personal access tokens):", err)
 		} else {
 			fmt.Fprintln(out, "token revoked")
 		}
+	}
+	if sel.Key == keychainKey {
+		keychainDelete(ctx, *name)
 	}
 	delete(c.Contexts, *name)
 	if c.Current == *name {

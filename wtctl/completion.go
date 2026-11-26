@@ -10,7 +10,7 @@ import (
 const completionUsage = "usage: wtctl completion bash|zsh|fish|powershell"
 
 // topCommands is sorted.
-var topCommands = []string{"apply", "checks", "completion", "context", "dashboards", "debug-files", "diff", "export", "gatus", "gen", "health", "login", "logout", "logs", "manifest", "pipeline", "profile", "query", "release", "routing", "rules", "security", "self-update", "send-test", "sourcemaps", "spans", "tests", "version", "whoami"}
+var topCommands = []string{"apply", "checks", "completion", "context", "dashboards", "debug-files", "diff", "export", "gatus", "gen", "health", "login", "logout", "logs", "manifest", "monitors", "pipeline", "profile", "query", "release", "routing", "rules", "security", "self-update", "send-test", "sourcemaps", "spans", "tests", "version", "whoami"}
 
 // completionMain prints a shell completion script for the top-level commands.
 func completionMain(_ context.Context, args []string, out io.Writer) error {

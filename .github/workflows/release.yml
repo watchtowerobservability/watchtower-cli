@@ -10,7 +10,37 @@ permissions:
   packages: write
 
 jobs:
+  # One runner per platform: six builds in a row on one runner took 8.5 of the release's 10 minutes.
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        target: [linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64, windows/arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build
+        env:
+          CGO_ENABLED: '0'
+          TARGET: ${{ matrix.target }}
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          os=${TARGET%/*}; arch=${TARGET#*/}; ext=""; [ "$os" = windows ] && ext=".exe"
+          mkdir dist
+          # `wtctl version` prints VERSION; `wtctl self-update` fetches wtctl_<os>_<arch>[.exe] + SHA256SUMS
+          GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.Version=$VERSION" -o "dist/wtctl_${os}_${arch}${ext}" ./wtctl
+          echo "name=wtctl_${os}_${arch}" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.name }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 1
   release:
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Refuse stage versions
@@ -26,17 +56,16 @@ jobs:
         with:
           go-version-file: go.mod
       - run: go test ./wtctl/...
-      - name: Cross-build
-        env:
-          CGO_ENABLED: '0'
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: wtctl_*
+          merge-multiple: true
+      - name: Checksums and version
         run: |
           VERSION=${GITHUB_REF_NAME#v}
-          mkdir dist
-          for t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
-            os=${t%/*}; arch=${t#*/}; ext=""; [ "$os" = windows ] && ext=".exe"
-            # `wtctl version` prints VERSION; `wtctl self-update` fetches wtctl_<os>_<arch>[.exe] + SHA256SUMS
-            GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.Version=$VERSION" -o "dist/wtctl_${os}_${arch}${ext}" ./wtctl
-          done
+          [ "$(ls dist | wc -l)" = 6 ] || { echo "expected 6 binaries, got: $(ls dist)"; exit 1; }
+          chmod +x dist/wtctl_linux_amd64
           (cd dist && sha256sum * > SHA256SUMS)
           [ "$(./dist/wtctl_linux_amd64 version | cut -d' ' -f2)" = "$VERSION" ]
       - name: Scoop manifest

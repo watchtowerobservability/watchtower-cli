@@ -34,6 +34,8 @@ type Kind struct {
 	NoBodyName bool
 	// Org kinds live below /v1/orgs/{org}/ (Path is absolute with an {org} placeholder; Client.Org fills it).
 	Org bool
+	// Account kinds (with Org) need no org at all: the caller's own account creates them (an Organization).
+	Account bool
 	// IntKey: Key names an integer body field (a retention rule is identified by its priority).
 	IntKey bool
 	// NoDelete kinds cannot be deleted through the API; removing them only forgets them.
@@ -68,6 +70,9 @@ type kindOps interface {
 
 // Kinds lists every supported resource kind, in apply order.
 var Kinds = []*Kind{
+	// An org of the caller's account (name = slug; spec: {name}). Needs no org and no project; the caller becomes its
+	// admin. Never pruned or deleted: an org holds everything. Apply it first, then the rest with --org <slug>.
+	{Name: "Organization", Path: "/v1/orgs", Key: "slug", Org: true, Account: true, CreateOnly: true, NoPrune: true, NoDelete: true},
 	// A fresh project is stood up from these: an environment, then the keys that name it (B4).
 	{Name: "Environment", Path: "environments", CreateOnly: true}, // shortcut: no rename (a new name is a new environment); --prune deletes it unless a manifest references it
 	{Name: "IngestKey", Path: "credentials", CreateOnly: true, // the token is shown once: write_token_to saves it
@@ -147,6 +152,9 @@ var Kinds = []*Kind{
 	{Name: "HealthToken", Path: "health-tokens", CreateOnly: true, LocalFields: []string{"write_token_to", "token_env"}},
 	// The API cannot read a service account's settings back and has no update: create, or delete and recreate.
 	{Name: "ServiceAccount", Path: "/v1/orgs/{org}/service-accounts", Org: true, CreateOnly: true, NoPrune: true},
+	// A key of a service account (name = "<account name>/<key name>"; spec: scopes or preset, expires_in_days, project_id, env_id).
+	// Create only: the secret is shown once (write_token_to saves it) and a key that exists is never touched. Never pruned.
+	{Name: "ServiceAccountKey", Path: "/v1/orgs/{org}/service-account-keys", Org: true, CreateOnly: true, NoPrune: true, SecretOut: "secret", LocalFields: []string{"write_token_to", "token_env"}, ops: saKeyOps{}},
 	// Where a service's code lives (name = service); PUT creates.
 	{Name: "RepoLink", Path: "repo-links", Key: "service", ByName: true, NoBodyName: true},
 	// A team's complete member list; the API has no GET, so every apply is sent. spec: {team: <Team name>, user_ids: [usr_...]}.

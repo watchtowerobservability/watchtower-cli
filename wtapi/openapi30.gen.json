@@ -7710,7 +7710,7 @@
       "type": "string"
      },
      "metadata_schema": {
-      "description": "JSON Schema subset: `type`, `properties`, `required`, `enum`, `maxLength`, `pattern`.",
+      "description": "JSON Schema subset: `type`, `properties`, `items`, `required`, `enum`, `maxLength`, `pattern`.",
       "type": "object"
      },
      "mode": {
@@ -9277,6 +9277,10 @@
    "ActivityThemeWarning": {
     "description": "A problem that does not stop a save: where it is and what is wrong.",
     "properties": {
+     "code": {
+      "description": "A stable machine code: `unknown_placeholder`, `unknown_formatter`, `malformed_placeholder`,\n`unknown_icon`, `unknown_failure_reason_path`, `failure_reasons_without_path`,\n`low_contrast` or `metadata_hidden`. New codes may be added; match on the ones you know.",
+      "type": "string"
+     },
      "message": {
       "type": "string"
      },
@@ -9286,6 +9290,7 @@
      }
     },
     "required": [
+     "code",
      "path",
      "message"
     ],
@@ -23275,6 +23280,27 @@
     ],
     "type": "object"
    },
+   "CreateDryRunResult": {
+    "description": "The 200 answer of a dry run: the fields of the create's 201 resource, minus its secrets and\nwith a null `id`, plus these two.",
+    "properties": {
+     "checks": {
+      "description": "The checks that passed, for example `slug_available` or `plan_limit:projects`.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "dryRun": {
+      "description": "Always `true`.",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "dryRun",
+     "checks"
+    ],
+    "type": "object"
+   },
    "CreateField": {
     "additionalProperties": false,
     "properties": {
@@ -29782,6 +29808,11 @@
       "minimum": 0,
       "type": "integer"
      },
+     "last_rejected_at": {
+      "description": "RFC 3339 time of the latest rejection; null when `rejected_recent` is 0.",
+      "nullable": true,
+      "type": "string"
+     },
      "limit": {
       "description": "`null` = unlimited.",
       "format": "int64",
@@ -29792,11 +29823,26 @@
      "metric": {
       "description": "One of `oncall_seats`, `escalation_paths`, `checks`, `check_runs_month`, `monitored_hosts`, `fleet_agents`, `private_locations`; the same names are the `metric` of a 422 `limit_reached`.",
       "type": "string"
+     },
+     "rejected_names": {
+      "description": "Up to 20 names that were refused, most recent first.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "rejected_recent": {
+      "description": "Creations refused for this metric in the last 24 hours (a name quiet for 24 hours starts a new count). Today only `checks` records them: a heartbeat check-in whose `monitor_config` could not create its monitor.",
+      "format": "int64",
+      "minimum": 0,
+      "type": "integer"
      }
     },
     "required": [
      "metric",
-     "current"
+     "current",
+     "rejected_recent",
+     "rejected_names"
     ],
     "type": "object"
    },
@@ -50555,13 +50601,18 @@
        "project_id": {
         "type": "string"
        },
+       "retired_at": {
+        "description": "When a scheduler report or `:retire` retired it (RFC 3339); null while active.",
+        "nullable": true,
+        "type": "string"
+       },
        "rule_id": {
         "description": "The managed alert rule, when `alert` is set.",
         "nullable": true,
         "type": "string"
        },
        "status": {
-        "description": "`paused` (disabled), `up` or `down` by the newest result, `unknown` without one. Set on\nreads.",
+        "description": "`paused`, `retired` (see `retired_at`), `up`, `down` or `unknown`. Set on reads.",
         "type": "string"
        },
        "updated_at": {
@@ -55985,6 +56036,56 @@
      "data": {
       "items": {
        "$ref": "#/components/schemas/OrgGroupDto"
+      },
+      "type": "array"
+     },
+     "next_cursor": {
+      "nullable": true,
+      "type": "string"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "type": "object"
+   },
+   "OrgNoticeDto": {
+    "properties": {
+     "created_at": {
+      "type": "string"
+     },
+     "detail": {
+      "description": "`{monitors: [names], intervals: [{name, interval_s, raised_to}], projects: [names], rejected: [names]}`:\n`monitors` are those beyond the free plan's `checks` cap in creation order, `intervals` the\nones below the free floor, `projects` those beyond the free project limit, `rejected` (after\nthe trial ended) the names refused since.",
+      "type": "object"
+     },
+     "emailed_at": {
+      "description": "When the owners were emailed; null when no platform email is configured.",
+      "nullable": true,
+      "type": "string"
+     },
+     "kind": {
+      "description": "`trial_ending_7d`, `trial_ending_1d` or `trial_ended`.",
+      "type": "string"
+     },
+     "message": {
+      "description": "Plain text, the same wording as the email.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "message",
+     "detail",
+     "created_at"
+    ],
+    "type": "object"
+   },
+   "OrgNoticeList": {
+    "properties": {
+     "data": {
+      "description": "Notices of the last 30 days, newest first (at most 50).",
+      "items": {
+       "$ref": "#/components/schemas/OrgNoticeDto"
       },
       "type": "array"
      },
@@ -63823,6 +63924,56 @@
     ],
     "type": "object"
    },
+   "PruneRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "dry_run": {
+      "description": "List what would retire and change nothing.",
+      "type": "boolean"
+     },
+     "service": {
+      "description": "The service whose auto-created monitors to prune (the SDK's `WT_SERVICE`).",
+      "type": "string"
+     }
+    },
+    "required": [
+     "service"
+    ],
+    "type": "object"
+   },
+   "PruneResult": {
+    "properties": {
+     "dry_run": {
+      "type": "boolean"
+     },
+     "retired": {
+      "items": {
+       "$ref": "#/components/schemas/Pruned"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "retired",
+     "dry_run"
+    ],
+    "type": "object"
+   },
+   "Pruned": {
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name"
+    ],
+    "type": "object"
+   },
    "PublicDashboard": {
     "properties": {
      "frozen_range_ns": {
@@ -70413,6 +70564,28 @@
     "required": [
      "signal",
      "days"
+    ],
+    "type": "object"
+   },
+   "RetireResult": {
+    "description": "What retire and restore answer.",
+    "properties": {
+     "changed": {
+      "description": "False when the monitor was already in that state.",
+      "type": "boolean"
+     },
+     "id": {
+      "type": "string"
+     },
+     "state": {
+      "description": "`retired` or `active`.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "state",
+     "changed"
     ],
     "type": "object"
    },
@@ -91332,6 +91505,15 @@
       "schema": {
        "type": "string"
       }
+     },
+     {
+      "description": "`1` or `true` (also spelled `dry_run`): run every validation and plan-limit check the\ncreate would run and answer 200 with the would-be resource and `\"dryRun\": true`. Nothing\nis written, no secret is generated, no audit event is recorded.",
+      "in": "query",
+      "name": "dryRun",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
      }
     ],
     "requestBody": {
@@ -91345,6 +91527,16 @@
      "required": true
     },
     "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreateDryRunResult"
+        }
+       }
+      },
+      "description": "`?dryRun=1`: nothing written"
+     },
      "201": {
       "content": {
        "application/json": {
@@ -91373,6 +91565,24 @@
        }
       }
      },
+     "409": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Problem"
+        }
+       }
+      }
+     },
      "429": {
       "content": {
        "application/problem+json": {
@@ -91393,7 +91603,7 @@
       }
      }
     },
-    "summary": "Create a project with its default environment, retention and quotas, and (when\n`default_alerting` is not false) a receiver that emails every project owner and admin.",
+    "summary": "Create a project with its default environment, retention and quotas, and (when\n`default_alerting` is not false) a receiver that emails every project owner and admin.\nWith `?dryRun=1`: runs the same checks (slug, data plane, plan limit, slug uniqueness), writes\nnothing and answers 200 with the would-be project.",
     "tags": [
      "projects"
     ],
@@ -91408,7 +91618,7 @@
     "operationId": "delete_v1_projects_prj",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -91497,7 +91707,7 @@
     "operationId": "get_v1_projects_prj",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -91568,7 +91778,7 @@
     "operationId": "patch_v1_projects_prj",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -91650,7 +91860,7 @@
     "operationId": "get_v1_projects_prj_agent_configs",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -91741,7 +91951,7 @@
     "operationId": "post_v1_projects_prj_agent_configs",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -91823,7 +92033,7 @@
     "operationId": "delete_v1_projects_prj_agent_configs_c",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -91894,7 +92104,7 @@
     "operationId": "get_v1_projects_prj_agent_configs_c",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -91974,7 +92184,7 @@
     "operationId": "post_v1_projects_prj_agent_configs_c",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -92063,7 +92273,7 @@
     "operationId": "put_v1_projects_prj_agent_configs_c",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -92163,7 +92373,7 @@
     "operationId": "get_v1_projects_prj_alert_rules",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -92254,7 +92464,7 @@
     "operationId": "post_v1_projects_prj_alert_rules",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -92336,7 +92546,7 @@
     "operationId": "delete_v1_projects_prj_alert_rules_rule",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -92416,7 +92626,7 @@
     "operationId": "get_v1_projects_prj_alert_rules_rule",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -92495,7 +92705,7 @@
     "operationId": "put_v1_projects_prj_alert_rules_rule",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -92604,7 +92814,7 @@
     "operationId": "get_v1_projects_prj_catalog_services",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -92695,7 +92905,7 @@
     "operationId": "delete_v1_projects_prj_catalog_services_s",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -92766,7 +92976,7 @@
     "operationId": "get_v1_projects_prj_catalog_services_s",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -92846,7 +93056,7 @@
     "operationId": "put_v1_projects_prj_catalog_services_s",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -92937,7 +93147,7 @@
     "operationId": "get_v1_projects_prj_check_secrets",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -93021,7 +93231,7 @@
     "operationId": "delete_v1_projects_prj_check_secrets_name",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -93092,7 +93302,7 @@
     "operationId": "put_v1_projects_prj_check_secrets_name",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -93192,7 +93402,7 @@
     "operationId": "get_v1_projects_prj_dashboards",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -93283,7 +93493,7 @@
     "operationId": "post_v1_projects_prj_dashboards",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -93374,7 +93584,7 @@
     "operationId": "delete_v1_projects_prj_dashboards_dash",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -93454,7 +93664,7 @@
     "operationId": "get_v1_projects_prj_dashboards_dash",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -93534,7 +93744,7 @@
     "operationId": "put_v1_projects_prj_dashboards_dash",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -93643,7 +93853,7 @@
     "operationId": "get_v1_projects_prj_escalation_policies",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -93733,7 +93943,7 @@
     "operationId": "post_v1_projects_prj_escalation_policies",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -93823,7 +94033,7 @@
     "operationId": "delete_v1_projects_prj_escalation_policies_pol",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -93903,7 +94113,7 @@
     "operationId": "get_v1_projects_prj_escalation_policies_pol",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -93982,7 +94192,7 @@
     "operationId": "put_v1_projects_prj_escalation_policies_pol",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -94090,7 +94300,7 @@
     "operationId": "get_v1_projects_prj_health_tokens",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -94172,7 +94382,7 @@
     "operationId": "post_v1_projects_prj_health_tokens",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -94263,7 +94473,7 @@
     "operationId": "delete_v1_projects_prj_health_tokens_token",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -94336,7 +94546,7 @@
     "operationId": "get_v1_projects_prj_incident_types",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -94426,7 +94636,7 @@
     "operationId": "post_v1_projects_prj_incident_types",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -94516,7 +94726,7 @@
     "operationId": "delete_v1_projects_prj_incident_types_ity",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -94596,7 +94806,7 @@
     "operationId": "get_v1_projects_prj_incident_types_ity",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -94675,7 +94885,7 @@
     "operationId": "put_v1_projects_prj_incident_types_ity",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -94783,7 +94993,7 @@
     "operationId": "get_v1_projects_prj_maintenance_windows",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -94874,7 +95084,7 @@
     "operationId": "post_v1_projects_prj_maintenance_windows",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -94965,7 +95175,7 @@
     "operationId": "delete_v1_projects_prj_maintenance_windows_window",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -95036,7 +95246,7 @@
     "operationId": "get_v1_projects_prj_maintenance_windows_window",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -95116,7 +95326,7 @@
     "operationId": "put_v1_projects_prj_maintenance_windows_window",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -95225,7 +95435,7 @@
     "operationId": "get_v1_projects_prj_monitors",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -95248,6 +95458,15 @@
       "description": "Opaque cursor from a previous page's `next_cursor`.",
       "in": "query",
       "name": "cursor",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "description": "`all` (default: every monitor, retired ones flagged by `status: retired` and\n`retired_at`), `active` (not retired) or `retired`.",
+      "in": "query",
+      "name": "status",
       "required": false,
       "schema": {
        "type": "string"
@@ -95317,7 +95536,7 @@
     "operationId": "post_v1_projects_prj_monitors",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -95329,6 +95548,14 @@
       "description": "`1` or `true`: dry run; answers 200 `{\"valid\": true}` or the 422 a real write would.",
       "in": "query",
       "name": "validate",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "dryRun",
       "required": false,
       "schema": {
        "type": "string"
@@ -95428,7 +95655,7 @@
     "operationId": "delete_v1_projects_prj_monitors_monitor",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -95500,7 +95727,7 @@
     "operationId": "get_v1_projects_prj_monitors_monitor",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -95580,7 +95807,7 @@
     "operationId": "patch_v1_projects_prj_monitors_monitor",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -95610,6 +95837,14 @@
       "description": "`1` or `true`: dry run; answers 200 `{\"valid\": true}` or the 422 a real write would.",
       "in": "query",
       "name": "validate",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "dryRun",
       "required": false,
       "schema": {
        "type": "string"
@@ -95707,7 +95942,7 @@
     "operationId": "post_v1_projects_prj_monitors_monitor",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -95806,7 +96041,7 @@
     "operationId": "put_v1_projects_prj_monitors_monitor",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -95827,6 +96062,14 @@
       "description": "`1` or `true`: dry run; answers 200 `{\"valid\": true}` or the 422 a real write would.",
       "in": "query",
       "name": "validate",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "dryRun",
       "required": false,
       "schema": {
        "type": "string"
@@ -95917,7 +96160,7 @@
     "operationId": "get_v1_projects_prj_oncall_schedules",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -96007,7 +96250,7 @@
     "operationId": "post_v1_projects_prj_oncall_schedules",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -96088,7 +96331,7 @@
     "operationId": "delete_v1_projects_prj_oncall_schedules_sch",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -96168,7 +96411,7 @@
     "operationId": "get_v1_projects_prj_oncall_schedules_sch",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -96247,7 +96490,7 @@
     "operationId": "put_v1_projects_prj_oncall_schedules_sch",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -96356,7 +96599,7 @@
     "operationId": "get_v1_projects_prj_receivers",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -96446,7 +96689,7 @@
     "operationId": "post_v1_projects_prj_receivers",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -96545,7 +96788,7 @@
     "operationId": "delete_v1_projects_prj_receivers_receiver",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -96625,7 +96868,7 @@
     "operationId": "get_v1_projects_prj_receivers_receiver",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -96704,7 +96947,7 @@
     "operationId": "post_v1_projects_prj_receivers_receiver",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -96801,7 +97044,7 @@
     "operationId": "put_v1_projects_prj_receivers_receiver",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -96910,7 +97153,7 @@
     "operationId": "get_v1_projects_prj_routing",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -96988,7 +97231,7 @@
     "operationId": "patch_v1_projects_prj_routing",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -97095,7 +97338,7 @@
     "operationId": "put_v1_projects_prj_routing",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -97213,7 +97456,7 @@
     "operationId": "delete_v1_projects_prj_rule_groups_name",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -97284,7 +97527,7 @@
     "operationId": "put_v1_projects_prj_rule_groups_name",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -97384,7 +97627,7 @@
     "operationId": "get_v1_projects_prj_silences",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -97483,7 +97726,7 @@
     "operationId": "post_v1_projects_prj_silences",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -97564,7 +97807,7 @@
     "operationId": "delete_v1_projects_prj_silences_silence",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -97635,7 +97878,7 @@
     "operationId": "get_v1_projects_prj_silences_silence",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -97714,7 +97957,7 @@
     "operationId": "put_v1_projects_prj_silences_silence",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -97814,7 +98057,7 @@
     "operationId": "get_v1_projects_prj_slos",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -97906,7 +98149,7 @@
     "operationId": "post_v1_projects_prj_slos",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -97998,7 +98241,7 @@
     "operationId": "delete_v1_projects_prj_slos_slo",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -98079,7 +98322,7 @@
     "operationId": "get_v1_projects_prj_slos_slo",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -98159,7 +98402,7 @@
     "operationId": "put_v1_projects_prj_slos_slo",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -98260,7 +98503,7 @@
     "operationId": "get_v1_projects_prj_templates",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -98342,7 +98585,7 @@
     "operationId": "post_v1_projects_prj_templates",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -98442,7 +98685,7 @@
     "operationId": "delete_v1_projects_prj_templates_id",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -98513,7 +98756,7 @@
     "operationId": "get_v1_projects_prj_templates_id",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -98593,7 +98836,7 @@
     "operationId": "patch_v1_projects_prj_templates_id",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -98711,7 +98954,7 @@
     "operationId": "get_v1_projects_prj_workflows",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -98793,7 +99036,7 @@
     "operationId": "post_v1_projects_prj_workflows",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -98902,7 +99145,7 @@
     "operationId": "delete_v1_projects_prj_workflows_w",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -98981,7 +99224,7 @@
     "operationId": "get_v1_projects_prj_workflows_w",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -99060,7 +99303,7 @@
     "operationId": "post_v1_projects_prj_workflows_w",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,
@@ -99167,7 +99410,7 @@
     "operationId": "put_v1_projects_prj_workflows_w",
     "parameters": [
      {
-      "description": "Project id",
+      "description": "Project id (`prj_...` or a UUID), `{org}~{slug}`, or a bare project slug that is unique among the projects the caller can access (409 lists the candidates when it is not). `/v1/orgs/{org}/projects/{slug}/...` is a full alias of `/v1/projects/{org}~{slug}/...`.",
       "in": "path",
       "name": "prj",
       "required": true,

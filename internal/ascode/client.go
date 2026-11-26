@@ -43,6 +43,8 @@ type Client struct {
 	openapiTried bool
 
 	ids map[string]string // "Kind/name" -> id, filled by Plan and Apply for by-name references (B4)
+
+	dryCreate bool // set while a dry run asks the server to validate one create (?dryRun=1 on the POST)
 }
 
 // Scope is the project id, or the org id for a client made by NewOrg.
@@ -82,6 +84,16 @@ func NewOrg(api, key, org string, hc *http.Client) (*Client, error) {
 		return nil, err
 	}
 	c.Project, c.Org = "", org
+	return c, nil
+}
+
+// NewAccount builds a client for the account-level kinds (an Organization): no org, no project.
+func NewAccount(api, key string, hc *http.Client) (*Client, error) {
+	c, err := New(api, key, "-", hc)
+	if err != nil {
+		return nil, err
+	}
+	c.Project = ""
 	return c, nil
 }
 
@@ -138,6 +150,9 @@ func (c *Client) Do(ctx context.Context, method, rel string, hdr map[string]stri
 	u := strings.TrimRight(c.API.Server, "/") + "/v1/projects/" + url.PathEscape(c.Project) + "/" + rel
 	if strings.HasPrefix(rel, "/v1/") { // an absolute API path such as /v1/me
 		u = strings.TrimRight(c.API.Server, "/") + rel
+	}
+	if c.dryCreate && method == http.MethodPost { // the server validates the create and writes nothing
+		u += map[bool]string{true: "&", false: "?"}[strings.Contains(u, "?")] + "dryRun=1"
 	}
 	req, err := http.NewRequestWithContext(ctx, method, u, rdr)
 	if err == nil && c.ManagedBy != "" {

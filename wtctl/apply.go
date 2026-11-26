@@ -47,10 +47,27 @@ func (o *asCodeOpts) client(fs *flag.FlagSet, args []string) (*ascode.Client, er
 	if err := fs.Parse(args); err != nil {
 		return nil, fmt.Errorf("%w\n%s", err, asCodeUsage)
 	}
+	if o.project == "" && o.org == "" && accountOnly(o.file) { // creating orgs: the account has none yet
+		return ascode.NewAccount(o.api, o.key, guardedClient(0))
+	}
 	if o.project == "" && orgOnly(o.file) { // provisioning: no project exists yet
 		return ascode.NewOrgFromKey(context.Background(), o.api, o.key, o.org, guardedClient(0))
 	}
 	return ascode.New(o.api, o.key, o.project, guardedClient(0))
+}
+
+// accountOnly reports whether the manifests at file are non-empty and all account-level (Organization).
+func accountOnly(file string) bool {
+	docs, err := ascode.LoadDocs(file)
+	if file == "" || err != nil || len(docs) == 0 {
+		return false
+	}
+	for _, d := range docs {
+		if k := ascode.ByKind(d.Kind); k == nil || !k.Account {
+			return false
+		}
+	}
+	return true
 }
 
 // orgOnly reports whether the manifests at file are non-empty and all of org-scoped kinds.

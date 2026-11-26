@@ -136,6 +136,16 @@ func applyContext(args []string) ([]string, error) {
 		return rest, nil
 	}
 	ctxName = name
+	if sel.Key == keychainKey && os.Getenv("WT_API_KEY") == "" { // only then is the token needed (a keychain may ask to unlock)
+		k, err := contextKey(context.Background(), name, sel)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "wtctl:", err)
+		}
+		sel.Key = k
+	}
+	if sel.Key == keychainKey { // not read: never export the marker as a key
+		sel.Key = ""
+	}
 	for _, kv := range [][2]string{{"WT_API", sel.API}, {"WT_API_URL", sel.API}, {"WT_API_KEY", sel.Key}, {"WT_PROJECT", sel.Project}} {
 		if os.Getenv(kv[0]) == "" && kv[1] != "" {
 			_ = os.Setenv(kv[0], kv[1])
@@ -179,12 +189,21 @@ func loginMain(ctx context.Context, args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	c.Contexts[*name] = wtContext{API: strings.TrimRight(*api, "/"), Key: *key, Project: *project, TokenID: dev.TokenID, Expires: dev.ExpiresAt}
+	stored, where := *key, "in "+p+" (mode 0600)"
+	if err := keychainSet(ctx, *name, *key); err == nil {
+		stored, where = keychainKey, "in the OS keychain"
+	} else {
+		fmt.Fprintf(out, "note: the token could not go to an OS keychain (%v); it is kept in %s with mode 0600\n", err, p)
+	}
+	c.Contexts[*name] = wtContext{API: strings.TrimRight(*api, "/"), Key: stored, Project: *project, TokenID: dev.TokenID, Expires: dev.ExpiresAt}
 	c.Current = *name
 	if err := saveConfig(c, p); err != nil {
+		if stored == keychainKey {
+			keychainDelete(ctx, *name)
+		}
 		return err
 	}
-	fmt.Fprintf(out, "context %q saved to %s and selected\n", *name, p)
+	fmt.Fprintf(out, "context %q saved to %s and selected; the token is stored %s\n", *name, p, where)
 	if dev.ExpiresAt != "" {
 		fmt.Fprintf(out, "the token expires at %s; scopes: %s\n", dev.ExpiresAt, strings.Join(dev.Scopes, ", "))
 	}
@@ -231,6 +250,9 @@ func contextMain(_ context.Context, args []string, out io.Writer) error {
 		if args[0] == "use" {
 			c.Current = args[1]
 		} else {
+			if c.Contexts[args[1]].Key == keychainKey {
+				keychainDelete(context.Background(), args[1])
+			}
 			delete(c.Contexts, args[1])
 			if c.Current == args[1] {
 				c.Current = ""

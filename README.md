@@ -51,6 +51,8 @@ wtctl mcp serve --stdio --project <id>
 | `WT_API_KEY` | API key, sent only as `Authorization: Bearer` to your Watchtower |
 | `WT_API_URL` | API base URL |
 | `WT_MCP_URL` | hosted MCP endpoint used by `wtctl mcp serve` |
+| `WT_PROJECT` | default project: an id, a slug or `org/slug` |
+| `WTCTL_KEYCHAIN` | `off` keeps the `wtctl login` token in the 0600 config file instead of the OS keychain |
 | `GITHUB_TOKEN` | used by `wtctl instrument --open-pr` |
 
 ## Verify provenance

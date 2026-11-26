@@ -20,7 +20,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	os.Args = append(os.Args[:1], args...)
+	os.Args = append(os.Args[:1], normalizeProjectArgs(args)...) // --project org/slug works wherever an id does
 	if len(os.Args) >= 3 && os.Args[1] == "release" && os.Args[2] == "gate" {
 		// --wait can outlast the 60 s of the other release commands; the flag bounds it.
 		code, err := gateMain(context.Background(), os.Args[3:], os.Stdout)
@@ -91,6 +91,7 @@ func main() {
 		"evals":        evalsMain,
 		"prompts":      promptsMain,
 		"manifest":     manifestMain,
+		"monitors":     monitorsMain,
 		"self-monitor": selfMonitorMain,
 		"internal":     internalMain,
 		"bundle":       bundleMain,
@@ -170,6 +171,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(mcpUsage[len("usage: "):], "\n       ", "\n       "))
 		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(instrumentUsage[len("usage: "):], "\n       ", "\n       "))
 		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(dashboardsUsage[len("usage: "):], "\n       ", "\n       "))
+		fmt.Fprintln(os.Stderr, "       "+strings.ReplaceAll(monitorsUsage[len("usage: "):], "\n       ", "\n       "))
 		fmt.Fprintln(os.Stderr, "       "+kafkaUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       "+backupUsage[len("usage: "):])
 		fmt.Fprintln(os.Stderr, "       "+archiveUsage[len("usage: "):])

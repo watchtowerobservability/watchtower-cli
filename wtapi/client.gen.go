@@ -813,6 +813,16 @@ type ContentGrouping struct {
 // CostRuleMode What a `cost` rule measures (ALT-001, the cloud cost monitor kinds).
 type CostRuleMode string
 
+// CreateDryRunResult The 200 answer of a dry run: the fields of the create's 201 resource, minus its secrets and
+// with a null `id`, plus these two.
+type CreateDryRunResult struct {
+	// Checks The checks that passed, for example `slug_available` or `plan_limit:projects`.
+	Checks []string `json:"checks"`
+
+	// DryRun Always `true`.
+	DryRun bool `json:"dryRun"`
+}
+
 // CustomAgg defines model for CustomAgg.
 type CustomAgg string
 
@@ -1406,6 +1416,9 @@ type MonitorDto struct {
 	// RenotifyS Re-notify an open alert every this many seconds (60 to 604800); a rule label for routes.
 	RenotifyS *int32 `json:"renotify_s"`
 
+	// RetiredAt When a scheduler report or `:retire` retired it (RFC 3339); null while active.
+	RetiredAt *string `json:"retired_at"`
+
 	// Retry Retries run at the same location, at most 3.
 	Retry *Retry `json:"retry,omitempty"`
 
@@ -1419,8 +1432,7 @@ type MonitorDto struct {
 	// `warning` (it is always answered as `warning`).
 	Severity *Severity `json:"severity,omitempty"`
 
-	// Status `paused` (disabled), `up` or `down` by the newest result, `unknown` without one. Set on
-	// reads.
+	// Status `paused`, `retired` (see `retired_at`), `up`, `down` or `unknown`. Set on reads.
 	Status string `json:"status"`
 
 	// StopAfter Stop notifying after this many notifications (1 to 100); a rule label like `renotify_s`.
@@ -3634,6 +3646,14 @@ type GetV1OrgsOrgProjectsParams struct {
 	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
+// PostV1OrgsOrgProjectsParams defines parameters for PostV1OrgsOrgProjects.
+type PostV1OrgsOrgProjectsParams struct {
+	// DryRun `1` or `true` (also spelled `dry_run`): run every validation and plan-limit check the
+	// create would run and answer 200 with the would-be resource and `"dryRun": true`. Nothing
+	// is written, no secret is generated, no audit event is recorded.
+	DryRun *string `form:"dryRun,omitempty" json:"dryRun,omitempty"`
+}
+
 // DeleteV1ProjectsPrjParams defines parameters for DeleteV1ProjectsPrj.
 type DeleteV1ProjectsPrjParams struct {
 	// PurgeNow Purge immediately instead of after the grace period. Needs `ManageSecurity` and `confirm`.
@@ -3751,12 +3771,17 @@ type GetV1ProjectsPrjMonitorsParams struct {
 
 	// Cursor Opaque cursor from a previous page's `next_cursor`.
 	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Status `all` (default: every monitor, retired ones flagged by `status: retired` and
+	// `retired_at`), `active` (not retired) or `retired`.
+	Status *string `form:"status,omitempty" json:"status,omitempty"`
 }
 
 // PostV1ProjectsPrjMonitorsParams defines parameters for PostV1ProjectsPrjMonitors.
 type PostV1ProjectsPrjMonitorsParams struct {
 	// Validate `1` or `true`: dry run; answers 200 `{"valid": true}` or the 422 a real write would.
 	Validate *string `form:"validate,omitempty" json:"validate,omitempty"`
+	DryRun   *string `form:"dryRun,omitempty" json:"dryRun,omitempty"`
 }
 
 // PatchV1ProjectsPrjMonitorsMonitorApplicationMergePatchPlusJSONBody defines parameters for PatchV1ProjectsPrjMonitorsMonitor.
@@ -3766,6 +3791,7 @@ type PatchV1ProjectsPrjMonitorsMonitorApplicationMergePatchPlusJSONBody = map[st
 type PatchV1ProjectsPrjMonitorsMonitorParams struct {
 	// Validate `1` or `true`: dry run; answers 200 `{"valid": true}` or the 422 a real write would.
 	Validate *string `form:"validate,omitempty" json:"validate,omitempty"`
+	DryRun   *string `form:"dryRun,omitempty" json:"dryRun,omitempty"`
 
 	// IfMatch The monitor's `updated_at`
 	IfMatch string `json:"If-Match"`
@@ -3782,6 +3808,7 @@ type PostV1ProjectsPrjMonitorsMonitorParams struct {
 type PutV1ProjectsPrjMonitorsMonitorParams struct {
 	// Validate `1` or `true`: dry run; answers 200 `{"valid": true}` or the 422 a real write would.
 	Validate *string `form:"validate,omitempty" json:"validate,omitempty"`
+	DryRun   *string `form:"dryRun,omitempty" json:"dryRun,omitempty"`
 }
 
 // GetV1ProjectsPrjOncallSchedulesParams defines parameters for GetV1ProjectsPrjOncallSchedules.
@@ -6234,9 +6261,9 @@ type ClientInterface interface {
 	GetV1OrgsOrgProjects(ctx context.Context, org string, params *GetV1OrgsOrgProjectsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PostV1OrgsOrgProjectsWithBody request with any body
-	PostV1OrgsOrgProjectsWithBody(ctx context.Context, org string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PostV1OrgsOrgProjectsWithBody(ctx context.Context, org string, params *PostV1OrgsOrgProjectsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PostV1OrgsOrgProjects(ctx context.Context, org string, body PostV1OrgsOrgProjectsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PostV1OrgsOrgProjects(ctx context.Context, org string, params *PostV1OrgsOrgProjectsParams, body PostV1OrgsOrgProjectsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteV1ProjectsPrj request
 	DeleteV1ProjectsPrj(ctx context.Context, prj string, params *DeleteV1ProjectsPrjParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -6585,8 +6612,8 @@ func (c *Client) GetV1OrgsOrgProjects(ctx context.Context, org string, params *G
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostV1OrgsOrgProjectsWithBody(ctx context.Context, org string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostV1OrgsOrgProjectsRequestWithBody(c.Server, org, contentType, body)
+func (c *Client) PostV1OrgsOrgProjectsWithBody(ctx context.Context, org string, params *PostV1OrgsOrgProjectsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostV1OrgsOrgProjectsRequestWithBody(c.Server, org, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -6597,8 +6624,8 @@ func (c *Client) PostV1OrgsOrgProjectsWithBody(ctx context.Context, org string, 
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostV1OrgsOrgProjects(ctx context.Context, org string, body PostV1OrgsOrgProjectsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostV1OrgsOrgProjectsRequest(c.Server, org, body)
+func (c *Client) PostV1OrgsOrgProjects(ctx context.Context, org string, params *PostV1OrgsOrgProjectsParams, body PostV1OrgsOrgProjectsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostV1OrgsOrgProjectsRequest(c.Server, org, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -8158,18 +8185,18 @@ func NewGetV1OrgsOrgProjectsRequest(server string, org string, params *GetV1Orgs
 }
 
 // NewPostV1OrgsOrgProjectsRequest calls the generic PostV1OrgsOrgProjects builder with application/json body
-func NewPostV1OrgsOrgProjectsRequest(server string, org string, body PostV1OrgsOrgProjectsJSONRequestBody) (*http.Request, error) {
+func NewPostV1OrgsOrgProjectsRequest(server string, org string, params *PostV1OrgsOrgProjectsParams, body PostV1OrgsOrgProjectsJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewPostV1OrgsOrgProjectsRequestWithBody(server, org, "application/json", bodyReader)
+	return NewPostV1OrgsOrgProjectsRequestWithBody(server, org, params, "application/json", bodyReader)
 }
 
 // NewPostV1OrgsOrgProjectsRequestWithBody generates requests for PostV1OrgsOrgProjects with any type of body
-func NewPostV1OrgsOrgProjectsRequestWithBody(server string, org string, contentType string, body io.Reader) (*http.Request, error) {
+func NewPostV1OrgsOrgProjectsRequestWithBody(server string, org string, params *PostV1OrgsOrgProjectsParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -8192,6 +8219,28 @@ func NewPostV1OrgsOrgProjectsRequestWithBody(server string, org string, contentT
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.DryRun != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "dryRun", runtime.ParamLocationQuery, *params.DryRun); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("POST", queryURL.String(), body)
@@ -10602,6 +10651,22 @@ func NewGetV1ProjectsPrjMonitorsRequest(server string, prj string, params *GetV1
 
 		}
 
+		if params.Status != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "status", runtime.ParamLocationQuery, *params.Status); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
@@ -10656,6 +10721,22 @@ func NewPostV1ProjectsPrjMonitorsRequestWithBody(server string, prj string, para
 		if params.Validate != nil {
 
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "validate", runtime.ParamLocationQuery, *params.Validate); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.DryRun != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "dryRun", runtime.ParamLocationQuery, *params.DryRun); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
@@ -10827,6 +10908,22 @@ func NewPatchV1ProjectsPrjMonitorsMonitorRequestWithBody(server string, prj stri
 
 		}
 
+		if params.DryRun != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "dryRun", runtime.ParamLocationQuery, *params.DryRun); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
@@ -10966,6 +11063,22 @@ func NewPutV1ProjectsPrjMonitorsMonitorRequestWithBody(server string, prj string
 		if params.Validate != nil {
 
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "validate", runtime.ParamLocationQuery, *params.Validate); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.DryRun != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "dryRun", runtime.ParamLocationQuery, *params.DryRun); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
@@ -12975,9 +13088,9 @@ type ClientWithResponsesInterface interface {
 	GetV1OrgsOrgProjectsWithResponse(ctx context.Context, org string, params *GetV1OrgsOrgProjectsParams, reqEditors ...RequestEditorFn) (*GetV1OrgsOrgProjectsResponse, error)
 
 	// PostV1OrgsOrgProjectsWithBodyWithResponse request with any body
-	PostV1OrgsOrgProjectsWithBodyWithResponse(ctx context.Context, org string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostV1OrgsOrgProjectsResponse, error)
+	PostV1OrgsOrgProjectsWithBodyWithResponse(ctx context.Context, org string, params *PostV1OrgsOrgProjectsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostV1OrgsOrgProjectsResponse, error)
 
-	PostV1OrgsOrgProjectsWithResponse(ctx context.Context, org string, body PostV1OrgsOrgProjectsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostV1OrgsOrgProjectsResponse, error)
+	PostV1OrgsOrgProjectsWithResponse(ctx context.Context, org string, params *PostV1OrgsOrgProjectsParams, body PostV1OrgsOrgProjectsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostV1OrgsOrgProjectsResponse, error)
 
 	// DeleteV1ProjectsPrjWithResponse request
 	DeleteV1ProjectsPrjWithResponse(ctx context.Context, prj string, params *DeleteV1ProjectsPrjParams, reqEditors ...RequestEditorFn) (*DeleteV1ProjectsPrjResponse, error)
@@ -13341,9 +13454,12 @@ func (r GetV1OrgsOrgProjectsResponse) StatusCode() int {
 type PostV1OrgsOrgProjectsResponse struct {
 	Body                      []byte
 	HTTPResponse              *http.Response
+	JSON200                   *CreateDryRunResult
 	JSON201                   *ProjectDto
 	ApplicationproblemJSON401 *Problem
 	JSON403                   *Problem
+	JSON409                   *Problem
+	JSON422                   *Problem
 	ApplicationproblemJSON429 *Problem
 }
 
@@ -15608,16 +15724,16 @@ func (c *ClientWithResponses) GetV1OrgsOrgProjectsWithResponse(ctx context.Conte
 }
 
 // PostV1OrgsOrgProjectsWithBodyWithResponse request with arbitrary body returning *PostV1OrgsOrgProjectsResponse
-func (c *ClientWithResponses) PostV1OrgsOrgProjectsWithBodyWithResponse(ctx context.Context, org string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostV1OrgsOrgProjectsResponse, error) {
-	rsp, err := c.PostV1OrgsOrgProjectsWithBody(ctx, org, contentType, body, reqEditors...)
+func (c *ClientWithResponses) PostV1OrgsOrgProjectsWithBodyWithResponse(ctx context.Context, org string, params *PostV1OrgsOrgProjectsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostV1OrgsOrgProjectsResponse, error) {
+	rsp, err := c.PostV1OrgsOrgProjectsWithBody(ctx, org, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParsePostV1OrgsOrgProjectsResponse(rsp)
 }
 
-func (c *ClientWithResponses) PostV1OrgsOrgProjectsWithResponse(ctx context.Context, org string, body PostV1OrgsOrgProjectsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostV1OrgsOrgProjectsResponse, error) {
-	rsp, err := c.PostV1OrgsOrgProjects(ctx, org, body, reqEditors...)
+func (c *ClientWithResponses) PostV1OrgsOrgProjectsWithResponse(ctx context.Context, org string, params *PostV1OrgsOrgProjectsParams, body PostV1OrgsOrgProjectsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostV1OrgsOrgProjectsResponse, error) {
+	rsp, err := c.PostV1OrgsOrgProjects(ctx, org, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -16750,6 +16866,13 @@ func ParsePostV1OrgsOrgProjectsResponse(rsp *http.Response) (*PostV1OrgsOrgProje
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CreateDryRunResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
 		var dest ProjectDto
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -16770,6 +16893,20 @@ func ParsePostV1OrgsOrgProjectsResponse(rsp *http.Response) (*PostV1OrgsOrgProje
 			return nil, err
 		}
 		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
 		var dest Problem

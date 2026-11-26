@@ -3,6 +3,7 @@ package ascode
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -28,6 +29,8 @@ type Change struct {
 	Kind   string
 	Name   string
 	Fields []string // "field: live -> wanted" lines for updates
+	// Checked: a dry run had the server validate this create (?dryRun=1).
+	Checked bool
 
 	doc  *Doc
 	live Item
@@ -39,6 +42,9 @@ func (c Change) Changed() bool { return c.Op != OpNoop && c.Op != OpApply }
 func (c Change) String() string {
 	sym := map[string]string{OpCreate: "+", OpUpdate: "~", OpDelete: "-", OpNoop: "=", OpApply: "?"}[c.Op]
 	s := fmt.Sprintf("%s %s/%s", sym, c.Kind, c.Name)
+	if c.Checked {
+		s += " (checked by the server)"
+	}
 	for _, f := range c.Fields {
 		s += "\n    " + f
 	}
@@ -219,8 +225,19 @@ func (c *Client) rollback(ctx context.Context, j *journal) string {
 
 func (c *Client) apply(ctx context.Context, plan []Change, dry bool, secrets io.Writer, j *journal) ([]Change, error) {
 	res := make([]Change, 0, len(plan))
+	var refused []error // dry run: what the server would refuse, all of it, before anything is written
 	for _, ch := range plan {
 		k := ByKind(ch.Kind)
+		if dry && ch.Op == OpCreate && serverDryRun[ch.Kind] {
+			r := c.checkCreate(ctx, ch)
+			if r.fatal != nil {
+				return append(res, ch), r.fatal
+			}
+			if r.problem != nil {
+				refused = append(refused, r.problem)
+			}
+			ch.Checked = r.checked
+		}
 		if dry || ch.Op == OpNoop {
 			res = append(res, ch)
 			continue
@@ -293,6 +310,9 @@ func (c *Client) apply(ctx context.Context, plan []Change, dry bool, secrets io.
 			ShowOnce(secrets, ch.Kind, ch.Name, out)
 		}
 		res = append(res, ch)
+	}
+	if len(refused) > 0 {
+		return res, errors.Join(refused...)
 	}
 	return res, nil
 }
