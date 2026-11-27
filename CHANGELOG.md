@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.1 (2026-11-27)
+
+- npm launcher: SIGINT, SIGTERM and SIGHUP sent to `wtctl` (or `npx wtctl`) now reach the binary, so stopping the wrapper stops the process it started. The install scripts are now shared with `@watchtowerobservability/dev`; the download mirror variable is still `WTCTL_DOWNLOAD_BASE`.
+
 ## 0.6.0 (2026-11-25)
 
 - `--project` takes `org/slug` (`--project linkhub/linkhub`) wherever it takes a project id, and so do `$WT_PROJECT` and a context's project. The API also accepts a bare unique project slug and `/v1/orgs/{org}/projects/{slug}/...` as a full alias of `/v1/projects/{prj}/...`.

@@ -1,12 +1,14 @@
 'use strict';
 const crypto = require('node:crypto');
 
-// Release asset name for a Node platform/arch, or null when unsupported.
-function assetName(platform, arch) {
+// Release asset name for a Node platform/arch, or null when unsupported. The separator is the
+// tool's own: wtctl_linux_amd64, wt-dev-linux-amd64.
+function assetName(platform, arch, tool = 'wtctl') {
   const os = { linux: 'linux', darwin: 'darwin', win32: 'windows' }[platform];
   const cpu = { x64: 'amd64', arm64: 'arm64' }[arch];
   if (!os || !cpu) return null;
-  return `wtctl_${os}_${cpu}${os === 'windows' ? '.exe' : ''}`;
+  const sep = tool.includes('-') ? '-' : '_';
+  return `${tool}${sep}${os}${sep}${cpu}${os === 'windows' ? '.exe' : ''}`;
 }
 
 // The SHA256 listed for name in a `sha256sum` style file, or null.
@@ -34,11 +36,11 @@ function pinnedSum(pins, version, name) {
 }
 
 // Throws unless the download base is https (plain http only for loopback, for tests).
-function checkBase(root) {
+function checkBase(root, env = 'WTCTL_DOWNLOAD_BASE') {
   let u;
-  try { u = new URL(root); } catch { throw new Error(`WTCTL_DOWNLOAD_BASE is not a URL: ${root}`); }
+  try { u = new URL(root); } catch { throw new Error(`${env} is not a URL: ${root}`); }
   const loopback = u.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname);
-  if (u.protocol !== 'https:' && !loopback) throw new Error('WTCTL_DOWNLOAD_BASE must be an https URL');
+  if (u.protocol !== 'https:' && !loopback) throw new Error(`${env} must be an https URL`);
 }
 
 module.exports = { assetName, expectedSum, verify, checkSum, pinnedSum, checkBase };
